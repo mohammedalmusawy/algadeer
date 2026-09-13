@@ -1,0 +1,23 @@
+{
+  "pins" : [
+    {
+      "identity" : "cwlcatchexception",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mattgallagher/CwlCatchException.git",
+      "state" : {
+        "revision" : "07b2ba21d361c223e25e3c1e924288742923f08c",
+        "version" : "2.2.1"
+      }
+    },
+    {
+      "identity" : "onnxruntime-swift-package-manager",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/masicai/onnxruntime-swift-package-manager",
+      "state" : {
+        "revision" : "57f28b1fdd6fe33585370b146a46c597d6750953",
+        "version" : "1.23.1"
+      }
+    }
+  ],
+  "version" : 2
+}

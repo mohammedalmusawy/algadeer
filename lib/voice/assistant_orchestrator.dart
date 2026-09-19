@@ -48,6 +48,7 @@ class AssistantOrchestrator {
   Future<AssistantReply> processQuery(
     String query, {
     AiRequestContext context = const AiRequestContext(),
+    bool speakReply = true,
   }) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
@@ -74,7 +75,8 @@ class AssistantOrchestrator {
       final text = await _personalize(
         _medical.sanitizeAssistantReply(safety.safeMessage),
       );
-      final spoken = await _voice.speakIfAutoEnabled(text);
+      final spoken =
+          speakReply ? await _voice.speakIfAutoEnabled(text) : false;
       return AssistantReply(
         query: trimmed,
         text: text,
@@ -131,7 +133,8 @@ class AssistantOrchestrator {
         final text = await _personalize(
           _medical.sanitizeAssistantReply(rawText),
         );
-        final spoken = await _voice.speakIfAutoEnabled(text);
+        final spoken =
+            speakReply ? await _voice.speakIfAutoEnabled(text) : false;
         return AssistantReply(
           query: trimmed,
           text: text,
@@ -231,7 +234,7 @@ class AssistantOrchestrator {
     }
 
     text = await _personalize(text);
-    final spoken = await _voice.speakIfAutoEnabled(text);
+    final spoken = speakReply ? await _voice.speakIfAutoEnabled(text) : false;
     return AssistantReply(
       query: trimmed,
       text: text,

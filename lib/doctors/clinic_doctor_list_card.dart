@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../branding/ghadeer_brand_mark.dart';
 import '../models/doctor_item.dart';
 import 'doctor_availability_service.dart';
+import 'doctor_gender.dart';
 
 /// بطاقة قائمة الأطباء — Design Target (Compact Discovery Card).
 /// بدون أزرار اتصال/واتساب — الإجراءات داخل Doctor Digital Profile.
@@ -29,7 +30,9 @@ class ClinicDoctorListCard extends StatelessWidget {
     final leave = DoctorLeaveDisplay.fromDoctor(doctor);
     if (leave.isOnLeave) {
       return (
-        text: leave.badgeLabel.isNotEmpty ? leave.badgeLabel : 'غير متواجد',
+        text: leave.badgeLabel.isNotEmpty
+            ? leave.badgeLabel
+            : DoctorGender.unavailable(doctor.gender),
         color: const Color(0xFFC94A4A),
         bg: const Color(0xFFFDE8E8),
       );
@@ -37,7 +40,7 @@ class ClinicDoctorListCard extends StatelessWidget {
     switch (doctor.bookingStatus) {
       case 'available':
         return (
-          text: 'متاح اليوم',
+          text: DoctorGender.availableToday(doctor.gender),
           color: const Color(0xFF138B4C),
           bg: const Color(0xFFE6F8EE),
         );
@@ -55,7 +58,7 @@ class ClinicDoctorListCard extends StatelessWidget {
         );
       default:
         return (
-          text: 'غير متواجد',
+          text: DoctorGender.unavailable(doctor.gender),
           color: const Color(0xFFC94A4A),
           bg: const Color(0xFFFDE8E8),
         );

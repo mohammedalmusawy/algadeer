@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart';
@@ -8,9 +9,11 @@ import '../labs/lab_card_links.dart';
 import '../models/doctor_item.dart';
 import '../services/app_stats_service.dart';
 import '../utils/contact_launch.dart';
+import '../voice/voice_response_controller.dart';
 import 'doctor_availability_service.dart';
 import 'doctor_card_links.dart';
 import 'doctor_engagement_service.dart';
+import 'doctor_gender.dart';
 
 /// بطاقة الطبيب الرقمية / الملف الشخصي — تصميم Premium مطابق للمرجع البصري.
 /// البيانات ديناميكية من [DoctorItem] / Supabase لكل طبيب.
@@ -35,10 +38,12 @@ class DoctorProfilePage extends StatefulWidget {
 class _DoctorProfilePageState extends State<DoctorProfilePage> {
   final _engagement = DoctorEngagementService();
   final _stats = AppStatsService();
+  final _voice = VoiceResponseController();
   late bool _favorite;
   DoctorRatingSummary _rating = const DoctorRatingSummary();
   int? _myRating;
   bool _ratingBusy = false;
+  bool _bioSpeechBusy = false;
 
   // هوية الغدير الطبية — Accent وليس إغراقًا.
   static const _navy = Color(0xFF123B42);
@@ -57,6 +62,70 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
         if (!mounted) return;
         DoctorCardLinks.openInstallSuggestion(context);
       });
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_voice.stop());
+    _voice.dispose();
+    super.dispose();
+  }
+
+  Future<void> _stopSpeechAndPop() async {
+    await _voice.stop();
+    if (!mounted) return;
+    Navigator.pop(context);
+  }
+
+  /// نص النطق: نبذة قصيرة أولًا، وإلا مقتطف من bio — بدون تعديل إعدادات الصوت.
+  String get _bioSpeechText {
+    final short = doctor.shortDescription.trim();
+    final bio = doctor.bio.trim();
+    var body = short.isNotEmpty ? short : bio;
+    if (body.isEmpty) return '';
+
+    // حد معقول حتى لا يطول النطق على النبذة الطويلة.
+    const maxLen = 420;
+    if (body.length > maxLen) {
+      final cut = body.substring(0, maxLen);
+      final lastStop = cut.lastIndexOf(RegExp(r'[.。!؟\n]'));
+      body = (lastStop > 80 ? cut.substring(0, lastStop + 1) : cut).trim();
+      if (!body.endsWith('.') && !body.endsWith('。') && !body.endsWith('!')) {
+        body = '$body…';
+      }
+    }
+
+    final name = _doctorProfileDisplayName(doctor.name).trim();
+    final specialty = doctor.specialty.trim();
+    final head = [
+      if (name.isNotEmpty) name,
+      if (specialty.isNotEmpty) 'اختصاص $specialty',
+    ].join('، ');
+    if (head.isEmpty) return body;
+    return '$head. $body';
+  }
+
+  Future<void> _toggleBioSpeech() async {
+    // أثناء التشغيل: الضغطة الثانية = إيقاف فورًا (لا تُحجب بـ busy).
+    if (_voice.isSpeaking || _bioSpeechBusy) {
+      await _voice.stop();
+      _bioSpeechBusy = false;
+      return;
+    }
+
+    final text = _bioSpeechText;
+    if (text.isEmpty) {
+      _showMessage('لا توجد نبذة صوتية لهذا الطبيب حاليًا.');
+      return;
+    }
+
+    _bioSpeechBusy = true;
+    try {
+      // speak فقط — لا يغيّر جنس الصوت ولا التشغيل التلقائي في الإعدادات.
+      await _voice.speak(text);
+    } finally {
+      _bioSpeechBusy = false;
     }
   }
 
@@ -130,18 +199,18 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
   void _onBookingPressed() {
     if (_onLeave) {
-      _showMessage('الطبيب في إجازة حاليًا');
+      _showMessage(DoctorGender.onLeaveNow(doctor.gender));
       return;
     }
     switch (doctor.bookingStatus) {
       case 'full':
-        _showMessage('الحجز مكتمل حاليًا لهذا الطبيب');
+        _showMessage(DoctorGender.bookingFull(doctor.gender));
         return;
       case 'walk_in_only':
-        _showMessage('مراجعة الطبيب تكون بالحضور مباشرة');
+        _showMessage(DoctorGender.walkInOnly(doctor.gender));
         return;
       case 'unavailable':
-        _showMessage('الطبيب غير متاح حالياً');
+        _showMessage(DoctorGender.currentlyUnavailable(doctor.gender));
         return;
       default:
         _showMessage('يمكنك الحجز عبر الاتصال أو واتساب حسب حالة الطبيب');
@@ -183,10 +252,10 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     if (from != null && to != null) {
       final f = '${from.day}/${from.month}/${from.year}';
       final t = '${to.day}/${to.month}/${to.year}';
-      if (from == to) return 'الطبيب في إجازة اليوم ($f)';
-      return 'الطبيب في إجازة من $f إلى $t';
+      if (from == to) return DoctorGender.onLeaveToday(doctor.gender, f);
+      return DoctorGender.onLeaveRange(doctor.gender, f, t);
     }
-    return 'الطبيب في إجازة أو غير متواجد حاليًا';
+    return DoctorGender.onLeaveOrAway(doctor.gender);
   }
 
   double _profileMaxWidthFor(double screenWidth) {
@@ -201,37 +270,44 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     final screenW = MediaQuery.sizeOf(context).width;
     final maxW = _profileMaxWidthFor(screenW);
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: _pageBg,
-        body: Column(
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxW),
-                  child: CustomScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    slivers: [
-                      SliverToBoxAdapter(child: _buildHero()),
-                      SliverToBoxAdapter(child: _buildActions()),
-                      SliverToBoxAdapter(child: _buildBioAndClinicAddress()),
-                      const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                    ],
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        // أي رجوع (زر النظام أو المسار) يوقف الصوت فورًا.
+        unawaited(_voice.stop());
+      },
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          backgroundColor: _pageBg,
+          body: Column(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxW),
+                    child: CustomScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      slivers: [
+                        SliverToBoxAdapter(child: _buildHero()),
+                        SliverToBoxAdapter(child: _buildActions()),
+                        SliverToBoxAdapter(child: _buildBioAndClinicAddress()),
+                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxW),
-                child: _buildBottomBar(),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxW),
+                  child: _buildBottomBar(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -348,7 +424,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                                 alignment: Alignment.centerLeft,
                                 child: _circleIconBtn(
                                   icon: Icons.chevron_right_rounded,
-                                  onTap: () => Navigator.pop(context),
+                                  onTap: () => unawaited(_stopSpeechAndPop()),
                                 ),
                               ),
                               Column(
@@ -445,14 +521,74 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'نبذة عن الطبيب',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: _navy,
-            ),
+          AnimatedBuilder(
+            animation: _voice,
+            builder: (context, _) {
+              final speaking = _voice.isSpeaking;
+              final canSpeak = _bioSpeechText.isNotEmpty;
+              return Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'نبذة عن الطبيب',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: _navy,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Material(
+                    color: speaking
+                        ? const Color(0xFFE6F8F6)
+                        : Colors.white,
+                    shape: const StadiumBorder(),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: canSpeak ? () => unawaited(_toggleBioSpeech()) : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: ShapeDecoration(
+                          shape: StadiumBorder(
+                            side: BorderSide(
+                              color: canSpeak
+                                  ? _actionBlue.withValues(alpha: 0.35)
+                                  : const Color(0xFFE8EEF2),
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              speaking
+                                  ? Icons.stop_rounded
+                                  : Icons.volume_up_rounded,
+                              size: 18,
+                              color: canSpeak ? _actionBlue : _muted,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              speaking ? 'إيقاف' : 'اسمع النبذة',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                color: canSpeak ? _navy : _muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 10),
           Text(

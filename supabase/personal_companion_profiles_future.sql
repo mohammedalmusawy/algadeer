@@ -1,0 +1,34 @@
+-- ============================================================
+-- PERSONAL COMPANION PROFILES — FUTURE CLOUD SCHEMA (NOT APPLIED)
+-- PC-1.1 decision: local SharedPreferences first.
+--
+-- Do NOT run this in production until end-user auth (auth.uid())
+-- exists. visitor_key alone cannot securely own profile rows under RLS.
+--
+-- Current PC-1.1 storage: local key `pc_companion_profile_v1`
+-- ============================================================
+
+-- create table if not exists public.personal_companion_profiles (
+--   profile_id text primary key,
+--   owner_user_id uuid not null references auth.users (id) on delete cascade,
+--   preferred_name text,
+--   profile_photo_url text,
+--   birth_date date,
+--   birth_year integer,
+--   sex_selection text check (sex_selection in ('male','female','preferNotToSpecify')),
+--   user_context text,
+--   profile_enabled boolean not null default true,
+--   schema_version integer not null default 1,
+--   created_at timestamptz not null default now(),
+--   updated_at timestamptz not null default now()
+-- );
+--
+-- alter table public.personal_companion_profiles enable row level security;
+-- create policy "pcp_select_own" on public.personal_companion_profiles
+--   for select to authenticated using (auth.uid() = owner_user_id);
+-- create policy "pcp_write_own" on public.personal_companion_profiles
+--   for all to authenticated using (auth.uid() = owner_user_id)
+--   with check (auth.uid() = owner_user_id);
+--
+-- NOTE: Do NOT store health conditions / allergies / medications here.
+-- NOTE: Do NOT use app_users.visitor_key as owner for this table.

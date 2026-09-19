@@ -31,6 +31,9 @@ class SmartSearchResult {
     this.isOnLeave = false,
     this.relatedAnalysisId,
     this.relatedAnalysisTitle,
+    this.phone,
+    this.whatsapp,
+    this.clinicLocation,
   });
 
   final SmartSearchResultType type;
@@ -58,6 +61,23 @@ class SmartSearchResult {
   final String? relatedAnalysisId;
   final String? relatedAnalysisTitle;
 
+  /// للتواصل المباشر من أوامر الصوت/النص.
+  final String? phone;
+  final String? whatsapp;
+
+  /// موقع العيادة الحقيقي من clinic_location — بدون اختراع.
+  final String? clinicLocation;
+
+  String get effectivePhone => phone?.trim() ?? '';
+  String get effectiveWhatsApp {
+    final w = whatsapp?.trim() ?? '';
+    if (w.isNotEmpty) return w;
+    return effectivePhone;
+  }
+
+  bool get canCall => effectivePhone.isNotEmpty;
+  bool get canWhatsApp => effectiveWhatsApp.isNotEmpty;
+
   bool get isOffer =>
       type == SmartSearchResultType.offer ||
       (discountPercent != null && discountPercent! > 0);
@@ -79,6 +99,19 @@ class SmartSearchResult {
       case SmartSearchResultType.specialty:
         return title.trim().isNotEmpty;
     }
+  }
+
+  /// النتائج الدلالية للعدّ والرسالة.
+  ///
+  /// بطاقة الاختصاص تُولَّد مع كل طبيب كمساعدة تنقّل، فلا تُحتسب كياناً
+  /// مستقلاً — وإلا صار «طبيب واحد + بطاقة اختصاصه» = «وجدت 2 نتائج».
+  static List<SmartSearchResult> semanticPrimary(
+    List<SmartSearchResult> results,
+  ) {
+    final primary = results
+        .where((r) => r.type != SmartSearchResultType.specialty)
+        .toList();
+    return primary.isNotEmpty ? primary : results;
   }
 
   Map<String, dynamic> toAiContext() => {

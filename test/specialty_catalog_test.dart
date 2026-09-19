@@ -10,15 +10,18 @@ void main() {
     expect(SpecialtyCatalog.match('القلب')?.icon, isNotNull);
   });
 
-  test('home shortcuts prefer popular specialties with doctors', () {
+  test('home shortcuts prefer curated chip order', () {
     final shortcuts = SpecialtyCatalog.homeShortcuts(const [
       'طب الأطفال',
       'طب الأطفال',
       'الجلدية',
       'اختصاص نادر جدًا',
     ], limit: 3);
-    expect(shortcuts.first, 'طب الأطفال');
-    expect(shortcuts, contains('الجلدية'));
+    // الترتيب من homeChipIds الثابت (الجراحة أولاً) وليس من كثافة الأطباء.
+    expect(shortcuts.first, SpecialtyCatalog.all
+        .firstWhere((s) => s.id == SpecialtyCatalog.homeChipIds.first)
+        .nameAr);
+    expect(shortcuts, hasLength(3));
   });
 
   test('counts group synonym specialties', () {

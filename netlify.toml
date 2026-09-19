@@ -1,0 +1,47 @@
+# Ghadeer Clinic — Flutter Web on Netlify (SPA)
+#
+# Publish directory is the Flutter web release output.
+# Prefer deploying a locally/CI-built `build/web` because the default
+# Netlify image does not include the Flutter SDK.
+#
+# Local release:
+#   flutter build web --release
+# Then deploy `build/web` to the linked Ghadeer Netlify site.
+
+[build]
+  publish = "build/web"
+  # No-op when uploading a prebuilt web release. Replace with a Flutter
+  # build command only if the Netlify build image installs Flutter.
+  command = "true"
+
+# Flutter Web is a client-side SPA — deep links must fall back to index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Cache hashed Flutter assets aggressively; keep HTML fresh.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/flutter_bootstrap.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/main.dart.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/canvaskit/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

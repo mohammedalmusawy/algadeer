@@ -5,6 +5,14 @@ Future<void> launchClinicCall(String phone) async {
   await launchUrl(Uri.parse('tel:${phone.trim()}'));
 }
 
+/// يفتح الروابط الخارجية http/https فقط — بدون تغيير سلوك الروابط الصحيحة.
+Future<bool> launchExternalHttpUrl(String raw) async {
+  final uri = Uri.tryParse(raw.trim());
+  if (uri == null) return false;
+  if (uri.scheme != 'http' && uri.scheme != 'https') return false;
+  return launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
 Future<void> launchClinicWhatsApp(
   String whatsapp, {
   String message = '',

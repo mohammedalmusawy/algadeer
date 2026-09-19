@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../doctors/doctor_availability_service.dart';
+import '../doctors/doctor_gender.dart';
 import '../models/doctor_item.dart';
 import '../search/smart_search_models.dart';
 
@@ -310,7 +311,9 @@ class MedicalNavigationService {
             absenceBadge: leave.isOnLeave ? leave.badgeLabel : null,
             availabilityLabel: leave.isOnLeave
                 ? leave.badgeLabel
-                : (d.bookingStatus == 'available' ? 'متاح' : null),
+                : (d.bookingStatus == 'available'
+                      ? DoctorGender.availableShort(d.gender)
+                      : null),
             bioSnippet: d.shortDescription.isNotEmpty
                 ? d.shortDescription
                 : (d.bio.isNotEmpty ? d.bio : null),

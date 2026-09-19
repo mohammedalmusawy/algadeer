@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../companion/visitor_identity_service.dart';
+import '../home/trending_entity.dart';
 
 /// فترة الإحصائية القابلة للاختيار في الإدارة.
 enum StatsPeriod { day, week, month, year }
@@ -55,19 +57,7 @@ class AppStatsService {
 
   final SupabaseClient _client;
 
-  static const _visitorPrefsKey = 'visitor_rating_key';
-
-  Future<String> visitorKey() async {
-    final prefs = await SharedPreferences.getInstance();
-    var key = prefs.getString(_visitorPrefsKey);
-    if (key == null || key.length < 8) {
-      key =
-          'u_${DateTime.now().millisecondsSinceEpoch}_'
-          '${DateTime.now().microsecondsSinceEpoch % 1000000}';
-      await prefs.setString(_visitorPrefsKey, key);
-    }
-    return key;
-  }
+  Future<String> visitorKey() => VisitorIdentityService().ownerKey();
 
   /// يُستدعى عند فتح التطبيق لتسجيل/تحديث مستخدم فريد.
   Future<void> touchCurrentUser() async {
@@ -368,6 +358,222 @@ class AppStatsService {
     } catch (e) {
       debugPrint('fetchLabStats failed: $e');
       return const LabAdminStats();
+    }
+  }
+
+  /// الأطباء الأكثر طلبًا حسب المشاهدات + الاتصال + واتساب.
+  Future<List<TrendingEntity>> fetchTopDoctors({int limit = 8}) async {
+    try {
+      List rows;
+      try {
+        rows = await _client
+            .from('doctors')
+            .select(
+              'id, name, specialty, image_url, profile_views, call_taps, whatsapp_taps, is_active',
+            )
+            .or('is_active.eq.true,is_active.is.null')
+            .limit(120) as List;
+      } catch (_) {
+        rows = await _client
+            .from('doctors')
+            .select(
+              'id, name, specialty, image_url, profile_views, call_taps, whatsapp_taps',
+            )
+            .limit(120) as List;
+      }
+
+      final mapped = <TrendingEntity>[];
+      for (final raw in rows) {
+        final m = Map<String, dynamic>.from(raw as Map);
+        final id = m['id']?.toString() ?? '';
+        final name = m['name']?.toString().trim() ?? '';
+        if (id.isEmpty || name.isEmpty) continue;
+        final views = _asInt(m['profile_views']);
+        final calls = _asInt(m['call_taps']);
+        final wa = _asInt(m['whatsapp_taps']);
+        final score = TrendingEntity.score(
+          views: views,
+          calls: calls,
+          whatsapp: wa,
+        );
+        if (score <= 0) continue;
+        mapped.add(
+          TrendingEntity(
+            id: id,
+            title: name,
+            subtitle: (m['specialty']?.toString().trim().isNotEmpty ?? false)
+                ? m['specialty'].toString().trim()
+                : 'طبيب',
+            kind: 'doctor',
+            imageUrl: m['image_url']?.toString(),
+            demandScore: score,
+            profileViews: views,
+            callTaps: calls,
+            whatsappTaps: wa,
+          ),
+        );
+      }
+      mapped.sort((a, b) => b.demandScore.compareTo(a.demandScore));
+      if (mapped.length > limit) return mapped.sublist(0, limit);
+      return mapped;
+    } catch (e) {
+      debugPrint('fetchTopDoctors failed: $e');
+      return const [];
+    }
+  }
+
+  /// المختبرات الأكثر طلبًا حسب المشاهدات + الاتصال + واتساب.
+  Future<List<TrendingEntity>> fetchTopLabs({int limit = 8}) async {
+    try {
+      List rows;
+      try {
+        rows = await _client
+            .from('labs')
+            .select(
+              'id, lab_name, name, address, image_url, profile_views, call_taps, whatsapp_taps, is_active',
+            )
+            .eq('is_active', true)
+            .limit(80) as List;
+      } catch (_) {
+        rows = await _client
+            .from('labs')
+            .select(
+              'id, lab_name, name, address, image_url, profile_views, call_taps, whatsapp_taps',
+            )
+            .limit(80) as List;
+      }
+
+      final mapped = <TrendingEntity>[];
+      for (final raw in rows) {
+        final m = Map<String, dynamic>.from(raw as Map);
+        final id = m['id']?.toString() ?? '';
+        final name =
+            (m['lab_name'] ?? m['name'])?.toString().trim() ?? '';
+        if (id.isEmpty || name.isEmpty) continue;
+        final views = _asInt(m['profile_views']);
+        final calls = _asInt(m['call_taps']);
+        final wa = _asInt(m['whatsapp_taps']);
+        final score = TrendingEntity.score(
+          views: views,
+          calls: calls,
+          whatsapp: wa,
+        );
+        if (score <= 0) continue;
+        final address = m['address']?.toString().trim() ?? '';
+        mapped.add(
+          TrendingEntity(
+            id: id,
+            title: name,
+            subtitle: address.isNotEmpty ? address : 'مختبر',
+            kind: 'lab',
+            imageUrl: m['image_url']?.toString(),
+            demandScore: score,
+            profileViews: views,
+            callTaps: calls,
+            whatsappTaps: wa,
+          ),
+        );
+      }
+      mapped.sort((a, b) => b.demandScore.compareTo(a.demandScore));
+      if (mapped.length > limit) return mapped.sublist(0, limit);
+      return mapped;
+    } catch (e) {
+      debugPrint('fetchTopLabs failed: $e');
+      return const [];
+    }
+  }
+
+  /// زيارة تفاصيل باقة مختبر.
+  Future<void> recordPackageProfileView(String packageId) async {
+    if (packageId.isEmpty) return;
+    try {
+      await _client.rpc(
+        'increment_package_profile_views',
+        params: {'p_package_id': packageId},
+      );
+    } catch (e) {
+      debugPrint(
+        'recordPackageProfileView failed (run package_stats_schema.sql?): $e',
+      );
+    }
+  }
+
+  /// الباقات الأكثر طلبًا حسب مشاهدات التفاصيل (+ تعزيز خفيف للعروض/المميزة).
+  Future<List<TrendingEntity>> fetchTopPackages({int limit = 8}) async {
+    try {
+      List rows;
+      try {
+        rows = await _client
+            .from('lab_packages')
+            .select(
+              'id, lab_id, package_name, name, image_url, profile_views, '
+              'is_featured, show_on_home, is_active, labs(lab_name, name)',
+            )
+            .eq('is_active', true)
+            .limit(120) as List;
+      } catch (_) {
+        try {
+          rows = await _client
+              .from('lab_packages')
+              .select(
+                'id, lab_id, package_name, name, image_url, profile_views, '
+                'is_featured, show_on_home, is_active',
+              )
+              .eq('is_active', true)
+              .limit(120) as List;
+        } catch (e2) {
+          debugPrint('fetchTopPackages select failed: $e2');
+          return const [];
+        }
+      }
+
+      final mapped = <TrendingEntity>[];
+      for (final raw in rows) {
+        final m = Map<String, dynamic>.from(raw as Map);
+        final id = m['id']?.toString() ?? '';
+        final name =
+            (m['package_name'] ?? m['name'])?.toString().trim() ?? '';
+        if (id.isEmpty || name.isEmpty) continue;
+
+        final views = _asInt(m['profile_views']);
+        final featured = m['is_featured'] == true;
+        final onHome = m['show_on_home'] == true;
+        // مشاهدات حقيقية أولًا؛ المميزة/الرئيسية تعزيز بسيط فقط.
+        final score = views + (featured ? 2 : 0) + (onHome ? 1 : 0);
+        if (score <= 0) continue;
+
+        String labName = '';
+        final labs = m['labs'];
+        if (labs is Map) {
+          labName = (labs['lab_name'] ?? labs['name'])?.toString().trim() ?? '';
+        }
+
+        mapped.add(
+          TrendingEntity(
+            id: id,
+            title: name,
+            subtitle: labName.isNotEmpty ? labName : 'باقة مختبر',
+            kind: 'package',
+            imageUrl: m['image_url']?.toString(),
+            demandScore: score,
+            profileViews: views,
+            // نستخدم callTaps/whatsapp كحقول مساعدة للعرض لاحقًا إن لزم
+            callTaps: featured ? 1 : 0,
+            whatsappTaps: onHome ? 1 : 0,
+          ),
+        );
+      }
+
+      mapped.sort((a, b) {
+        final byScore = b.demandScore.compareTo(a.demandScore);
+        if (byScore != 0) return byScore;
+        return b.profileViews.compareTo(a.profileViews);
+      });
+      if (mapped.length > limit) return mapped.sublist(0, limit);
+      return mapped;
+    } catch (e) {
+      debugPrint('fetchTopPackages failed: $e');
+      return const [];
     }
   }
 

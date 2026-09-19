@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../branding/ghadeer_brand_mark.dart';
+import '../../utils/contact_launch.dart';
 import '../ad_campaign.dart';
 import '../ads_service.dart';
 
@@ -85,9 +85,7 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
         : (c.isVideo ? c.videoUrl.trim() : '');
     if (raw.isEmpty) return;
     await _service.recordClick(c.id);
-    final uri = Uri.tryParse(raw);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await launchExternalHttpUrl(raw);
   }
 
   @override

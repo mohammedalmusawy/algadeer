@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../companion/visitor_identity_service.dart';
+
 class DoctorRatingSummary {
   final double average;
   final int count;
@@ -102,15 +104,7 @@ class DoctorEngagementService {
     return fetchRatingSummary(doctorId);
   }
 
-  Future<String> _visitorKey() async {
-    final prefs = await SharedPreferences.getInstance();
-    var key = prefs.getString('visitor_rating_key');
-    if (key == null || key.isEmpty) {
-      key = 'v_${DateTime.now().millisecondsSinceEpoch}';
-      await prefs.setString('visitor_rating_key', key);
-    }
-    return key;
-  }
+  Future<String> _visitorKey() => VisitorIdentityService().ownerKey();
 }
 
 class AppNotificationItem {

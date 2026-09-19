@@ -1,4 +1,5 @@
 import '../branding/ghadeer_brand_mark.dart';
+import '../doctors/doctor_gender.dart';
 import '../utils/flags.dart';
 
 class DoctorItem {
@@ -31,6 +32,8 @@ class DoctorItem {
   final String ageGroup;
   final String profileQuote;
   final bool notificationsEnabled;
+  /// '' | male | female — فارغ = صياغة مذكر (السلوك الحالي).
+  final String gender;
 
   const DoctorItem({
     required this.name,
@@ -62,7 +65,10 @@ class DoctorItem {
     this.ageGroup = '',
     this.profileQuote = '',
     this.notificationsEnabled = true,
+    this.gender = DoctorGender.unspecified,
   });
+
+  bool get isFemale => DoctorGender.isFemale(gender);
 
   factory DoctorItem.fromMap(Map<String, dynamic> data) {
     return DoctorItem(
@@ -103,6 +109,7 @@ class DoctorItem {
         data['notifications_enabled'],
         fallback: true,
       ),
+      gender: DoctorGender.normalize(data['gender']?.toString()),
     );
   }
 }

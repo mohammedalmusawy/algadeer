@@ -477,6 +477,185 @@ class LabsService {
     }
   }
 
+  /// باقات نشطة مرتبطة بتحليل عبر lab_package_analyses + مختبرات نشطة فقط.
+  Future<List<AnalysisPackageLink>> fetchPackagesContainingAnalysis(
+    String analysisId,
+  ) async {
+    if (analysisId.trim().isEmpty) return const [];
+    try {
+      final links = await _client
+          .from('lab_package_analyses')
+          .select('package_id, lab_packages(*, labs(*))')
+          .eq('analysis_id', analysisId)
+          .limit(40);
+
+      final out = <AnalysisPackageLink>[];
+      final seenPkg = <String>{};
+      for (final row in links as List) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final pkgRaw = map['lab_packages'];
+        if (pkgRaw is! Map) continue;
+        final pkgMap = Map<String, dynamic>.from(pkgRaw);
+        final pkg = LabPackageItem.fromMap(pkgMap);
+        if (!pkg.isActive || pkg.id.isEmpty) continue;
+        if (seenPkg.contains(pkg.id)) continue;
+
+        String labName = '';
+        String labId = pkg.labId;
+        var labActive = true;
+        final labs = pkgMap['labs'];
+        if (labs is Map) {
+          labName = (labs['lab_name'] ?? labs['name'])?.toString() ?? '';
+          labId = labs['id']?.toString() ?? labId;
+          labActive = labBoolFlag(labs['is_active'], fallback: true);
+        }
+        if (!labActive) continue;
+
+        seenPkg.add(pkg.id);
+        out.add(
+          AnalysisPackageLink(
+            package: pkg,
+            labId: labId,
+            labName: labName,
+          ),
+        );
+      }
+      return out;
+    } catch (e) {
+      debugPrint('fetchPackagesContainingAnalysis: $e');
+      return const [];
+    }
+  }
+
+  /// تقاطع: باقات نشطة تحتوي كل analysisIds المطلوبة (AND وليس OR).
+  Future<List<AnalysisPackageLink>> fetchPackagesContainingAllAnalyses(
+    List<String> analysisIds, {
+    String? labId,
+  }) async {
+    final ids = analysisIds
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList();
+    if (ids.isEmpty) return const [];
+    if (ids.length == 1) {
+      final one = await fetchPackagesContainingAnalysis(ids.first);
+      if (labId == null || labId.isEmpty) return one;
+      return one.where((l) => l.labId == labId).toList(growable: false);
+    }
+
+    try {
+      // اجلب روابط التحليل الأول ثم صفِّ محلياً لمن يملك بقية المعرّفات.
+      final first = await fetchPackagesContainingAnalysis(ids.first);
+      final out = <AnalysisPackageLink>[];
+      for (final link in first) {
+        if (labId != null && labId.isNotEmpty && link.labId != labId) continue;
+        final pkgIds = await fetchPackageAnalysisIds(link.package.id);
+        final set = pkgIds.toSet();
+        if (ids.every(set.contains)) {
+          out.add(link);
+        }
+      }
+      return out;
+    } catch (e) {
+      debugPrint('fetchPackagesContainingAllAnalyses: $e');
+      return const [];
+    }
+  }
+
+  /// باقات نشطة مخفّضة (خصم حقيقي: old_price > price) — اختيارياً لمختبر.
+  Future<List<AnalysisPackageLink>> fetchActiveDiscountedPackages({
+    String? labId,
+  }) async {
+    try {
+      var filtered = _client
+          .from('lab_packages')
+          .select('*, labs(*), lab_package_analyses(display_order, analyses(*))')
+          .eq('is_active', true);
+      if (labId != null && labId.trim().isNotEmpty) {
+        filtered = filtered.eq('lab_id', labId.trim());
+      }
+      final rows = await filtered.limit(60);
+      final out = <AnalysisPackageLink>[];
+      for (final row in rows as List) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final pkg = LabPackageItem.fromMap(map);
+        if (!pkg.isActive || pkg.discountPercent == null) continue;
+        var labActive = true;
+        String labName = '';
+        String resolvedLabId = pkg.labId;
+        final labs = map['labs'];
+        if (labs is Map) {
+          labName = (labs['lab_name'] ?? labs['name'])?.toString() ?? '';
+          resolvedLabId = labs['id']?.toString() ?? resolvedLabId;
+          labActive = labBoolFlag(labs['is_active'], fallback: true);
+        }
+        if (!labActive) continue;
+        out.add(
+          AnalysisPackageLink(
+            package: pkg,
+            labId: resolvedLabId,
+            labName: labName,
+          ),
+        );
+      }
+      return out;
+    } catch (e) {
+      debugPrint('fetchActiveDiscountedPackages: $e');
+      return const [];
+    }
+  }
+
+  /// باقات نشطة عامة (اختياري: مختبر / فلتر اسم).
+  Future<List<AnalysisPackageLink>> fetchActivePackages({
+    String? labId,
+    String? nameQuery,
+  }) async {
+    try {
+      var filtered = _client
+          .from('lab_packages')
+          .select('*, labs(*), lab_package_analyses(display_order, analyses(*))')
+          .eq('is_active', true);
+      if (labId != null && labId.trim().isNotEmpty) {
+        filtered = filtered.eq('lab_id', labId.trim());
+      }
+      final rows = await filtered.limit(60);
+      final needle = (nameQuery ?? '').trim();
+      final out = <AnalysisPackageLink>[];
+      for (final row in rows as List) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final pkg = LabPackageItem.fromMap(map);
+        if (!pkg.isActive) continue;
+        if (needle.isNotEmpty) {
+          final hay =
+              '${pkg.name} ${pkg.description}'.toLowerCase();
+          if (!hay.contains(needle.toLowerCase())) continue;
+        }
+        var labActive = true;
+        String labName = '';
+        String resolvedLabId = pkg.labId;
+        final labs = map['labs'];
+        if (labs is Map) {
+          labName = (labs['lab_name'] ?? labs['name'])?.toString() ?? '';
+          resolvedLabId = labs['id']?.toString() ?? resolvedLabId;
+          labActive = labBoolFlag(labs['is_active'], fallback: true);
+        }
+        if (!labActive) continue;
+        out.add(
+          AnalysisPackageLink(
+            package: pkg,
+            labId: resolvedLabId,
+            labName: labName,
+          ),
+        );
+      }
+      return out;
+    } catch (e) {
+      debugPrint('fetchActivePackages: $e');
+      return const [];
+    }
+  }
+
   Future<void> updateAnalysisDescriptionAr({
     required String analysisId,
     required String descriptionAr,
@@ -630,4 +809,17 @@ class LabsService {
       await _client.storage.from(mediaBucket).remove([path]);
     } catch (_) {}
   }
+}
+
+/// رابط باقة↔مختبر ناتج عن علاقة تحليل حقيقية عبر lab_package_analyses.
+class AnalysisPackageLink {
+  const AnalysisPackageLink({
+    required this.package,
+    required this.labId,
+    required this.labName,
+  });
+
+  final LabPackageItem package;
+  final String labId;
+  final String labName;
 }

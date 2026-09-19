@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/doctor_item.dart';
+import 'doctor_gender.dart';
 
 /// سجل إجازة لطبيب.
 class DoctorAbsence {
@@ -89,12 +90,14 @@ class DoctorLeaveDisplay {
   final DateTime? from;
   final DateTime? to;
   final String? reason;
+  final String gender;
 
   const DoctorLeaveDisplay({
     required this.isOnLeave,
     this.from,
     this.to,
     this.reason,
+    this.gender = DoctorGender.unspecified,
   });
 
   static DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -111,11 +114,12 @@ class DoctorLeaveDisplay {
     required String absenceFrom,
     required String absenceTo,
     String reason = '',
+    String gender = DoctorGender.unspecified,
   }) {
     final from = parseDay(absenceFrom);
     final to = parseDay(absenceTo);
     if (from == null || to == null) {
-      return const DoctorLeaveDisplay(isOnLeave: false);
+      return DoctorLeaveDisplay(isOnLeave: false, gender: gender);
     }
     final today = dateOnly(DateTime.now());
     final onLeave = !today.isBefore(from) && !today.isAfter(to);
@@ -124,6 +128,7 @@ class DoctorLeaveDisplay {
       from: from,
       to: to,
       reason: reason,
+      gender: DoctorGender.normalize(gender),
     );
   }
 
@@ -131,6 +136,7 @@ class DoctorLeaveDisplay {
     return DoctorLeaveDisplay.fromDoctorFields(
       absenceFrom: doctor.absenceFrom,
       absenceTo: doctor.absenceTo,
+      gender: doctor.gender,
     );
   }
 
@@ -140,7 +146,7 @@ class DoctorLeaveDisplay {
     final today = dateOnly(DateTime.now());
     if (from == to && from == today) return 'إجازة اليوم';
     if (to == today) return 'إجازة اليوم';
-    return 'غير متواجد حتى ${_fmt(to!)}';
+    return DoctorGender.unavailableUntil(gender, _fmt(to!));
   }
 
   /// سطر تفصيلي.
@@ -148,8 +154,10 @@ class DoctorLeaveDisplay {
     if (!isOnLeave || from == null || to == null) return '';
     final today = dateOnly(DateTime.now());
     if (from == to && from == today) return 'إجازة اليوم';
-    if (from == today) return 'غير متواجد حتى ${_fmt(to!)}';
-    return 'غير متواجد من ${_fmt(from!)} إلى ${_fmt(to!)}';
+    if (from == today) {
+      return DoctorGender.unavailableUntil(gender, _fmt(to!));
+    }
+    return DoctorGender.unavailableFromTo(gender, _fmt(from!), _fmt(to!));
   }
 
   static String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';

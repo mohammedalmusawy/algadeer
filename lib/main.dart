@@ -18,13 +18,20 @@ import 'doctors/clinic_doctor_list_card.dart';
 import 'doctors/doctor_absences_admin_page.dart';
 import 'doctors/doctor_availability_service.dart';
 import 'doctors/doctor_card_links.dart';
+import 'doctors/doctor_gender.dart';
 import 'doctors/doctor_image_bg_remover.dart';
 import 'doctors/doctor_profile_page.dart';
 import 'doctors/notifications_admin_page.dart';
 import 'doctors/notifications_inbox_page.dart';
 import 'doctors/specialty_catalog.dart';
+import 'home/home_trending_section.dart';
+import 'home/home_welcome_banner.dart';
+import 'home/trending_entity.dart';
 import 'labs/admin/labs_admin_hub.dart';
+import 'labs/lab_package_detail_page.dart';
+import 'labs/lab_profile_page.dart';
 import 'labs/labs_page.dart';
+import 'labs/labs_service.dart';
 import 'models/doctor_item.dart';
 import 'radiology/admin/radiology_admin_page.dart';
 import 'radiology/radiology_page.dart';
@@ -40,11 +47,16 @@ import 'widgets/clinic_app_bar.dart';
 import 'widgets/dynamic_highlight_card.dart';
 import 'search/smart_search_page.dart';
 import 'voice/assistant_integration_page.dart';
+import 'voice/speech_recognition_service.dart';
 import 'voice/voice_settings_page.dart';
+import 'voice/startup_voice_greeting_coordinator.dart';
 import 'settings/settings_page.dart';
+import 'utils/app_pid.dart';
 import 'onboarding/app_entry_gate.dart';
 
 Future<void> main() async {
+  // إن ظهر [APP] PID مختلف بعد ضغط المايك = عملية جديدة (خلل CRITICAL FIX 3).
+  debugPrint('[APP] PID=$appPidLabel main() enter');
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
@@ -52,6 +64,7 @@ Future<void> main() async {
     publishableKey: AppConfig.supabaseAnonKey,
   );
 
+  debugPrint('[APP] PID=$appPidLabel after Supabase.initialize — runApp');
   runApp(const GhadeerClinicApp());
 }
 
@@ -107,7 +120,9 @@ class _GhadeerClinicAppState extends State<GhadeerClinicApp> {
       home: const AppEntryGate(
         home: Directionality(
           textDirection: TextDirection.rtl,
-          child: HomePage(),
+          child: StartupVoiceGreetingHost(
+            child: HomePage(),
+          ),
         ),
       ),
     );
@@ -139,16 +154,36 @@ class _HomePageState extends State<HomePage> {
   int _bottomNavIndex = 0;
   String _mainCategory = '';
 
+  final _stats = AppStatsService();
+  List<TrendingEntity> _topDoctors = [];
+  List<TrendingEntity> _topLabs = [];
+  List<TrendingEntity> _topPackages = [];
+  bool _trendingLoading = true;
+
   @override
   void initState() {
     super.initState();
+    debugPrint('[HOME] initState');
     _loadFavorites();
 
     loadDoctors();
     _loadTodayMessage();
+    _loadTrending();
     _initDeepLinks();
     // تسجيل مستخدم التطبيق للإحصائية العامة (صامت عند غياب الجدول).
     AppStatsService().touchCurrentUser();
+
+    // Opt-in runtime probe only: --dart-define=VOICE_STABILITY_PROBE=true
+    // Validates voice button does not kill/relaunch the process (5 cycles).
+    const voiceStabilityProbe = bool.fromEnvironment(
+      'VOICE_STABILITY_PROBE',
+      defaultValue: false,
+    );
+    if (voiceStabilityProbe) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_runVoiceStabilityProbe());
+      });
+    }
 
     _doctorsChannel = supabase
         .channel('doctors-live')
@@ -169,6 +204,41 @@ class _HomePageState extends State<HomePage> {
         .subscribe();
   }
 
+  /// Runtime-only PID stability check for macOS voice crash regression.
+  Future<void> _runVoiceStabilityProbe() async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    for (var i = 1; i <= 5; i++) {
+      if (!mounted) return;
+      final before =
+          await DeviceSpeechRecognitionService.diagnosticPidLabel();
+      debugPrint('[VOICE_PROBE] cycle=$i BEFORE pid=$before');
+      // Push without awaiting pop — keep screen open, then pop ourselves.
+      final nav = Navigator.of(context);
+      unawaited(
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) => const SmartSearchPage(autoStartVoice: true),
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(seconds: 12));
+      if (mounted && nav.canPop()) {
+        nav.pop();
+      }
+      final after = await DeviceSpeechRecognitionService.diagnosticPidLabel();
+      debugPrint(
+        '[VOICE_PROBE] cycle=$i AFTER pid=$after '
+        'sameProcess=${before == after}',
+      );
+      if (before != after) {
+        debugPrint('[VOICE_PROBE] FAIL process changed — crash/relaunch');
+        return;
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    debugPrint('[VOICE_PROBE] PASS 5 cycles — process stayed alive');
+  }
+
   Future<void> _loadTodayMessage() async {
     try {
       final message = await _messageService.fetchHomeMessage(
@@ -187,6 +257,85 @@ class _HomePageState extends State<HomePage> {
         _todayMessageLoading = false;
       });
     }
+  }
+
+  Future<void> _loadTrending() async {
+    setState(() => _trendingLoading = true);
+    try {
+      final doctorsFuture = _stats.fetchTopDoctors(limit: 8);
+      final labsFuture = _stats.fetchTopLabs(limit: 8);
+      final packagesFuture = _stats.fetchTopPackages(limit: 8);
+      final topDoctors = await doctorsFuture;
+      final topLabs = await labsFuture;
+      final topPackages = await packagesFuture;
+      if (!mounted) return;
+      setState(() {
+        _topDoctors = topDoctors;
+        _topLabs = topLabs;
+        _topPackages = topPackages;
+        _trendingLoading = false;
+      });
+    } catch (e) {
+      debugPrint('load trending failed: $e');
+      if (!mounted) return;
+      setState(() => _trendingLoading = false);
+    }
+  }
+
+  Future<void> _openTrendingDoctor(TrendingEntity item) async {
+    try {
+      final row = await supabase
+          .from('doctors')
+          .select()
+          .eq('id', item.id)
+          .maybeSingle();
+      if (!mounted || row == null) return;
+      final doctor = DoctorItem.fromMap(Map<String, dynamic>.from(row));
+      _showDoctorProfile(doctor);
+    } catch (e) {
+      debugPrint('open trending doctor failed: $e');
+    }
+  }
+
+  Future<void> _openTrendingLab(TrendingEntity item) async {
+    try {
+      final lab = await LabsService().fetchLabById(item.id);
+      if (!mounted || lab == null) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => LabProfilePage(lab: lab)),
+      );
+    } catch (e) {
+      debugPrint('open trending lab failed: $e');
+    }
+  }
+
+  Future<void> _openTrendingPackage(TrendingEntity item) async {
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LabPackageDetailPage(
+            packageId: item.id,
+            labName: item.subtitle,
+          ),
+        ),
+      );
+      // بعد العودة حدّث الترتيب بهدوء.
+      unawaited(_loadTrending());
+    } catch (e) {
+      debugPrint('open trending package failed: $e');
+    }
+  }
+
+  void _openSmartSearch({bool voice = false}) {
+    debugPrint('[NAV] push SmartSearchPage voice=$voice');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SmartSearchPage(autoStartVoice: voice),
+      ),
+    );
   }
 
   Future<void> _initDeepLinks() async {
@@ -255,6 +404,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    debugPrint('[HOME] dispose');
     _doctorsReloadDebounce?.cancel();
     if (_doctorsChannel != null) {
       supabase.removeChannel(_doctorsChannel!);
@@ -370,7 +520,7 @@ class _HomePageState extends State<HomePage> {
         );
       }
       if (mounted) {
-        await loadDoctors();
+        await Future.wait([loadDoctors(), _loadTodayMessage(), _loadTrending()]);
       }
     }
   }
@@ -601,16 +751,50 @@ class _HomePageState extends State<HomePage> {
     return RefreshIndicator(
       color: const Color(0xFF0FAFA3),
       onRefresh: () async {
-        await Future.wait([loadDoctors(), _loadTodayMessage()]);
+        await Future.wait([
+          loadDoctors(),
+          _loadTodayMessage(),
+          _loadTrending(),
+        ]);
       },
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _buildHeader()),
+          SliverToBoxAdapter(
+            child: HomeWelcomeBanner(
+              onAskHelp: () => _openSmartSearch(voice: false),
+            ),
+          ),
           SliverToBoxAdapter(child: _buildSearchBar()),
-          SliverToBoxAdapter(child: _buildMainCategories()),
+          // العبارة الديناميكية مباشرة تحت البحث حتى تظهر بدون تمرير.
           SliverToBoxAdapter(child: _buildPromoBanner()),
+          SliverToBoxAdapter(child: _buildMainCategories()),
           const SliverToBoxAdapter(child: HomeAdSlot(placement: 'home')),
+          SliverToBoxAdapter(
+            child: HomeTrendingSection(
+              title: 'الأطباء الأكثر طلبًا',
+              items: _topDoctors,
+              loading: _trendingLoading,
+              onOpen: (item) => unawaited(_openTrendingDoctor(item)),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: HomeTrendingSection(
+              title: 'المختبرات الأكثر طلبًا',
+              items: _topLabs,
+              loading: _trendingLoading,
+              onOpen: (item) => unawaited(_openTrendingLab(item)),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: HomeTrendingSection(
+              title: 'الباقات الأكثر طلبًا',
+              items: _topPackages,
+              loading: _trendingLoading,
+              onOpen: (item) => unawaited(_openTrendingPackage(item)),
+            ),
+          ),
           SliverToBoxAdapter(child: _buildDoctorsSectionHeader()),
           SliverToBoxAdapter(child: _buildSpecialtyFilters()),
           SliverToBoxAdapter(child: _buildDoctors()),
@@ -685,90 +869,78 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _openSmartSearch({bool voice = false}) {
-    Navigator.push(
-      context,
-      PageRouteBuilder<void>(
-        opaque: true,
-        barrierColor: const Color(0xFFF7FBFC),
-        transitionDuration: const Duration(milliseconds: 220),
-        reverseTransitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return ColoredBox(
-            color: const Color(0xFFF7FBFC),
-            child: SmartSearchPage(autoStartVoice: voice),
-          );
-        },
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-            child: child,
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
       child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: () => _openSmartSearch(),
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE4EEEE)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.045),
-                  blurRadius: 12,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.search_rounded,
-                  color: Color(0xFF0FAFA3),
-                  size: 24,
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'ابحث عن طبيب، اختصاص أو خدمة...',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Color(0xFF8A9A9E),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+        child: Container(
+          padding: const EdgeInsetsDirectional.fromSTEB(14, 8, 8, 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE4EEEE)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.045),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          // مهم: لا نغلّف المايك داخل InkWell البحث — وإلا الضغطة الأولى
+          // تفتح الصفحة فقط والثانية تشغّل الصوت.
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => _openSmartSearch(),
+                  borderRadius: BorderRadius.circular(14),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.search_rounded,
+                          color: Color(0xFF0FAFA3),
+                          size: 24,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'ابحث عن طبيب، اختصاص أو خدمة...',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Color(0xFF8A9A9E),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                Material(
-                  color: const Color(0xFFE8F7F5),
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => _openSmartSearch(voice: true),
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(
-                        Icons.mic_none_rounded,
-                        color: Color(0xFF0FAFA3),
-                        size: 22,
-                      ),
+              ),
+              const SizedBox(width: 6),
+              Material(
+                color: const Color(0xFFE8F7F5),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => _openSmartSearch(voice: true),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.mic_none_rounded,
+                      color: Color(0xFF0FAFA3),
+                      size: 22,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2267,6 +2439,8 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
   bool _showBookingButton = false;
   bool _notificationsEnabled = true;
   String _bookingStatus = 'available';
+  /// '' | male | female — فارغ = غير محدد (نفس صياغة المذكر الحالية).
+  String _gender = DoctorGender.unspecified;
   final Map<String, bool> _workingWeek = {
     'السبت': false,
     'الأحد': false,
@@ -2451,6 +2625,7 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
     _showBookingButton = doctor?['show_booking_button'] as bool? ?? false;
     _notificationsEnabled = doctor?['notifications_enabled'] as bool? ?? true;
     _bookingStatus = doctor?['booking_status']?.toString() ?? 'available';
+    _gender = DoctorGender.normalize(doctor?['gender']?.toString());
   }
 
   @override
@@ -2704,6 +2879,7 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
       'show_whatsapp_button': _showWhatsAppButton,
       'show_booking_button': _showBookingButton,
       'booking_status': _bookingStatus,
+      'gender': _gender,
       'years_experience': int.tryParse(_yearsController.text.trim()) ?? 0,
       'patients_served': int.tryParse(_patientsController.text.trim()) ?? 0,
       'languages': _languagesController.text.trim(),
@@ -3365,6 +3541,38 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
               }),
 
               const SizedBox(height: 12),
+
+              const SizedBox(height: 12),
+
+              DropdownButtonFormField<String>(
+                value: _gender,
+                decoration: const InputDecoration(
+                  labelText: 'الجنس (للصياغة فقط)',
+                  helperText:
+                      'اختياري — غير محدد يبقي النصوص كما هي الآن (مذكر)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.wc_rounded),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: DoctorGender.unspecified,
+                    child: Text('غير محدد'),
+                  ),
+                  DropdownMenuItem(
+                    value: DoctorGender.male,
+                    child: Text('ذكر'),
+                  ),
+                  DropdownMenuItem(
+                    value: DoctorGender.female,
+                    child: Text('أنثى'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _gender = DoctorGender.normalize(value);
+                  });
+                },
+              ),
 
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(

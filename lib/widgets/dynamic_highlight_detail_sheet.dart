@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
 import '../doctors/doctor_profile_page.dart';
@@ -14,6 +13,7 @@ import '../models/doctor_item.dart';
 import '../radiology/radiology_profile_page.dart';
 import '../radiology/radiology_service.dart';
 import '../services/dynamic_message_service.dart';
+import '../utils/contact_launch.dart';
 import '../voice/voice_response_controller.dart';
 
 /// يفتح صفحة المكان الإعلاني (تخطيط مشابه لهوية الطبيب — صورة كاملة واضحة).
@@ -124,10 +124,7 @@ class _DynamicHighlightDetailPageState
     try {
       final kind = message.destinationKind.trim();
       if (kind == DynamicMessageDestination.url) {
-        final uri = Uri.tryParse(message.linkUrl.trim());
-        if (uri != null) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
+        await launchExternalHttpUrl(message.linkUrl);
         return;
       }
 
@@ -195,10 +192,7 @@ class _DynamicHighlightDetailPageState
       await _stopVoice();
       return;
     }
-    final text = [
-      if (message.title.trim().isNotEmpty) message.title.trim(),
-      if (message.body.trim().isNotEmpty) message.body.trim(),
-    ].join('. ');
+    final text = _adSpeechText;
     if (text.trim().isEmpty) {
       _toast('لا يوجد نص للقراءة');
       return;
@@ -366,9 +360,12 @@ class _DynamicHighlightDetailPageState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Row(
-                                children: [
-                                  _circleIconBtn(
+                              // رجوع في مكان زر الصوت السابق — نفس محاذاة هوية الطبيب.
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Directionality(
+                                  textDirection: TextDirection.ltr,
+                                  child: _circleIconBtn(
                                     icon: Icons.chevron_right_rounded,
                                     onTap: () async {
                                       await _stopVoice();
@@ -377,15 +374,7 @@ class _DynamicHighlightDetailPageState
                                       }
                                     },
                                   ),
-                                  const Spacer(),
-                                  _circleIconBtn(
-                                    icon: _speaking
-                                        ? Icons.volume_up_rounded
-                                        : Icons.record_voice_over_outlined,
-                                    iconColor: _actionBlue,
-                                    onTap: _speakAd,
-                                  ),
-                                ],
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Align(
@@ -597,24 +586,82 @@ class _DynamicHighlightDetailPageState
     );
   }
 
+  String get _adSpeechText {
+    return [
+      if (message.title.trim().isNotEmpty) message.title.trim(),
+      if (message.body.trim().isNotEmpty) message.body.trim(),
+    ].join('. ');
+  }
+
+  Widget _speakDetailsButton({required bool canSpeak}) {
+    return Material(
+      color: _speaking ? const Color(0xFFE6F8F6) : Colors.white,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: canSpeak ? () => unawaited(_speakAd()) : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: ShapeDecoration(
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: canSpeak
+                    ? _actionBlue.withValues(alpha: 0.35)
+                    : const Color(0xFFE8EEF2),
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _speaking ? Icons.stop_rounded : Icons.volume_up_rounded,
+                size: 18,
+                color: canSpeak ? _actionBlue : _muted,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _speaking ? 'إيقاف' : 'اسمع التفاصيل',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: canSpeak ? _navy : _muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDetails() {
     final body = message.body.trim();
     final address = message.address.trim();
     final canOpenMap = message.mapLaunchTarget.isNotEmpty;
+    final canSpeak = _adSpeechText.trim().isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'التفاصيل الإعلانية',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: _navy,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'التفاصيل الإعلانية',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: _navy,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _speakDetailsButton(canSpeak: canSpeak),
+            ],
           ),
           const SizedBox(height: 10),
           Text(

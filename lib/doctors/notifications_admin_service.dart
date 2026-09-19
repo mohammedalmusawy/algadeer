@@ -110,38 +110,47 @@ class NotificationTemplates {
     String labName = 'المختبر',
     String packageName = 'الباقة',
     int? leaveDays,
+    String doctorGender = '',
   }) {
     final d = doctorName.trim().isEmpty ? 'الطبيب' : doctorName.trim();
     final l = labName.trim().isEmpty ? 'المختبر' : labName.trim();
     final p = packageName.trim().isEmpty ? 'الباقة' : packageName.trim();
     final days = leaveDays == null ? '' : ' لمدة $leaveDays أيام';
+    final female = doctorGender.trim().toLowerCase() == 'female';
+    final doc = female ? 'الدكتورة' : 'الدكتور';
+    final present = female ? 'متواجدة' : 'متواجد';
+    final returnTitle = female ? 'عودة الطبيبة' : 'عودة الطبيب';
+    final leaveTitle = female ? 'عطلة طبيبة' : 'عطلة طبيب';
 
     switch (type) {
       case NotificationTypes.doctorLeaveStart:
       case NotificationTypes.legacyDoctorLeave:
         return (
-          title: 'عطلة طبيب',
-          body: 'الدكتور $d في عطلة$days.',
+          title: leaveTitle,
+          body: '$doc $d في عطلة$days.',
         );
       case NotificationTypes.doctorLeaveEnd:
-        return (title: 'عودة الطبيب', body: 'الدكتور $d عاد للتواجد.');
+        return (title: returnTitle, body: '$doc $d عاد${female ? 'ت' : ''} للتواجد.');
       case NotificationTypes.doctorBackTomorrow:
         return (
-          title: 'متواجد غدًا',
-          body: 'الدكتور $d متواجد غدًا.',
+          title: '$present غدًا',
+          body: '$doc $d $present غدًا.',
         );
       case NotificationTypes.doctorPresentToday:
         return (
-          title: 'متواجد اليوم',
-          body: 'الدكتور $d متواجد اليوم.',
+          title: '$present اليوم',
+          body: '$doc $d $present اليوم.',
         );
       case NotificationTypes.doctorScheduleChange:
         return (
           title: 'تحديث جدول التواجد',
-          body: 'تم تحديث أيام/أوقات تواجد الدكتور $d.',
+          body: 'تم تحديث أيام/أوقات تواجد $doc $d.',
         );
       case NotificationTypes.doctorManual:
-        return (title: 'إشعار من عيادة الغدير', body: 'رسالة بخصوص الدكتور $d.');
+        return (
+          title: 'إشعار من عيادة الغدير',
+          body: 'رسالة بخصوص $doc $d.',
+        );
       case NotificationTypes.labNewOffer:
         return (
           title: 'عرض جديد',

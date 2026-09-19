@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../home/trending_entity.dart';
 import '../services/app_stats_service.dart';
 import '../widgets/clinic_app_bar.dart';
 
@@ -16,6 +17,9 @@ class _AppStatsAdminPageState extends State<AppStatsAdminPage> {
   StatsPeriod _period = StatsPeriod.day;
   bool _loading = true;
   AppPeriodStats _data = const AppPeriodStats(period: StatsPeriod.day);
+  List<TrendingEntity> _topDoctors = const [];
+  List<TrendingEntity> _topLabs = const [];
+  List<TrendingEntity> _topPackages = const [];
 
   @override
   void initState() {
@@ -26,9 +30,15 @@ class _AppStatsAdminPageState extends State<AppStatsAdminPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final data = await _stats.fetchPeriodStats(period: _period);
+    final doctors = await _stats.fetchTopDoctors(limit: 10);
+    final labs = await _stats.fetchTopLabs(limit: 10);
+    final packages = await _stats.fetchTopPackages(limit: 10);
     if (!mounted) return;
     setState(() {
       _data = data;
+      _topDoctors = doctors;
+      _topLabs = labs;
+      _topPackages = packages;
       _loading = false;
     });
   }
@@ -179,6 +189,83 @@ class _AppStatsAdminPageState extends State<AppStatsAdminPage> {
                   value: '${_data.labsCount}',
                   subtitle: 'عدد المختبرات المسجّلة (كل الفترات)',
                 ),
+                const SizedBox(height: 18),
+                const Text(
+                  'الأطباء الأكثر طلبًا',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF123B42),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_topDoctors.isEmpty)
+                  const Text(
+                    'لا توجد بيانات طلب كافية بعد.',
+                    style: TextStyle(color: Color(0xFF78888B)),
+                  )
+                else
+                  ...[
+                    for (var i = 0; i < _topDoctors.length; i++)
+                      _rankRow(
+                        rank: i + 1,
+                        title: _topDoctors[i].title,
+                        subtitle: _topDoctors[i].subtitle,
+                        meta:
+                            'مشاهدات ${_topDoctors[i].profileViews} · اتصال ${_topDoctors[i].callTaps} · واتساب ${_topDoctors[i].whatsappTaps}',
+                      ),
+                  ],
+                const SizedBox(height: 16),
+                const Text(
+                  'المختبرات الأكثر طلبًا',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF123B42),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_topLabs.isEmpty)
+                  const Text(
+                    'لا توجد بيانات طلب كافية بعد.',
+                    style: TextStyle(color: Color(0xFF78888B)),
+                  )
+                else
+                  ...[
+                    for (var i = 0; i < _topLabs.length; i++)
+                      _rankRow(
+                        rank: i + 1,
+                        title: _topLabs[i].title,
+                        subtitle: _topLabs[i].subtitle,
+                        meta:
+                            'مشاهدات ${_topLabs[i].profileViews} · اتصال ${_topLabs[i].callTaps} · واتساب ${_topLabs[i].whatsappTaps}',
+                      ),
+                  ],
+                const SizedBox(height: 16),
+                const Text(
+                  'الباقات الأكثر طلبًا',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF123B42),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_topPackages.isEmpty)
+                  const Text(
+                    'لا توجد بيانات طلب كافية بعد. افتح باقات من التطبيق بعد تشغيل package_stats_schema.sql.',
+                    style: TextStyle(color: Color(0xFF78888B)),
+                  )
+                else
+                  ...[
+                    for (var i = 0; i < _topPackages.length; i++)
+                      _rankRow(
+                        rank: i + 1,
+                        title: _topPackages[i].title,
+                        subtitle: _topPackages[i].subtitle,
+                        meta: 'مشاهدات ${_topPackages[i].profileViews}',
+                      ),
+                  ],
                 const SizedBox(height: 8),
                 const Text(
                   'ملاحظة: إحصائية كل طبيب في «إدارة الأطباء»، وكل مختبر في «المختبرات» — بنفس اختيار الفترة.',
@@ -191,6 +278,71 @@ class _AppStatsAdminPageState extends State<AppStatsAdminPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _rankRow({
+    required int rank,
+    required String title,
+    required String subtitle,
+    required String meta,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE4EEEE)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: const Color(0xFFE11D48),
+            child: Text(
+              '$rank',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF123B42),
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF5B6C70),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  meta,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF0FAFA3),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

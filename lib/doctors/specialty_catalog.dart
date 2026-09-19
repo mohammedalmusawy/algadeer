@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../search/arabic_text_utils.dart';
+
 /// كتالوج اختصارات بصرية للاختصاصات.
 /// مصدر الحقيقة لبيانات الطبيب يبقى: doctors.specialty في Supabase.
 class SpecialtyDefinition {
@@ -295,6 +297,61 @@ class SpecialtyCatalog {
       }
     }
     return null;
+  }
+
+  /// مطابقة اختصاص بحدود الكلمات — للتصنيف (هل الاستعلام اختصاص أم اسم؟).
+  ///
+  /// [match] تعتمد احتواء نصّي جزئي، فتطابق «سن» داخل «حسن» وتحوّل اسم طبيب
+  /// إلى بحث أسنان. هنا نطابق كلمة/عبارة كاملة فقط مع تحمّل أداة التعريف،
+  /// بنفس تطبيع [ArabicTextUtils] الموجود — بلا نظام تطبيع جديد.
+  static SpecialtyDefinition? matchPhrase(String raw) {
+    final words = _termWords(raw);
+    if (words.isEmpty) return null;
+    final joined = words.join(' ');
+
+    for (final s in all) {
+      if (_termWords(s.nameAr).join(' ') == joined ||
+          _termWords(s.shortNameAr).join(' ') == joined) {
+        return s;
+      }
+    }
+    for (final s in all) {
+      if (_containsWords(words, _termWords(s.nameAr))) return s;
+      for (final k in s.keywords) {
+        if (_containsWords(words, _termWords(k))) return s;
+      }
+    }
+    return null;
+  }
+
+  /// هل [raw] مصطلح اختصاص من الكتالوج ككلمة كاملة؟
+  static bool isSpecialtyTerm(String raw) => matchPhrase(raw) != null;
+
+  static List<String> _termWords(String raw) {
+    return ArabicTextUtils.normalize(raw)
+        .split(RegExp(r'[\s،,/\-]+'))
+        .map(_withoutArticle)
+        .where((w) => w.isNotEmpty)
+        .toList();
+  }
+
+  static String _withoutArticle(String word) =>
+      (word.startsWith('ال') && word.length > 3) ? word.substring(2) : word;
+
+  /// هل تظهر كلمات [needle] متتالية داخل [hay]؟
+  static bool _containsWords(List<String> hay, List<String> needle) {
+    if (needle.isEmpty || needle.length > hay.length) return false;
+    for (var i = 0; i + needle.length <= hay.length; i++) {
+      var hit = true;
+      for (var j = 0; j < needle.length; j++) {
+        if (hay[i + j] != needle[j]) {
+          hit = false;
+          break;
+        }
+      }
+      if (hit) return true;
+    }
+    return false;
   }
 
   static IconData iconFor(String specialty) {

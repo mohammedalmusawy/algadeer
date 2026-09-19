@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../services/user_profile_service.dart';
 import 'text_to_speech_service.dart';
 import 'voice_settings.dart';
 
@@ -10,8 +11,8 @@ class VoiceResponseController extends ChangeNotifier {
   VoiceResponseController({
     TextToSpeechService? tts,
     VoiceSettingsService? settings,
-  })  : _tts = tts ?? DeviceTextToSpeechService(),
-        _settings = settings ?? VoiceSettingsService() {
+  }) : _tts = tts ?? DeviceTextToSpeechService(),
+       _settings = settings ?? VoiceSettingsService() {
     _tts.speakingListenable.addListener(_onSpeakingChanged);
   }
 
@@ -39,7 +40,11 @@ class VoiceResponseController extends ChangeNotifier {
 
   Future<void> speak(String text) async {
     _lastError = null;
-    _lastText = text.trim();
+    // نطق بدون مناداة الاسم؛ النص المعروض يمكن أن يبقى «يا محمد، …».
+    final forSpeech = UserProfileService.forSpeechWithoutNameAddress(
+      text.trim(),
+    );
+    _lastText = forSpeech;
     if (_lastText!.isEmpty) {
       _lastError = 'لا يوجد نص للنطق';
       notifyListeners();
@@ -47,7 +52,9 @@ class VoiceResponseController extends ChangeNotifier {
     }
 
     try {
-      await _tts.speak(_lastText!);
+      // دائمًا من إعدادات الصوت الاصطناعي — نفس الجنس للهوية والمساعد.
+      final gender = await _settings.getGender();
+      await _tts.speak(_lastText!, genderOverride: gender);
     } catch (e, st) {
       debugPrint('VoiceResponseController.speak failed: $e\n$st');
       _lastError = 'تعذّر تشغيل الصوت';
@@ -56,6 +63,7 @@ class VoiceResponseController extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    if (!isSpeaking) return;
     try {
       await _tts.stop();
     } catch (e, st) {

@@ -55,6 +55,20 @@ void main() {
       expect(variants2.any((v) => v.contains('زين')), isTrue);
     });
 
+    test('strips glued honorific without space', () {
+      expect(
+        ArabicTextUtils.stripHonorifics('الدكتورعلي ناصر'),
+        'علي ناصر',
+      );
+      expect(
+        ArabicTextUtils.scoreDoctorNameMatch(
+          'الدكتور علي ناصر السعيدي',
+          'الدكتورعلي ناصر السعيدي',
+        ),
+        greaterThanOrEqualTo(90),
+      );
+    });
+
     test('multi-word name requires every token on the same doctor', () {
       const saeedi = 'الدكتور علي ناصر السعيدي';
       const fleih = 'الدكتور علي فليح جودة';
@@ -93,6 +107,27 @@ void main() {
       final aliFleih = ArabicTextUtils.scoreDoctorNameMatch(fleih, 'علي');
       expect(aliSaeedi, greaterThanOrEqualTo(75));
       expect(aliFleih, greaterThanOrEqualTo(75));
+    });
+
+    test('shows doctor while typing name progressively', () {
+      const saeedi = 'الدكتور علي ناصر السعيدي';
+
+      expect(
+        ArabicTextUtils.scoreDoctorNameMatch(saeedi, 'عل'),
+        greaterThanOrEqualTo(40),
+      );
+      expect(
+        ArabicTextUtils.scoreDoctorNameMatch(saeedi, 'علي'),
+        greaterThanOrEqualTo(75),
+      );
+      expect(
+        ArabicTextUtils.scoreDoctorNameMatch(saeedi, 'علي ناص'),
+        greaterThanOrEqualTo(80),
+      );
+      expect(
+        ArabicTextUtils.scoreDoctorNameMatch(saeedi, 'محم'),
+        0,
+      );
     });
 
     test('normalizes Persian yeh from speech and optional al- article', () {

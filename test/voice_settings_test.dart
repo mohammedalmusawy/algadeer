@@ -15,7 +15,7 @@ void main() {
       service.setPrefsForTesting(prefs);
     });
 
-    test('default gender is male (ولد)', () async {
+    test('default gender is male (ذكر)', () async {
       expect(await service.getGender(), AssistantVoiceGender.male);
     });
 
@@ -53,8 +53,8 @@ void main() {
     });
 
     test('labels in Arabic', () {
-      expect(AssistantVoiceGender.male.labelAr, 'ولد');
-      expect(AssistantVoiceGender.female.labelAr, 'بنت');
+      expect(AssistantVoiceGender.male.labelAr, 'ذكر');
+      expect(AssistantVoiceGender.female.labelAr, 'أنثى');
     });
   });
 }

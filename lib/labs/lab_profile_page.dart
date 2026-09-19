@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,8 @@ import '../branding/ghadeer_brand_mark.dart';
 import '../models/lab_models.dart';
 import '../utils/contact_launch.dart';
 import '../services/app_stats_service.dart';
+import '../voice/lab_packages_speech.dart';
+import '../voice/voice_response_controller.dart';
 import 'lab_card_links.dart';
 import 'lab_default_images.dart';
 import 'lab_package_detail_page.dart';
@@ -31,6 +34,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
   final _service = LabsService();
   final _stats = AppStatsService();
   final _analysisSearch = TextEditingController();
+  final _voice = VoiceResponseController();
 
   late LabItem _lab;
   List<LabPackageItem> _packages = [];
@@ -41,6 +45,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
   int _tab = 0;
   bool _favorite = false;
   bool _viewRecorded = false;
+  bool _packagesSpeechBusy = false;
 
   static const _navy = Color(0xFF123B42);
   static const _ink = Color(0xFF0F2A3D);
@@ -68,8 +73,117 @@ class _LabProfilePageState extends State<LabProfilePage> {
 
   @override
   void dispose() {
+    unawaited(_voice.stop());
+    _voice.dispose();
     _analysisSearch.dispose();
     super.dispose();
+  }
+
+  Future<void> _stopSpeechAndPop() async {
+    await _voice.stop();
+    if (!mounted) return;
+    Navigator.pop(context);
+  }
+
+  String _packagesSpeechFor(List<LabPackageItem> packages, {bool offersOnly = false}) {
+    return LabPackagesSpeech.build(
+      labName: _lab.name,
+      packages: packages,
+      offersOnly: offersOnly,
+    );
+  }
+
+  Future<void> _togglePackagesSpeech({
+    required List<LabPackageItem> packages,
+    bool offersOnly = false,
+  }) async {
+    if (_voice.isSpeaking || _packagesSpeechBusy) {
+      await _voice.stop();
+      _packagesSpeechBusy = false;
+      return;
+    }
+    final text = _packagesSpeechFor(packages, offersOnly: offersOnly);
+    if (text.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            offersOnly
+                ? 'لا توجد عروض للقراءة حالياً.'
+                : 'لا توجد باقات للقراءة حالياً.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    _packagesSpeechBusy = true;
+    try {
+      await _voice.speak(text);
+    } finally {
+      _packagesSpeechBusy = false;
+    }
+  }
+
+  Widget _packagesSpeakButton({
+    required List<LabPackageItem> packages,
+    bool offersOnly = false,
+  }) {
+    return AnimatedBuilder(
+      animation: _voice,
+      builder: (context, _) {
+        final speaking = _voice.isSpeaking;
+        final canSpeak = packages.isNotEmpty;
+        return Material(
+          color: speaking ? const Color(0xFFE6F8F6) : Colors.white,
+          shape: const StadiumBorder(),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: canSpeak
+                ? () => unawaited(
+                      _togglePackagesSpeech(
+                        packages: packages,
+                        offersOnly: offersOnly,
+                      ),
+                    )
+                : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: ShapeDecoration(
+                shape: StadiumBorder(
+                  side: BorderSide(
+                    color: canSpeak
+                        ? _actionBlue.withValues(alpha: 0.35)
+                        : const Color(0xFFE8EEF2),
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    speaking ? Icons.stop_rounded : Icons.volume_up_rounded,
+                    size: 18,
+                    color: canSpeak ? _actionBlue : _muted,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    speaking
+                        ? 'إيقاف'
+                        : (offersOnly ? 'اسمع العروض' : 'اسمع الباقات'),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: canSpeak ? _navy : _muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _loadFavorite() async {
@@ -238,7 +352,12 @@ class _LabProfilePageState extends State<LabProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        unawaited(_voice.stop());
+      },
+      child: Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: _pageBg,
@@ -288,6 +407,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -407,7 +527,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
                                 alignment: Alignment.centerLeft,
                                 child: _circleIconBtn(
                                   icon: Icons.chevron_right_rounded,
-                                  onTap: () => Navigator.pop(context),
+                                  onTap: () => unawaited(_stopSpeechAndPop()),
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -834,6 +954,14 @@ class _LabProfilePageState extends State<LabProfilePage> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Column(
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _packagesSpeakButton(
+              packages: packages,
+              offersOnly: offersOnly,
+            ),
+          ),
+          const SizedBox(height: 12),
           for (var i = 0; i < packages.length; i++) ...[
             if (i > 0) const SizedBox(height: 10),
             LabPackageCard(

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../ai/ai_service.dart';
@@ -297,9 +298,15 @@ class DynamicMessageService {
     final client = _client;
     if (client == null) return null;
     try {
+      // أعمدة صريحة حتى لا يفشل الطلب إن نقصت أعمدة اختيارية قديمة.
       final row = await client
           .from('dynamic_messages')
-          .select()
+          .select(
+            // لا نُرجع context_hint للعامة (تلميح داخلي فقط).
+            'id, placement, title, body, priority, is_active, '
+            'image_url, badge, link_url, destination_kind, destination_id, '
+            'address, map_url, created_at, updated_at',
+          )
           .eq('placement', placement)
           .eq('is_active', true)
           .order('priority', ascending: false)
@@ -310,8 +317,30 @@ class DynamicMessageService {
       final message = DynamicMessage.fromMap(Map<String, dynamic>.from(row));
       if (!message.hasContent) return null;
       return message;
-    } catch (_) {
-      return null;
+    } catch (e, st) {
+      debugPrint('dynamic_messages fetch failed: $e\n$st');
+      // إعادة محاولة بأعمدة أساسية فقط (قبل تطبيق highlight schema).
+      try {
+        final row = await client
+            .from('dynamic_messages')
+            .select(
+              'id, placement, title, body, priority, is_active, '
+              'created_at, updated_at',
+            )
+            .eq('placement', placement)
+            .eq('is_active', true)
+            .order('priority', ascending: false)
+            .order('updated_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+        if (row == null) return null;
+        final message = DynamicMessage.fromMap(Map<String, dynamic>.from(row));
+        if (!message.hasContent) return null;
+        return message;
+      } catch (e2) {
+        debugPrint('dynamic_messages basic fetch failed: $e2');
+        return null;
+      }
     }
   }
 

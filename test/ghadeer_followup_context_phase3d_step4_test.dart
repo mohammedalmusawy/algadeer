@@ -151,6 +151,73 @@ void main() {
       expect(plan.target?.doctorId, isNull);
       expect(h.context.selectedLaboratory?.labId, 'l2');
     });
+
+    test('empty replacement results drop the previously selected doctor',
+        () async {
+      final h = _Harness();
+      h.seedDoctors();
+      await h.turn('الثاني');
+      expect(h.context.selectedDoctor?.doctorId, 'b');
+
+      h.context.rememberResults(
+        const [],
+        intent: AssistantIntent.doctorSearch,
+        clearSelection: true,
+      );
+      expect(h.context.currentResultContext, isNull);
+      expect(h.context.selectedDoctor, isNull);
+      expect(h.context.activeEntityType, ConversationEntityType.none);
+
+      final plan = await h.turn('اتصل بيه');
+      expect(plan.kind, isNot(AssistantActionKind.prepareCall));
+      expect(plan.canExecute, isFalse);
+      expect(plan.target, isNull);
+      expect(h.lookupQueries, isEmpty);
+    });
+
+    test('empty replacement results drop the previously selected laboratory',
+        () {
+      final h = _Harness();
+      h.context.rememberResults(
+        [_lab('l1', 'م1'), _lab('l2', 'م2')],
+        intent: AssistantIntent.findLab,
+      );
+      h.context.selectLaboratory(_lab('l2', 'م2'));
+      expect(h.context.selectedLaboratory?.labId, 'l2');
+
+      h.context.rememberResults(const [], intent: AssistantIntent.findLab);
+      expect(h.context.selectedLaboratory, isNull);
+      expect(h.context.activeEntityType, ConversationEntityType.none);
+    });
+
+    test('empty results with clearSelection:false keep the selection', () async {
+      final h = _Harness();
+      h.seedDoctors();
+      await h.turn('الثاني');
+
+      h.context.rememberResults(
+        const [],
+        intent: AssistantIntent.doctorSearch,
+        clearSelection: false,
+      );
+      expect(h.context.selectedDoctor?.doctorId, 'b');
+    });
+
+    test('new result set still containing the doctor keeps a valid selection',
+        () async {
+      final h = _Harness();
+      h.seedDoctors();
+      await h.turn('الثاني');
+
+      h.context.rememberResults(
+        [_doc('b', 'B')],
+        intent: AssistantIntent.doctorSearch,
+      );
+      expect(h.context.selectedDoctor?.doctorId, 'b');
+      final call = await h.turn('اتصل بيه');
+      expect(call.kind, AssistantActionKind.prepareCall);
+      expect(call.target?.doctorId, 'b');
+    });
   });
 
   group('38 — Out of range', () {
@@ -258,6 +325,87 @@ void main() {
         anyOf(RespiratoryTriState.present, RespiratoryTriState.unknown),
       );
       expect(resume.kind, isNot(AssistantActionKind.prepareCall));
+    });
+  });
+
+  group('44 — Selection survives social interruption, then action', () {
+    // Existing groups cover الثاني→اتصل بيه (32), شلونك→الثاني (35) and
+    // شكرا→الثاني (36). None chains selection → social → contextual action.
+    for (final social in ['شلونك', 'شكرا']) {
+      test('الثاني → $social → اتصل بيه still calls Doctor B', () async {
+        final h = _Harness();
+        h.seedDoctors();
+
+        final selected = await h.turn('الثاني');
+        expect(selected.kind, AssistantActionKind.selectEntity);
+        expect(h.context.selectedDoctor?.doctorId, 'b');
+        final resultTurnId = h.context.currentResultContext!.turnId;
+
+        final reply = await h.turn(social);
+        expect(reply.kind, AssistantActionKind.showMessage);
+        expect(reply.canExecute, isFalse);
+        expect(reply.message.trim(), isNotEmpty);
+        expect(reply.target, isNull);
+        // Neither the selected target nor the ResultContext is lost.
+        expect(h.context.selectedDoctor?.doctorId, 'b');
+        expect(h.context.activeEntityType, ConversationEntityType.doctor);
+        expect(h.context.currentResultContext?.turnId, resultTurnId);
+        expect(
+          h.context.currentResultContext?.items.map((e) => e.doctorId).toList(),
+          ['a', 'b', 'c'],
+        );
+
+        final call = await h.turn('اتصل بيه');
+        expect(call.kind, AssistantActionKind.prepareCall);
+        expect(call.canExecute, isTrue);
+        expect(call.target?.doctorId, 'b');
+        expect(call.target?.phone, '0700b');
+        expect(h.context.selectedDoctor?.doctorId, 'b');
+        expect(h.lookupQueries, isEmpty);
+      });
+    }
+
+    test('الثاني → شكرا → دزله واتساب still targets Doctor B', () async {
+      final h = _Harness();
+      h.seedDoctors();
+      await h.turn('الثاني');
+      await h.turn('شكرا');
+      final plan = await h.turn('دزله واتساب');
+      expect(plan.kind, AssistantActionKind.prepareWhatsApp);
+      expect(plan.canExecute, isTrue);
+      expect(plan.target?.doctorId, 'b');
+      expect(h.lookupQueries, isEmpty);
+    });
+  });
+
+  group('45 — Feminine ordinal is not stolen by the dental pack', () {
+    // «الثالثة» normalizes to «الثالثه», which contains the substring «لثه»
+    // (gum). It must stay an ordinal over the current ResultContext.
+    test('الثالثة selects Doctor C and starts no dental session', () async {
+      final h = _Harness();
+      h.seedDoctors();
+      final plan = await h.turn('الثالثة');
+      expect(plan.kind, AssistantActionKind.selectEntity);
+      expect(plan.target?.doctorId, 'c');
+      expect(h.context.selectedDoctor?.doctorId, 'c');
+      expect(h.context.dentalSession.active, isFalse);
+      expect(plan.message, isNot(contains('الأسنان')));
+    });
+
+    test('الثالثة then اتصل بيه calls Doctor C', () async {
+      final h = _Harness();
+      h.seedDoctors();
+      await h.turn('الثالثة');
+      final call = await h.turn('اتصل بيه');
+      expect(call.kind, AssistantActionKind.prepareCall);
+      expect(call.target?.doctorId, 'c');
+    });
+
+    test('genuine gum complaint still reaches the dental pack', () async {
+      final h = _Harness();
+      final plan = await h.turn('عندي ورم باللثة');
+      expect(plan.kind, isNot(AssistantActionKind.selectEntity));
+      expect(h.context.dentalSession.active, isTrue);
     });
   });
 

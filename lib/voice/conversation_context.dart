@@ -892,19 +892,14 @@ class ConversationContext with SessionOnlyStateMarker {
         }
         clearPendingClarification();
       } else {
-        // نتائج فارغة / مختلطة / عامة — لا نمسح كل الاختيارات إن clearSelection
-        // كان لمسار مختلط؛ نُبطِل ResultContext أدناه.
-        if (!pureDoctors &&
-            !pureLabs &&
-            !pureAnalyses &&
-            !purePackages &&
-            results.isNotEmpty) {
-          selectedDoctor = null;
-          selectedLaboratory = null;
-          selectedAnalysis = null;
-          selectedPackage = null;
-          activeEntityType = ConversationEntityType.none;
-        }
+        // نتائج فارغة / مختلطة / عامة مع clearSelection: لا نتيجة نقية تُعيد
+        // اختيار هدف، فامسح الأهداف القديمة حتى لا يحل ضمير لاحق («اتصل بيه»)
+        // إلى اختيار من نتائج أُبطلت؛ ويُبطَل ResultContext أدناه.
+        selectedDoctor = null;
+        selectedLaboratory = null;
+        selectedAnalysis = null;
+        selectedPackage = null;
+        activeEntityType = ConversationEntityType.none;
         clarificationCandidates = const [];
         clearPendingClarification();
       }

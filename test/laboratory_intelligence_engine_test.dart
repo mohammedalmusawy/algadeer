@@ -335,7 +335,7 @@ void main() {
       expect(plan.kind, AssistantActionKind.showClarification);
       expect(ctx.hasPendingClarification, isTrue);
       expect(ctx.selectedLaboratory, isNull);
-      expect(plan.message, contains('خياران'));
+      expect(plan.message, contains('خيار خامس'));
     });
   });
 }

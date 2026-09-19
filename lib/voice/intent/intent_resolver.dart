@@ -474,6 +474,23 @@ class RuleBasedIntentResolver implements IntentResolver {
       );
     }
 
+    // 2e) حجز سياقي قصير (احجز عنده) — بلا حجز تلقائي؛ الهدف من السياق فقط.
+    if (_looksLikeContextualBooking(normalized)) {
+      final hasName = _hasExplicitDoctorName(entities.doctorName);
+      return IntentResult(
+        intent: AssistantIntent.bookAppointment,
+        originalText: original,
+        normalizedText: normalized,
+        searchMeaning: meaning,
+        entities: entities.copyWith(
+          doctorName: hasName ? entities.doctorName : null,
+          actionHint: 'book',
+        ),
+        confidence: 84,
+        requiresContext: !hasName,
+      );
+    }
+
     // 3) اختصاص — نفس منطق VoiceSpecialtySearchCommand للنص والصوت.
     final specialty = VoiceSpecialtySearchCommand.tryParse(original);
     if (specialty != null) {
@@ -712,7 +729,15 @@ class RuleBasedIntentResolver implements IntentResolver {
         RegExp(
           r'(?:افتح|اعرض|اختار)\s+(?:هذا|هاي|هذي|هذه|هذاك|ذاك)',
         ).hasMatch(n) ||
+        RegExp(r'^(?:افتحه|افتحها)\s*$').hasMatch(n.trim()) ||
         RegExp(r'(?:نبذة|معلومات)\s*(?:ال)?مختبر').hasMatch(n);
+  }
+
+  static bool _looksLikeContextualBooking(String n) {
+    return RegExp(
+      r'(?:احجز|أحجز|احجزلي).{0,16}عند(?:ه|ها)|'
+      r'(?:أريد|اريد|ابي)\s*(?:احجز|أحجز).{0,16}عند(?:ه|ها)',
+    ).hasMatch(n);
   }
 
   static bool _looksLikePackages(String n) {

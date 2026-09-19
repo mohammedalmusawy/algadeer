@@ -1,4 +1,5 @@
 import 'clarification_models.dart';
+import '../ghadeer_followup_context.dart';
 
 /// بنّاء ردود التوضيح العربية — مصدر واحد للجمل (نص/صوت).
 class ClarificationResponseBuilder {
@@ -35,12 +36,13 @@ class ClarificationResponseBuilder {
     return _buildNumbered(pending, lead: customLead ?? 'وجدت أكثر من نتيجة:');
   }
 
-  String invalidOrdinal(PendingClarification pending) {
+  String invalidOrdinal(PendingClarification pending, {int? requestedOrdinal}) {
     final n = pending.candidates.length;
-    if (n == 2) {
-      return 'عندي خياران فقط. تقصد الأول أم الثاني؟';
-    }
-    return 'الرقم خارج النطاق. اختر من 1 إلى $n.';
+    final requested = requestedOrdinal ?? (n + 1);
+    return GhadeerFollowUpContext.outOfRangeMessage(
+      requestedOrdinal: requested,
+      availableCount: n,
+    );
   }
 
   String stillAmbiguous(PendingClarification pending) {

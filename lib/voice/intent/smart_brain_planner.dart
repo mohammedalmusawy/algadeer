@@ -7,7 +7,11 @@ import '../../companion/people/family_profile_command_coordinator.dart';
 import '../../companion/people/subject_binding/subject_binding_coordinator.dart';
 import '../../companion/people/subject_binding/subject_binding_models.dart';
 import '../../companion/personal_companion_profile.dart';
+import '../../companion/owner_profile_context_bridge.dart';
+import '../../companion/ghadeer_identity.dart';
+import '../../companion/ghadeer_social_conversation.dart';
 import '../../companion/personal_memory/personal_memory_coordinator.dart';
+import '../startup_greeting.dart';
 import '../../companion/personalization/natural_recall_response_decorator.dart';
 import '../../companion/personalization/personalization_coordinator.dart';
 import '../../companion/personalization/personalization_models.dart';
@@ -53,6 +57,7 @@ import '../context_resolver.dart';
 import '../conversation_context.dart';
 import '../conversation_reference_resolver.dart';
 import '../entity_relationship_resolver.dart';
+import '../ghadeer_followup_context.dart';
 import '../conduct/conversation_conduct_coordinator.dart';
 import '../guided_conversation/arabic_answer_normalizer.dart';
 import '../guided_conversation/guided_conversation_engine.dart';
@@ -701,6 +706,7 @@ class SmartBrainPlanner {
       case AssistantIntent.messageLab:
       case AssistantIntent.showLocation:
       case AssistantIntent.showProfile:
+      case AssistantIntent.bookAppointment:
       case AssistantIntent.selectResult:
         return true;
       case AssistantIntent.doctorSearch:
@@ -723,9 +729,12 @@ class SmartBrainPlanner {
   }
 
   /// يفهم الاستعلام ويُنتج خطة فعل — بدون إطلاق اتصال/تنقل هنا.
-  /// أولوية Step 10A / 10E.1 / PC-1.6:
+  /// أولوية Step 10A / 10E.1 / PC-1.6 / Phase 3D:
   /// 0) كشف السلوك (metadata) — بلا ابتلاع قبل الصحة/السلامة
   /// 0b) بوابة سلامة نفسية للأزمة الصريحة
+  /// 0c) هوية غدير الحتمية (تحويلة محادثية — لا تمسح الجلسة السريرية)
+  /// 0d) محادثة اجتماعية standalone فقط (بعد الهوية؛ قبل _planImpl
+  ///     حتى لا تُستهلك كجواب سريري؛ الجمل المختلطة لا تطابق فتمر للمعنى)
   /// 1) إلغاء / تغيير موضوع للتدفق الموجَّه
   /// 2) PendingClarification (Step 5) إن ملك الجواب
   /// 3) GuidedQuestion
@@ -759,6 +768,51 @@ class SmartBrainPlanner {
         kind: AssistantActionKind.showMessage,
         intentResult: _intentResolver.resolve(pipelineQuery),
         message: crisis.standaloneMessage,
+        canExecute: false,
+        textFirstOnly: true,
+      );
+    }
+
+    // Phase 3D STEP 1 — هوية المساعد/التطبيق قبل السريري والبحث؛ بلا مسح جلسة.
+    final identityAnswer =
+        const GhadeerIdentity().tryAnswer(pipelineQuery);
+    if (identityAnswer != null) {
+      context.setAssistantResponse(identityAnswer);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: _intentResolver.resolve(pipelineQuery),
+        message: identityAnswer,
+        canExecute: false,
+        textFirstOnly: true,
+      );
+    }
+
+    // Phase 3D STEP 2/3 — اجتماعي standalone فقط.
+    // الجمل المختلطة (هلا اريد طبيب…) لا تطابق → _planImpl يفوز.
+    // مبكرًا مثل الهوية حتى لا تُستهلك شلونك/شكرا كجواب سريري معلّق.
+    // STEP 3: اسم اختياري من الملف القائم + تنويع حتمي عبر ghadeerSocial.
+    String? socialFirstName;
+    try {
+      final profile =
+          await _companionOnboarding.profiles.loadProfile();
+      socialFirstName = greetingAddressName(
+        profile?.preferredName ?? profile?.fullName,
+      );
+    } catch (_) {
+      socialFirstName = null;
+    }
+    final socialReply = const GhadeerSocialConversation().resolve(
+      pipelineQuery,
+      firstName: socialFirstName,
+      socialContext: context.ghadeerSocial,
+    );
+    if (socialReply != null) {
+      context.setGhadeerSocial(socialReply.nextContext);
+      context.setAssistantResponse(socialReply.message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: _intentResolver.resolve(pipelineQuery),
+        message: socialReply.message,
         canExecute: false,
         textFirstOnly: true,
       );
@@ -1056,23 +1110,54 @@ class SmartBrainPlanner {
       }
       final labeledAge =
           _unifiedBrain.ageResolver.parseExplicitAgeYears(workingQuery);
+      // عودة صريحة للمالك قبل تقرير العمر — Phase 3C يحتاج معرفة self مبكراً.
+      final normalizedSubject = ArabicTextUtils.normalize(workingQuery);
+      final ownerSelfReturn = RegExp(
+            r'(?:^|\s)(?:اني|انا)(?:\s|$)',
+          ).hasMatch(normalizedSubject) &&
+          !RegExp(
+            r'(?:ابني|بنتي|زوجتي|امي|أمي|اخوي|اختي|أختي)',
+          ).hasMatch(normalizedSubject);
       final aboutOtherSubject = context.healthSubject.isKnown &&
-          context.healthSubject.type != HealthSubjectType.self;
+          context.healthSubject.type != HealthSubjectType.self &&
+          !ownerSelfReturn;
       final sessionAge = context.isSessionAgeAnswerContext
           ? _unifiedBrain.ageResolver.parseSessionSubjectAgeYears(workingQuery)
           : null;
       final explicitAge = aboutOtherSubject
           ? sessionAge
           : (labeledAge ?? sessionAge);
+      const ownerBridge = OwnerProfileContextBridge();
+      final provisionalSubject = ownerSelfReturn
+          ? HealthSubjectContext(
+              sessionKey: 'subj_self_g${context.conversationGeneration}',
+              type: HealthSubjectType.self,
+              evidence: HealthSubjectEvidence.explicitSelf,
+              isChild: false,
+              ageGroup: 'adult',
+            )
+          : context.healthSubject;
+      final provisionalResolved = ownerSelfReturn
+          ? ResolvedConversationSubject.accountOwner
+          : context.resolvedConversationSubject;
+      final mayOwnerProfile = ownerBridge.mayApplyOwnerProfile(
+        subject: provisionalSubject,
+        resolved: provisionalResolved,
+      );
       final ageRes = aboutOtherSubject
           ? _unifiedBrain.ageResolver.resolve(
               explicitAgeFromUtterance: explicitAge,
               approximateAgeYears: context.healthSubject.ageYears,
             )
-          : _unifiedBrain.ageResolver.resolveFromOwnerProfile(
-              ownerProfile,
-              explicitAgeFromUtterance: explicitAge,
-            );
+          : (mayOwnerProfile
+              ? ownerBridge.resolveAge(
+                  profile: ownerProfile,
+                  explicitAgeFromUtterance: explicitAge,
+                )
+              : _unifiedBrain.ageResolver.resolve(
+                  explicitAgeFromUtterance: explicitAge,
+                  approximateAgeYears: context.healthSubject.ageYears,
+                ));
       final brainTurn = _unifiedBrain.buildTurn(
         workingQuery,
         age: ageRes,
@@ -1093,18 +1178,11 @@ class SmartBrainPlanner {
 
       // نطاق موضوع نصّي خفيف (قبل ربط PC-1.9 الكامل لاحقاً).
       // تصحيح الأرقام/الأسبوع ≠ تبديل شخص — لا تمسح الجلسات.
-      final normalizedSubject = ArabicTextUtils.normalize(workingQuery);
       final subjectCorrection = RegExp(
         r'(?:مو\s*اني|مو\s*إلي|مو\s*الي|لزوجتي|لابني|لاختي|لا\s*مو\s*اني)',
       ).hasMatch(normalizedSubject);
       // عودة صريحة للمالك («اني/انا») بعد موضوع عن شخص آخر — تمسح الجلسات اللاصقة.
       // لها أولوية على isAboutOtherPerson القادم من سياق الدور السابق (PC-1.9 late binding).
-      final ownerSelfReturn = RegExp(
-            r'(?:^|\s)(?:اني|انا)(?:\s|$)',
-          ).hasMatch(normalizedSubject) &&
-          !RegExp(
-            r'(?:ابني|بنتي|زوجتي|امي|أمي|اخوي|اختي|أختي)',
-          ).hasMatch(normalizedSubject);
       // النطاق يتبع الشخص فقط، لا نية الدور. جواب متابعة («عمره 8 سنوات»)
       // يُصنَّف primaryIntent=unknown لأنه بلا كلمة عرض — لو دخل في المفتاح
       // لبدا تبديلَ شخص وهو نفس الطفل، فتُمسح الجلسة السريرية النشطة.
@@ -1144,6 +1222,7 @@ class SmartBrainPlanner {
       }
 
       _syncSessionHealthSubject(context, workingQuery);
+      _applyOwnerProfileContextBridge(context, ownerProfile);
 
       bool pregMay = false;
       bool dentalMay = false;
@@ -2238,6 +2317,13 @@ class SmartBrainPlanner {
       }
     }
 
+    // Phase 3C — إعادة جسر المالك بعد ربط PC-1.9 حتى لا يُمسَح الجنس/العمر.
+    try {
+      final ownerProfile =
+          await _companionOnboarding.profiles.loadProfile();
+      _applyOwnerProfileContextBridge(context, ownerProfile);
+    } catch (_) {}
+
     // —— Step 10C: توجيه صحي عند لغة أعراض (وليس أمر تطبيق صريح) ——
     final healthPlan = _tryHealthGuidance(
       query: workingQuery,
@@ -2276,6 +2362,7 @@ class SmartBrainPlanner {
       case AssistantIntent.messageDoctor:
       case AssistantIntent.callLab:
       case AssistantIntent.messageLab:
+      case AssistantIntent.bookAppointment:
         return null;
       case AssistantIntent.doctorSearch:
         // بحث طبيب صريح فقط يمنع المسار الصحي — لا العبارات الصحية القصيرة.
@@ -2661,6 +2748,9 @@ class SmartBrainPlanner {
       case AssistantIntent.showProfile:
         return _planAction(query, context, intent);
 
+      case AssistantIntent.bookAppointment:
+        return _planContextualBooking(query, context, intent);
+
       case AssistantIntent.specialtySearch:
         context.beginNewDoctorSearch(
           query: query,
@@ -2973,6 +3063,16 @@ class SmartBrainPlanner {
       if (ref.focusEntityType != null) {
         context.focusOn(ref.focusEntityType!);
       }
+      // «افتحه» / «افتح هذا» مع نية الملف → مسار الفتح القائم، لا مجرد اختيار.
+      if (intent.intent == AssistantIntent.showProfile) {
+        return AssistantActionPlan(
+          kind: AssistantActionKind.openProfile,
+          intentResult: intent,
+          target: ref.target,
+          message: 'فتح ملف ${ref.target!.title}.',
+          canExecute: true,
+        );
+      }
       return AssistantActionPlan(
         kind: AssistantActionKind.selectEntity,
         intentResult: intent,
@@ -3031,6 +3131,7 @@ class SmartBrainPlanner {
     final n = ArabicTextUtils.normalize(query);
     // «افتح هذا» / «اختار هاي» فقط — ليس «نبذته» أو «افتح ملفه».
     return RegExp(
+      r'(?:افتحه|افتحها)|'
       r'(?:افتح|اعرض|اختار|شارك)\s+(?:هذا|هاي|هذي|هذه|هذاك|ذاك)\s*$',
     ).hasMatch(n);
   }
@@ -5389,10 +5490,15 @@ class SmartBrainPlanner {
       if (resolved.handled) {
         return _mapContextResolution(intent, resolved);
       }
+      final ordinal = ContextResolver.extractOrdinal(
+        ArabicTextUtils.normalize(query),
+      );
       return AssistantActionPlan(
         kind: AssistantActionKind.showMessage,
         intentResult: intent,
-        message: 'ما عندي نتائج سابقة أختار منها.',
+        message: GhadeerFollowUpContext.noSelectableResultsMessage(
+          requestedOrdinal: ordinal,
+        ),
         canExecute: false,
       );
     }
@@ -5403,10 +5509,15 @@ class SmartBrainPlanner {
       if (resolved.handled) {
         return _mapContextResolution(intent, resolved);
       }
+      final ordinal = ContextResolver.extractOrdinal(
+        ArabicTextUtils.normalize(query),
+      );
       return AssistantActionPlan(
         kind: AssistantActionKind.showMessage,
         intentResult: intent,
-        message: 'ما عندي نتائج سابقة أختار منها.',
+        message: GhadeerFollowUpContext.noSelectableResultsMessage(
+          requestedOrdinal: ordinal,
+        ),
         canExecute: false,
       );
     }
@@ -5544,6 +5655,69 @@ class SmartBrainPlanner {
       );
     }
     return _mapContextResolution(intent, resolved);
+  }
+
+  /// حجز سياقي: يحل الهدف المحدد فقط — بلا حجز تلقائي (سياسة قائمة).
+  Future<AssistantActionPlan> _planContextualBooking(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+  ) async {
+    final target = _targetResolver.resolve(
+      intentResult: intent,
+      context: context,
+    );
+
+    if (target.source == DoctorTargetSource.explicitName &&
+        target.hasDoctor) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        target: target.doctor,
+        message: GhadeerFollowUpContext.bookingNotAutomaticMessage(
+          target.doctor!,
+        ),
+        canExecute: false,
+        targetResolution: target,
+      );
+    }
+
+    if ((target.source == DoctorTargetSource.selectedContext ||
+            target.source == DoctorTargetSource.ordinal) &&
+        target.hasDoctor) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        target: target.doctor,
+        message: GhadeerFollowUpContext.bookingNotAutomaticMessage(
+          target.doctor!,
+        ),
+        canExecute: false,
+        targetResolution: target,
+      );
+    }
+
+    final selected = context.selectedDoctor;
+    if (selected != null &&
+        context.activeEntityType == ConversationEntityType.doctor) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        target: selected,
+        message: GhadeerFollowUpContext.bookingNotAutomaticMessage(selected),
+        canExecute: false,
+      );
+    }
+
+    return AssistantActionPlan(
+      kind: AssistantActionKind.showClarification,
+      intentResult: intent.copyWithClarification(true),
+      message: target.message.isNotEmpty
+          ? target.message
+          : GhadeerFollowUpContext.noPronounTargetMessage(),
+      canExecute: false,
+      targetResolution: target,
+    );
   }
 
   Future<AssistantActionPlan> _planAction(
@@ -6218,6 +6392,21 @@ class SmartBrainPlanner {
       subject = subject.copyWith(ageYears: previous.ageYears);
     }
     context.setHealthSubject(subject);
+  }
+
+  /// Phase 3C — يenrich ذات المالك بعمر/جنس الملف كملاذ فقط؛ لا يكتب للملف.
+  void _applyOwnerProfileContextBridge(
+    ConversationContext context,
+    PersonalCompanionProfile? ownerProfile,
+  ) {
+    const bridge = OwnerProfileContextBridge();
+    final enriched = bridge.enrichSubjectIfAllowed(
+      subject: context.healthSubject,
+      resolved: context.resolvedConversationSubject,
+      profile: ownerProfile,
+    );
+    // دائماً نضبط بعد الإثراء — equality لا يشمل reservedSexHint.
+    context.setHealthSubject(enriched);
   }
 
   /// PC-1.24 — إنهاء رد سريري واحد مع تشخيص تحكيم آمن.

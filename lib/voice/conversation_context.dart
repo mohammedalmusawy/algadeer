@@ -13,6 +13,7 @@ import '../health/family_sensitive/family_health_command_models.dart';
 import '../follow_up/follow_up_command_models.dart';
 import '../companion/personal_memory/personal_memory_command_models.dart';
 import '../companion/personalization/personalization_models.dart';
+import '../companion/ghadeer_social_conversation.dart';
 import '../daily_context/daily_context_models.dart';
 import '../clinical_knowledge/clinical_knowledge_models.dart';
 import '../clinical_knowledge/packs/musculoskeletal/msk_models.dart';
@@ -211,6 +212,9 @@ class ConversationContext with SessionOnlyStateMarker {
   PersonalizationSessionState personalizationSession =
       PersonalizationSessionState.empty;
 
+  /// Phase 3D STEP 3 — استمرارية اجتماعية خفيفة (جلسة فقط؛ بلا ثبات).
+  GhadeerSocialContext ghadeerSocial = GhadeerSocialContext.empty;
+
   /// PC-1.8/PC-1.9 — ربط شخص دائم نشط — مصدر واحد.
   String? linkedFamilyPersonId;
 
@@ -248,6 +252,10 @@ class ConversationContext with SessionOnlyStateMarker {
 
   void setPersonalizationSession(PersonalizationSessionState state) {
     personalizationSession = state;
+  }
+
+  void setGhadeerSocial(GhadeerSocialContext state) {
+    ghadeerSocial = state;
   }
 
   void setLinkedFamilyPersonId(String? personId) {
@@ -733,6 +741,7 @@ class ConversationContext with SessionOnlyStateMarker {
       ...followUpPending.debugMap(),
       ...personalMemoryPending.debugMap(),
       ...personalizationSession.debugMap(),
+      ...ghadeerSocial.debugMap(),
       ...pendingPersonClarification.debugMap(),
       ...resolvedConversationSubject.debugMap(),
       ...healthSubject.debugMap(),
@@ -1421,6 +1430,7 @@ class ConversationContext with SessionOnlyStateMarker {
     followUpPending = FollowUpPendingOp.none;
     personalMemoryPending = PersonalMemoryPendingOp.none;
     personalizationSession = PersonalizationSessionState.empty;
+    ghadeerSocial = GhadeerSocialContext.empty;
     linkedFamilyPersonId = null;
     pendingPersonClarification = PendingPersonClarification.inactive;
     resolvedConversationSubject = ResolvedConversationSubject.unknown;

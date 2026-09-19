@@ -87,6 +87,16 @@ class PersonalCompanionProfile {
     return n.isEmpty ? null : n;
   }
 
+  /// Phase 3A — الاسم الثلاثي / اسم العرض (نفس preferredName السلطوي).
+  String? get fullName => effectivePreferredName;
+  String? get displayName => effectivePreferredName;
+
+  /// Phase 3A — عمر مشتق (ليس حقلاً مخزّناً).
+  int? get ageYears => currentAge();
+
+  /// Phase 3A — جنس الملف إن وُجد.
+  ProfileSexSelection? get sex => sexSelection;
+
   PersonalCompanionProfile copyWith({
     String? preferredName,
     String? profilePhotoUrl,

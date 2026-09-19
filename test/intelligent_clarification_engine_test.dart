@@ -116,7 +116,7 @@ void main() {
       ctx.rememberResults([aliNasir, aliFleih], query: 'دكتور علي');
       final plan = await planner.plan(query: 'الثالث', context: ctx);
       expect(plan.kind, AssistantActionKind.showClarification);
-      expect(plan.message, contains('خياران'));
+      expect(plan.message, contains('خيار ثالث'));
       expect(ctx.hasPendingClarification, isTrue);
       expect(ctx.selectedDoctor, isNull);
     });

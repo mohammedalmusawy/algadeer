@@ -3,6 +3,7 @@ import '../../search/doctor_name_matcher.dart';
 import '../../search/smart_search_models.dart';
 import '../context_resolver.dart';
 import '../conversation_context.dart';
+import '../ghadeer_followup_context.dart';
 import 'assistant_intent.dart';
 import 'intent_result.dart';
 
@@ -153,27 +154,27 @@ class DoctorTargetResolver {
     // PC-0.2: ResultContext / clarification فقط — ليس lastDoctorSnapshot.
     final doctors = context.authoritativeItemsFor(ConversationEntityType.doctor);
     if (doctors.isEmpty) {
-      return const DoctorTargetResolution(
+      return DoctorTargetResolution(
         source: DoctorTargetSource.unresolved,
         requiresClarification: true,
-        message: 'ما عندي نتائج سابقة أختار منها. ابحث عن طبيب أولاً.',
+        message: GhadeerFollowUpContext.noSelectableResultsMessage(
+          requestedOrdinal: ordinal == -1 ? null : ordinal,
+        ),
       );
     }
 
     final index = ordinal == -1 ? doctors.length : ordinal;
     if (index < 1 || index > doctors.length) {
-      final n = doctors.length;
-      final rangeHint = n == 1
-          ? 'نتيجة واحدة فقط — قل: الأول.'
-          : n == 2
-              ? 'النتائج الحالية بيها طبيبين فقط، اختار الأول أو الثاني.'
-              : 'النتائج الحالية فيها $n أطباء — اختار رقماً من 1 إلى $n.';
+      final requested = ordinal == -1 ? doctors.length + 1 : ordinal;
       return DoctorTargetResolution(
         source: DoctorTargetSource.unresolved,
         requiresClarification: true,
         resultIndex: ordinal,
         candidates: doctors,
-        message: rangeHint,
+        message: GhadeerFollowUpContext.outOfRangeMessage(
+          requestedOrdinal: requested,
+          availableCount: doctors.length,
+        ),
       );
     }
 
@@ -307,7 +308,8 @@ class DoctorTargetResolver {
     switch (intent) {
       case AssistantIntent.callDoctor:
       case AssistantIntent.messageDoctor:
-        return 'أي طبيب تقصد؟ ابحث عن الطبيب أو اذكر اسمه أولاً.';
+      case AssistantIntent.bookAppointment:
+        return GhadeerFollowUpContext.noPronounTargetMessage();
       case AssistantIntent.showLocation:
         return 'حدد الطبيب أولاً ثم اسأل عن العيادة.';
       case AssistantIntent.showProfile:

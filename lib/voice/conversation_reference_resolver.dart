@@ -1,5 +1,6 @@
 import '../search/arabic_text_utils.dart';
 import 'conversation_context.dart';
+import 'ghadeer_followup_context.dart';
 import 'intent/assistant_intent.dart';
 import 'intent/intent_result.dart';
 import 'result_context.dart';
@@ -436,7 +437,7 @@ class ConversationReferenceResolver {
     return ConversationReferenceResolution(
       confidence: ReferenceConfidence.unresolved,
       requiresClarification: true,
-      message: 'أي طبيب تقصد؟ ابحث عن الطبيب أو اذكر اسمه أولاً.',
+      message: GhadeerFollowUpContext.noPronounTargetMessage(),
     );
   }
 
@@ -447,7 +448,9 @@ class ConversationReferenceResolver {
       r'اتصل\s*(?:بيه|به|بيها|بها)?|'
       r'راسل(?:ه|ها|هم)?|'
       r'دزله(?:\s+واتساب)?|'
+      r'(?:افتحه|افتحها)|'
       r'(?:افتح|اعرض|اختار)\s*(?:هذا|هاي|هذي|هذه|هذاك|ذاك)|'
+      r'(?:احجز|أحجز)\s*عند(?:ه|ها)|'
       r'ضيفه(?:\s+للمفضله)?)\s*$',
     ).hasMatch(n.trim());
   }

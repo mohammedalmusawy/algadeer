@@ -624,13 +624,12 @@ void main() {
       final c = ConversationContext();
       await p.plan(query: 'سني يوجعني', context: c);
       expect(c.dentalSession.active, isTrue);
-      await p.plan(query: 'مرحبا', context: c);
-      expect(
-        c.unifiedBrainDiagnostics.clinicalSessionsClearedForForeignTurn ||
-            c.unifiedBrainDiagnostics.primaryIntent ==
-                BrainPrimaryIntent.greeting,
-        isTrue,
-      );
+      final plan = await p.plan(query: 'مرحبا', context: c);
+      // Phase 3D STEP 2: تحية standalone = تحويلة اجتماعية؛ لا تُستهلك كجواب أسنان.
+      expect(plan.kind, AssistantActionKind.showMessage);
+      expect(plan.message, contains('هلا بيك'));
+      expect(plan.message.toLowerCase(), isNot(contains('سن')));
+      expect(c.dentalSession.active, isTrue);
     });
 
     test('subject switch owner pregnancy then wife dental clears leak path',

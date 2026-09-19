@@ -21,6 +21,13 @@ void main() {
       expect(g.spokenGreeting.contains('أهلاً'), isFalse);
     });
 
+    test('CASE 1b — Phase 3B full name uses first token only', () {
+      final g = PersonalizedGreeting.fromDisplayName('محمد علي حسن');
+      expect(g.firstName, 'محمد');
+      expect(g.displayGreeting, 'مرحباً بك، محمد 👋');
+      expect(g.spokenGreeting.contains('محمد علي'), isFalse);
+    });
+
     test('CASE 2 — no valid name', () {
       final g = PersonalizedGreeting.fromDisplayName(null);
       expect(g.displayGreeting, 'مرحباً بك 👋');

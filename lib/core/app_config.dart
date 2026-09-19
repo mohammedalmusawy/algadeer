@@ -24,4 +24,12 @@ class AppConfig {
   );
 
   static bool get isAiBackendConfigured => aiEdgeFunctionUrl.trim().isNotEmpty;
+
+  /// الراعي الرسمي الحالي لتطبيق الغدير (قيمة تجارية قابلة للتغيير).
+  /// مصدر واحد — غيّره هنا أو عبر:
+  /// `--dart-define=GHADEER_OFFICIAL_SPONSOR=...`
+  static const String ghadeerOfficialSponsor = String.fromEnvironment(
+    'GHADEER_OFFICIAL_SPONSOR',
+    defaultValue: 'أبو سعدية للموبايلات',
+  );
 }

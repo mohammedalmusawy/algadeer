@@ -91,6 +91,7 @@ class HealthSubjectContext {
     bool clearAgeYears = false,
     bool clearIsChild = false,
     bool clearLinkedPersonId = false,
+    bool clearReservedSexHint = false,
   }) {
     return HealthSubjectContext(
       sessionKey: sessionKey ?? this.sessionKey,
@@ -99,7 +100,9 @@ class HealthSubjectContext {
       isChild: clearIsChild ? null : (isChild ?? this.isChild),
       ageGroup: ageGroup ?? this.ageGroup,
       ageYears: clearAgeYears ? null : (ageYears ?? this.ageYears),
-      reservedSexHint: reservedSexHint ?? this.reservedSexHint,
+      reservedSexHint: clearReservedSexHint
+          ? null
+          : (reservedSexHint ?? this.reservedSexHint),
       linkedPersonId:
           clearLinkedPersonId ? null : (linkedPersonId ?? this.linkedPersonId),
     );

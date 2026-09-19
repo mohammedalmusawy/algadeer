@@ -68,7 +68,8 @@ void main() {
           AssistantActionKind.showClarification,
         ),
       );
-      expect(plan.message, contains('نتائج سابقة'));
+      expect(plan.message, contains('نتائج'));
+      expect(plan.message, contains('الثاني'));
     });
   });
 

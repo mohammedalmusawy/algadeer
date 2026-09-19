@@ -8,6 +8,8 @@ import '../branding/ghadeer_brand_mark.dart';
 import '../labs/lab_card_links.dart';
 import '../models/doctor_item.dart';
 import '../services/app_stats_service.dart';
+import '../companion/personal_companion_profile_service.dart';
+import '../utils/clinic_contact_message.dart';
 import '../utils/contact_launch.dart';
 import '../voice/voice_response_controller.dart';
 import 'doctor_availability_service.dart';
@@ -38,6 +40,7 @@ class DoctorProfilePage extends StatefulWidget {
 class _DoctorProfilePageState extends State<DoctorProfilePage> {
   final _engagement = DoctorEngagementService();
   final _stats = AppStatsService();
+  final _profileService = PersonalCompanionProfileService();
   final _voice = VoiceResponseController();
   late bool _favorite;
   DoctorRatingSummary _rating = const DoctorRatingSummary();
@@ -691,10 +694,18 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
             color: unified,
             onTap: (!_canContact || doctor.whatsapp.trim().isEmpty)
                 ? null
-                : () {
+                : () async {
                     _stats.recordWhatsAppTap(doctor.id);
-                    // تمهيد للمستقبل: الرسالة تصل بمعرفة أنها من تطبيق الغدير.
-                    launchClinicWhatsApp(doctor.whatsapp);
+                    final name = await _profileService
+                        .preferredNameForPersonalization();
+                    await launchClinicWhatsApp(
+                      doctor.whatsapp,
+                      message: ClinicContactMessage.whatsAppPrefill(
+                        patientFullName: name,
+                        providerTitle: doctor.name,
+                        preferBookingWording: true,
+                      ),
+                    );
                   },
           ),
         ),

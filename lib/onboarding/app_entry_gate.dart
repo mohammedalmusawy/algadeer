@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'user_name_onboarding_page.dart';
 import '../services/user_profile_service.dart';
 
-/// بوابة الدخول: أول تشغيل → اسم اختياري، بعدها الشاشة الرئيسية.
+/// بوابة الدخول: أول تشغيل → تأسيس الملف الشخصي القصير (Phase 3A)، بعدها الرئيسية.
 class AppEntryGate extends StatefulWidget {
   const AppEntryGate({super.key, required this.home});
 

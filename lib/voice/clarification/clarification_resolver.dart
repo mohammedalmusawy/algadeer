@@ -6,6 +6,7 @@ import '../../search/doctor_name_matcher.dart';
 import '../../search/laboratory_name_matcher.dart';
 import '../../search/package_name_matcher.dart';
 import '../context_resolver.dart';
+import '../ghadeer_followup_context.dart';
 import '../intent/assistant_intent.dart';
 import '../intent/intent_result.dart';
 import 'clarification_models.dart';
@@ -115,9 +116,13 @@ class ClarificationResolver {
     final n = pending.candidates.length;
     final index = ordinal == -1 ? n : ordinal;
     if (index < 1 || index > n) {
+      final requested = ordinal == -1 ? n + 1 : ordinal;
       return ClarificationResolveResult(
         status: ClarificationResolveStatus.invalidOrdinal,
-        message: _responses.invalidOrdinal(pending),
+        message: GhadeerFollowUpContext.outOfRangeMessage(
+          requestedOrdinal: requested,
+          availableCount: n,
+        ),
       );
     }
     return ClarificationResolveResult(

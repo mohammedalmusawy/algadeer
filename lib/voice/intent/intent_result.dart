@@ -46,6 +46,7 @@ class IntentResult {
       intent == AssistantIntent.messageLab ||
       intent == AssistantIntent.showLocation ||
       intent == AssistantIntent.showProfile ||
+      intent == AssistantIntent.bookAppointment ||
       intent == AssistantIntent.findPackage ||
       intent == AssistantIntent.findAnalysis ||
       intent == AssistantIntent.selectResult;

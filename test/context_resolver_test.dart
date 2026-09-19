@@ -59,14 +59,15 @@ void main() {
       final r = resolver.resolve('الثالث', ctx);
       expect(r.status, ContextResolutionStatus.selectionOutOfRange);
       expect(ctx.selectedEntity, isNull);
-      expect(r.message, contains('طبيبين'));
+      expect(r.message, contains('خيار ثالث'));
     });
 
     test('TEST 4 — الثاني without previous results', () {
       final r = resolver.resolve('الثاني', ctx);
       expect(r.status, ContextResolutionStatus.noPreviousResults);
       expect(ctx.selectedEntity, isNull);
-      expect(r.message, contains('نتائج سابقة'));
+      expect(r.message, contains('نتائج'));
+      expect(r.message, contains('الثاني'));
     });
 
     test('TEST 5 — وين عيادته؟ uses selected location', () {

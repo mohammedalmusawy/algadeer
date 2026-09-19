@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../companion/personal_companion_profile_service.dart';
 import '../models/lab_models.dart';
 import '../services/app_stats_service.dart';
+import '../utils/clinic_contact_message.dart';
 import '../utils/contact_launch.dart';
 import 'labs_service.dart';
 
@@ -128,7 +130,10 @@ class _LabPickAnalysesSheetState extends State<_LabPickAnalysesSheet> {
         .toList();
   }
 
-  String _buildWhatsAppMessage(List<AnalysisItem> selected) {
+  String _buildWhatsAppMessage(
+    List<AnalysisItem> selected, {
+    String? patientFullName,
+  }) {
     final lab = widget.labName.trim().isEmpty ? 'المختبر' : widget.labName.trim();
     final buf = StringBuffer();
     buf.writeln('السلام عليكم،');
@@ -152,7 +157,10 @@ class _LabPickAnalysesSheetState extends State<_LabPickAnalysesSheet> {
       buf.writeln();
     }
     buf.write('من تطبيق عيادة الغدير');
-    return buf.toString();
+    return ClinicContactMessage.appendPatientNameIfPresent(
+      buf.toString(),
+      patientFullName: patientFullName,
+    );
   }
 
   Future<void> _sendWhatsApp() async {
@@ -171,10 +179,15 @@ class _LabPickAnalysesSheetState extends State<_LabPickAnalysesSheet> {
       return;
     }
 
+    final patientName =
+        await PersonalCompanionProfileService().preferredNameForPersonalization();
     _stats.recordLabWhatsAppTap(widget.labId);
     await launchClinicWhatsApp(
       wa,
-      message: _buildWhatsAppMessage(selected),
+      message: _buildWhatsAppMessage(
+        selected,
+        patientFullName: patientName,
+      ),
     );
   }
 

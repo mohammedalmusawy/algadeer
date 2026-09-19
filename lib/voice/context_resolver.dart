@@ -1,6 +1,7 @@
 import '../search/arabic_text_utils.dart';
 import '../search/smart_search_models.dart';
 import 'conversation_context.dart';
+import 'ghadeer_followup_context.dart';
 import 'intent/assistant_intent.dart';
 
 /// ناتج حل سياق — حتمي وخفيف بدون AI.
@@ -219,30 +220,40 @@ class ContextResolver {
     // PC-0.2: ResultContext الحالي (أو توضيح معلّق صريح) — ليس lastResults.
     final type = _ordinalEntityType(context);
     if (type == null || type == ConversationEntityType.none) {
-      return const ContextResolution(
+      return ContextResolution(
         status: ContextResolutionStatus.noPreviousResults,
         intent: AssistantIntent.selectResult,
-        message: 'ما عندي نتائج سابقة أختار منها.',
+        requestedOrdinal: ordinal == -1 ? null : ordinal,
+        message: GhadeerFollowUpContext.noSelectableResultsMessage(
+          requestedOrdinal: ordinal == -1 ? null : ordinal,
+        ),
       );
     }
 
     final items = context.authoritativeItemsFor(type);
     if (items.isEmpty) {
-      return const ContextResolution(
+      return ContextResolution(
         status: ContextResolutionStatus.noPreviousResults,
         intent: AssistantIntent.selectResult,
-        message: 'ما عندي نتائج سابقة أختار منها.',
+        requestedOrdinal: ordinal == -1 ? null : ordinal,
+        message: GhadeerFollowUpContext.noSelectableResultsMessage(
+          requestedOrdinal: ordinal == -1 ? null : ordinal,
+        ),
       );
     }
 
     final index = ordinal == -1 ? items.length : ordinal;
     if (index < 1 || index > items.length) {
+      final requested = ordinal == -1 ? items.length + 1 : ordinal;
       return ContextResolution(
         status: ContextResolutionStatus.selectionOutOfRange,
         intent: AssistantIntent.selectResult,
-        requestedOrdinal: ordinal == -1 ? items.length + 1 : ordinal,
+        requestedOrdinal: requested,
         availableCount: items.length,
-        message: _outOfRangeMessage(type, items.length),
+        message: GhadeerFollowUpContext.outOfRangeMessage(
+          requestedOrdinal: requested,
+          availableCount: items.length,
+        ),
       );
     }
 
@@ -253,7 +264,10 @@ class ContextResolver {
         intent: AssistantIntent.selectResult,
         requestedOrdinal: index,
         availableCount: items.length,
-        message: _outOfRangeMessage(type, items.length),
+        message: GhadeerFollowUpContext.outOfRangeMessage(
+          requestedOrdinal: index,
+          availableCount: items.length,
+        ),
       );
     }
 
@@ -310,27 +324,6 @@ class ContextResolver {
         context.selectAnalysisByOrdinal(index),
       ConversationEntityType.none => null,
     };
-  }
-
-  static String _outOfRangeMessage(ConversationEntityType type, int n) {
-    if (n == 1) return 'نتيجة واحدة فقط — قل: الأول.';
-    switch (type) {
-      case ConversationEntityType.doctor:
-        return n == 2
-            ? 'النتائج الحالية بيها طبيبين فقط، اختار الأول أو الثاني.'
-            : 'النتائج الحالية فيها $n أطباء — اختار رقماً من 1 إلى $n.';
-      case ConversationEntityType.laboratory:
-        return n == 2
-            ? 'عندي خياران فقط. تقصد الأول أم الثاني؟'
-            : 'الرقم خارج النطاق. اختر من 1 إلى $n.';
-      case ConversationEntityType.package:
-      case ConversationEntityType.analysis:
-        return n == 2
-            ? 'عندي خياران فقط. تقصد الأول أم الثاني؟'
-            : 'الرقم خارج النطاق. اختر من 1 إلى $n.';
-      case ConversationEntityType.none:
-        return 'ما عندي نتائج سابقة أختار منها.';
-    }
   }
 
   ContextResolution? _resolveActionCorrection(

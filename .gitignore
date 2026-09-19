@@ -38,6 +38,17 @@ migrate_working_dir/
 .env.*
 !.env.example
 
+# Local tooling binaries (e.g. downloaded gh CLI) — not part of the app
+.tools/
+
+# Supabase CLI local link/cache — must not be published
+supabase/.temp/
+
+# Android signing (local only; keep if/when added)
+**/android/key.properties
+**/*.jks
+**/*.keystore
+
 # Symbolication related
 app.*.symbols
 

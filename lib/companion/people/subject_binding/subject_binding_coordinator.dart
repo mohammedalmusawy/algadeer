@@ -235,9 +235,18 @@ class SubjectBindingCoordinator {
     }
     final enriched = result.enrichedHealthSubject;
     if (enriched != null) {
+      // يحافظ على عمر/جنس المالك المُثرى (Phase 3C) عند بقاء الموضوع ذاتاً فقط.
+      final keepOwnerHints = enriched.type == HealthSubjectType.self;
       context.setHealthSubject(
         enriched.copyWith(
-          ageYears: enriched.ageYears ?? context.healthSubject.ageYears,
+          ageYears: enriched.ageYears ??
+              (keepOwnerHints ? context.healthSubject.ageYears : null),
+          reservedSexHint: keepOwnerHints
+              ? (enriched.reservedSexHint ??
+                  context.healthSubject.reservedSexHint)
+              : null,
+          clearReservedSexHint: !keepOwnerHints,
+          clearAgeYears: !keepOwnerHints && enriched.ageYears == null,
         ),
       );
     }

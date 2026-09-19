@@ -1,6 +1,11 @@
 import 'package:flutter/foundation.dart';
 
 /// نموذج ترحيب موحّد للواجهة والنطق — مصدر واحد للاسم والنصوص.
+///
+/// Phase 3B: يستخدم الاسم الأول طبيعياً عند وجود اسم ثلاثي محفوظ.
+/// لا يغيّر مسار TTS — النص المحلول يُمرَّر كما هو للمسار الصوتي القائم.
+/// ملاحظة: التحية الزمنية (صباح/مساء) غير مفعّلة في المعمارية الحالية
+/// وممنوعة باختبارات الإطلاق؛ نبقي «مرحباً بك» كما هي.
 class PersonalizedGreeting {
   const PersonalizedGreeting({
     required this.displayGreeting,
@@ -13,7 +18,7 @@ class PersonalizedGreeting {
   final String subtitle;
   final String spokenGreeting;
 
-  /// اسم صالح للترحيب، أو null إن لم يوجد.
+  /// اسم صالح للترحيب (غالباً الاسم الأول)، أو null إن لم يوجد.
   final String? firstName;
 
   static const String subtitleText = 'كيف يمكنني مساعدتك؟';
@@ -21,10 +26,10 @@ class PersonalizedGreeting {
   static const String _spokenNoName =
       'مرحباً بك في تطبيق الغدير، كيف يمكنني مساعدتك اليوم؟';
 
-  /// يبني الترحيب من الاسم السلطوي (PC-1.1 preferredName عبر
+  /// يبني الترحيب من الاسم السلطوي (PC-1.1 preferredName / الاسم الثلاثي عبر
   /// [UserProfileService.getDisplayName]).
   factory PersonalizedGreeting.fromDisplayName(String? rawName) {
-    final name = sanitizeGreetingName(rawName);
+    final name = greetingAddressName(rawName);
     if (name == null) {
       return const PersonalizedGreeting(
         displayGreeting: 'مرحباً بك 👋',
@@ -66,6 +71,16 @@ String? sanitizeGreetingName(String? raw) {
   if (placeholders.contains(n.toLowerCase())) return null;
 
   return n;
+}
+
+/// Phase 3B — اسم مناداة طبيعي: أول جزء من الاسم الثلاثي.
+String? greetingAddressName(String? raw) {
+  final full = sanitizeGreetingName(raw);
+  if (full == null) return null;
+  final parts =
+      full.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return null;
+  return parts.first;
 }
 
 /// حارس ترحيب الإطلاق مرة واحدة لكل عملية تشغيل (ذاكرة فقط).

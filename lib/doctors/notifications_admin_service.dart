@@ -585,29 +585,29 @@ class NotificationsAdminService {
       if (labId != null && labId.isNotEmpty) {
         final data = await _client
             .from('lab_packages')
-            .select('id, name, lab_id, notify_enabled, is_active')
+            .select('id, name:package_name, lab_id, notify_enabled, is_active')
             .eq('lab_id', labId)
-            .order('name');
+            .order('package_name');
         return List<Map<String, dynamic>>.from(data);
       }
       final data = await _client
           .from('lab_packages')
-          .select('id, name, lab_id, notify_enabled, is_active')
-          .order('name');
+          .select('id, name:package_name, lab_id, notify_enabled, is_active')
+          .order('package_name');
       return List<Map<String, dynamic>>.from(data);
     } catch (_) {
       if (labId != null && labId.isNotEmpty) {
         final data = await _client
             .from('lab_packages')
-            .select('id, name, lab_id, is_active')
+            .select('id, name:package_name, lab_id, is_active')
             .eq('lab_id', labId)
-            .order('name');
+            .order('package_name');
         return List<Map<String, dynamic>>.from(data);
       }
       final data = await _client
           .from('lab_packages')
-          .select('id, name, lab_id, is_active')
-          .order('name');
+          .select('id, name:package_name, lab_id, is_active')
+          .order('package_name');
       return List<Map<String, dynamic>>.from(data);
     }
   }

@@ -501,7 +501,7 @@ class SmartSearchService {
               .from('labs')
               .select()
               .eq('is_active', true)
-              .or('lab_name.ilike.$pattern,name.ilike.$pattern,address.ilike.$pattern')
+              .or('lab_name.ilike.$pattern,address.ilike.$pattern')
               .limit(8) as List;
         } catch (_) {
           rows = await _client
@@ -572,7 +572,7 @@ class SmartSearchService {
               .from('lab_packages')
               .select('*, labs(*)')
               .eq('is_active', true)
-              .or('package_name.ilike.$pattern,name.ilike.$pattern,description.ilike.$pattern')
+              .or('package_name.ilike.$pattern,description.ilike.$pattern')
               .limit(16) as List;
         } catch (_) {
           rows = await _client

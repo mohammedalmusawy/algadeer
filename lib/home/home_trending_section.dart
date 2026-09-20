@@ -160,27 +160,6 @@ class _TrendingChip extends StatelessWidget {
                             ),
                     ),
                   ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE11D48),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '$rank',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(width: 8),

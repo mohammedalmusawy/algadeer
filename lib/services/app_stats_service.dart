@@ -369,7 +369,7 @@ class AppStatsService {
         rows = await _client
             .from('doctors')
             .select(
-              'id, name, specialty, image_url, profile_views, call_taps, whatsapp_taps, is_active',
+              'id, name:doctor_name, specialty, image_url, profile_views, call_taps, whatsapp_taps, is_active',
             )
             .or('is_active.eq.true,is_active.is.null')
             .limit(120) as List;
@@ -377,7 +377,7 @@ class AppStatsService {
         rows = await _client
             .from('doctors')
             .select(
-              'id, name, specialty, image_url, profile_views, call_taps, whatsapp_taps',
+              'id, name:doctor_name, specialty, image_url, profile_views, call_taps, whatsapp_taps',
             )
             .limit(120) as List;
       }
@@ -430,7 +430,7 @@ class AppStatsService {
         rows = await _client
             .from('labs')
             .select(
-              'id, lab_name, name, address, image_url, profile_views, call_taps, whatsapp_taps, is_active',
+              'id, lab_name, address, image_url, profile_views, call_taps, whatsapp_taps, is_active',
             )
             .eq('is_active', true)
             .limit(80) as List;
@@ -438,7 +438,7 @@ class AppStatsService {
         rows = await _client
             .from('labs')
             .select(
-              'id, lab_name, name, address, image_url, profile_views, call_taps, whatsapp_taps',
+              'id, lab_name, address, image_url, profile_views, call_taps, whatsapp_taps',
             )
             .limit(80) as List;
       }
@@ -506,8 +506,8 @@ class AppStatsService {
         rows = await _client
             .from('lab_packages')
             .select(
-              'id, lab_id, package_name, name, image_url, profile_views, '
-              'is_featured, show_on_home, is_active, labs(lab_name, name)',
+              'id, lab_id, package_name, image_url, profile_views, '
+              'is_featured, show_on_home, is_active, labs(lab_name)',
             )
             .eq('is_active', true)
             .limit(120) as List;
@@ -516,7 +516,7 @@ class AppStatsService {
           rows = await _client
               .from('lab_packages')
               .select(
-                'id, lab_id, package_name, name, image_url, profile_views, '
+                'id, lab_id, package_name, image_url, profile_views, '
                 'is_featured, show_on_home, is_active',
               )
               .eq('is_active', true)

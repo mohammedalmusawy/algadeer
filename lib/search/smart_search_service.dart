@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../doctors/doctor_availability_service.dart';
 import '../doctors/doctor_gender.dart';
+import '../home/trending_entity.dart';
 import '../models/doctor_item.dart';
 import '../models/lab_models.dart';
 import 'arabic_text_utils.dart';
@@ -446,6 +447,13 @@ class SmartSearchService {
             clinicLocation: doctor.location.trim().isNotEmpty
                 ? doctor.location.trim()
                 : null,
+            bookingStatus: doctor.bookingStatus,
+            workingDays: doctor.workingDays,
+            workingHours: doctor.workingHours,
+            absenceFrom: doctor.absenceFrom,
+            absenceTo: doctor.absenceTo,
+            gender: doctor.gender,
+            demandScore: _demandFromRow(map),
           ),
         );
         appended++;
@@ -535,10 +543,24 @@ class SmartSearchService {
                 lab.whatsapp.trim().isNotEmpty ? lab.whatsapp.trim() : null,
             clinicLocation:
                 lab.address.trim().isNotEmpty ? lab.address.trim() : null,
+            demandScore: _demandFromRow(
+              Map<String, dynamic>.from(row),
+            ),
           ),
         );
       }
     } catch (_) {}
+  }
+
+  /// مؤشر الطلب الحقيقي من أعمدة الصف (نفس وزن قسم «الأكثر طلبًا»).
+  static int _demandFromRow(Map<String, dynamic> m) {
+    int asInt(dynamic v) =>
+        v is num ? v.toInt() : (int.tryParse('${v ?? 0}') ?? 0);
+    return TrendingEntity.score(
+      views: asInt(m['profile_views']),
+      calls: asInt(m['call_taps']),
+      whatsapp: asInt(m['whatsapp_taps']),
+    );
   }
 
   Future<void> _searchPackages(

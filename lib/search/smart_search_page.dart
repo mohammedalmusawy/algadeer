@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../companion/personal_companion_profile_service.dart';
+import '../core/app_config.dart';
 import '../doctors/doctor_profile_page.dart';
 import '../doctors/specialty_catalog.dart';
 import '../labs/lab_package_detail_page.dart';
@@ -20,6 +21,7 @@ import '../voice/clarification/clarification_models.dart';
 import '../voice/context_resolver.dart';
 import '../voice/conversation_context.dart';
 import '../voice/intent/intent_resolver.dart';
+import '../voice/intent/search_modifiers.dart';
 import '../voice/intent/smart_brain_fallback_policy.dart';
 import '../voice/intent/smart_brain_planner.dart';
 import '../voice/speech_recognition_service.dart';
@@ -33,6 +35,7 @@ import 'conversation/smart_brain_chat_widgets.dart';
 import 'conversation/smart_brain_turn_results.dart';
 import 'doctor_name_matcher.dart';
 import 'query_input_source.dart';
+import 'search_refiner.dart';
 import 'smart_search_models.dart';
 import 'smart_search_service.dart';
 import 'voice_contact_command.dart';
@@ -163,6 +166,8 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       intentResolver: _intentResolver,
       contextResolver: _contextResolver,
       search: _search,
+      // نطاق «بحث وتنفيذ» فقط: الحوار الطبي معطّل افتراضيًا في التطبيق.
+      clinicalEnabled: AppConfig.smartBrainClinicalEnabled,
     );
     _seedWelcomeTurn();
     unawaited(_loadWelcomeName());
@@ -427,9 +432,17 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       return;
     }
 
+    // مُعدِّلات «متوفر/اليوم/الأكثر طلبًا»: البحث بالاستعلام المنظَّف (نفس ما
+    // فهمه المخطِّط) حتى لا تُفسد كلمات المُعدِّل مطابقة الأسماء والاختصاص.
+    final planMods = plan.modifiers;
+    final effectiveQuery =
+        (!planMods.isNone && planMods.cleanedQuery.trim().isNotEmpty)
+            ? planMods.cleanedQuery.trim()
+            : trimmed;
+
     final handled = await _executeActionPlan(
       plan,
-      query: trimmed,
+      query: effectiveQuery,
       epoch: epoch,
       announce: allowSpeak,
       showLoading: showVoiceUi,
@@ -452,7 +465,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     // PC-0.1: سقوط آمن تحت سلطة الدماغ — بلا AssistantOrchestrator / MedicalNavigation.
     await _runAuthoritativeSafeFallback(
       plan: plan,
-      query: trimmed,
+      query: effectiveQuery,
       epoch: epoch,
       announce: allowSpeak,
       showLoading: showVoiceUi,
@@ -485,9 +498,15 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     assert(!decision.allowLegacyOrchestrator);
 
     if (!decision.allowGeneralSearch) {
-      final msg = (decision.controlledMessage ?? plan.message).trim().isNotEmpty
+      var msg = (decision.controlledMessage ?? plan.message).trim().isNotEmpty
           ? (decision.controlledMessage ?? plan.message).trim()
           : SmartBrainFallbackPolicy.controlledUnknownHealthMessage;
+      // نطاق «بحث وتنفيذ»: لا رسالة توجيه صحي — رسالة النطاق الثابتة بدلها.
+      if (!AppConfig.smartBrainClinicalEnabled &&
+          decision.reasonCode == 'health_language_firewall' &&
+          plan.message.trim().isEmpty) {
+        msg = SmartBrainPlanner.scopedClinicalOffMessage;
+      }
       lastSafeFallbackOutcomeForTest = SmartBrainSafeFallbackOutcome(
         decision: decision,
         usedLegacyOrchestrator: false,
@@ -531,7 +550,10 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     }
 
     try {
-      final local = await _search.search(query, limit: 24);
+      final local = SearchRefiner.apply(
+        await _search.search(query, limit: 24),
+        plan.modifiers,
+      );
       if (!mounted || epoch != _searchEpoch) return;
 
       // بطاقة الاختصاص مساعدة تنقّل لا كيان مستقل — لا تُحتسب نتيجة ثانية.
@@ -546,7 +568,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
           ? null
           : ArabicTextUtils.stripHonorifics(typoSuggestion.doctorName).trim();
 
-      final msg = plan.message.trim().isNotEmpty
+      final baseMsg = plan.message.trim().isNotEmpty
           ? plan.message.trim()
           : (local.isEmpty
               ? (typoLabel != null
@@ -555,6 +577,10 @@ class _SmartSearchPageState extends State<SmartSearchPage>
               : (counted.length == 1
                   ? 'وجدت ${counted.first.title}.'
                   : 'وجدت ${counted.length} نتائج.'));
+      final modsNote = local.isEmpty || plan.message.trim().isNotEmpty
+          ? null
+          : SearchRefiner.summary(local, plan.modifiers);
+      final msg = modsNote == null ? baseMsg : '$baseMsg $modsNote';
 
       _conversation.rememberResults(
         local,
@@ -668,7 +694,10 @@ class _SmartSearchPageState extends State<SmartSearchPage>
           final labs = local
               .where((r) => r.type == SmartSearchResultType.lab)
               .toList();
-          final shown = labs.isNotEmpty ? labs : local;
+          final shown = SearchRefiner.apply(
+            labs.isNotEmpty ? labs : local,
+            plan.modifiers,
+          );
           _conversation.rememberResults(
             shown,
             query: labQ,
@@ -679,11 +708,14 @@ class _SmartSearchPageState extends State<SmartSearchPage>
                     ? 'لم أجد مختبرات حالياً.'
                     : 'هذه المختبرات المتوفرة.'),
           );
-          final msg = shown.length == 1
+          final labBaseMsg = shown.length == 1
               ? 'وجدت ${shown.first.title}.'
               : (shown.isEmpty
                   ? 'لم أجد مختبرات حالياً.'
                   : 'وجدت ${shown.length} مختبرات.');
+          final labNote =
+              shown.isEmpty ? null : SearchRefiner.summary(shown, plan.modifiers);
+          final msg = labNote == null ? labBaseMsg : '$labBaseMsg $labNote';
           setState(() {
             _results = shown;
             _loading = false;
@@ -723,6 +755,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
           epoch: epoch,
           speakNames: announce,
           showLoading: showLoading,
+          modifiers: plan.modifiers,
         );
         return true;
 
@@ -1055,6 +1088,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     required int epoch,
     bool speakNames = true,
     bool showLoading = true,
+    SearchModifiers modifiers = SearchModifiers.none,
   }) async {
     if (showLoading) {
       _voiceInput.setProcessing();
@@ -1076,10 +1110,13 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       final results = await _search.search(needle, limit: 24);
       if (!mounted || epoch != _searchEpoch) return;
 
-      final doctors = _doctorsForSpecialty(
-        results,
-        specialtyQuery: command.specialtyQuery,
-        resolvedName: command.resolvedSpecialtyName,
+      final doctors = SearchRefiner.apply(
+        _doctorsForSpecialty(
+          results,
+          specialtyQuery: command.specialtyQuery,
+          resolvedName: command.resolvedSpecialtyName,
+        ),
+        modifiers,
       );
 
       _pendingContactKind = null;
@@ -1113,6 +1150,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       final speech = _buildSpecialtyDoctorsSpeech(
         specialty: command.resolvedSpecialtyName,
         doctors: doctors,
+        note: SearchRefiner.summary(doctors, modifiers),
       );
       if (showLoading) _voiceInput.setResult();
       setState(() {
@@ -1200,6 +1238,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
   String _buildSpecialtyDoctorsSpeech({
     required String specialty,
     required List<SmartSearchResult> doctors,
+    String? note,
   }) {
     final buf = StringBuffer();
     final n = doctors.length;
@@ -1220,6 +1259,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         }
         buf.write('.');
       }
+      if (note != null) buf.write(' $note');
       return buf.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
     }
 
@@ -1232,6 +1272,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     if (doctors.length > take.length) {
       buf.write('وهناك المزيد في القائمة. ');
     }
+    if (note != null) buf.write('$note ');
     buf.write('يمكنك القول: اتصل على الطبيب الأول، أو واتساب للدكتور بالاسم.');
     return buf.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
   }

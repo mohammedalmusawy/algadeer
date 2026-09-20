@@ -34,6 +34,13 @@ class SmartSearchResult {
     this.phone,
     this.whatsapp,
     this.clinicLocation,
+    this.bookingStatus,
+    this.workingDays,
+    this.workingHours,
+    this.absenceFrom,
+    this.absenceTo,
+    this.gender,
+    this.demandScore = 0,
   });
 
   final SmartSearchResultType type;
@@ -67,6 +74,17 @@ class SmartSearchResult {
 
   /// موقع العيادة الحقيقي من clinic_location — بدون اختراع.
   final String? clinicLocation;
+
+  /// حقول تواجد الطبيب الخام من Supabase (للجواب عن «متواجد اليوم» والترتيب).
+  final String? bookingStatus;
+  final String? workingDays;
+  final String? workingHours;
+  final String? absenceFrom;
+  final String? absenceTo;
+  final String? gender;
+
+  /// مؤشر الطلب الحقيقي (مشاهدات + اتصال + واتساب) — للترتيب «الأكثر طلبًا» فقط.
+  final int demandScore;
 
   String get effectivePhone => phone?.trim() ?? '';
   String get effectiveWhatsApp {

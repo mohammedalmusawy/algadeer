@@ -38,6 +38,7 @@ import '../../follow_up/follow_up_service.dart';
 import '../../wellness/wellness_coordinator.dart';
 import '../../health/family_sensitive/family_health_command_coordinator.dart';
 import '../../health/sensitive_profile/sensitive_health_profile_coordinator.dart';
+import '../../doctors/doctor_today_availability.dart';
 import '../../labs/labs_service.dart';
 import '../../models/lab_models.dart';
 import '../../search/analysis_name_matcher.dart';
@@ -76,6 +77,7 @@ import 'intent_resolver.dart';
 import 'intent_result.dart';
 import 'laboratory_target_resolver.dart';
 import 'package_target_resolver.dart';
+import 'search_modifiers.dart';
 
 /// نوع إجراء مخطَّط — الواجهة تنفّذ عبر الآليات الحالية فقط.
 enum AssistantActionKind {
@@ -128,6 +130,7 @@ class AssistantActionPlan {
     this.guidedResponse,
     this.healthDecision,
     this.textFirstOnly = false,
+    this.modifiers = SearchModifiers.none,
   });
 
   final AssistantActionKind kind;
@@ -152,6 +155,35 @@ class AssistantActionPlan {
 
   /// Companion profile/onboarding: نص أولاً — بلا نطق تلقائي.
   final bool textFirstOnly;
+
+  /// مُعدِّلات البحث (متوفر/اليوم، الأكثر طلبًا) — تُطبَّق على نتائج حقيقية فقط.
+  final SearchModifiers modifiers;
+
+  AssistantActionPlan withModifiers(SearchModifiers value) {
+    return AssistantActionPlan(
+      kind: kind,
+      intentResult: intentResult,
+      target: target,
+      candidates: candidates,
+      message: message,
+      specialtyQuery: specialtyQuery,
+      doctorQuery: doctorQuery,
+      labQuery: labQuery,
+      analysisQuery: analysisQuery,
+      canExecute: canExecute,
+      contextResolution: contextResolution,
+      targetResolution: targetResolution,
+      labTargetResolution: labTargetResolution,
+      analysisTargetResolution: analysisTargetResolution,
+      packageTargetResolution: packageTargetResolution,
+      packages: packages,
+      analyses: analyses,
+      guidedResponse: guidedResponse,
+      healthDecision: healthDecision,
+      textFirstOnly: textFirstOnly,
+      modifiers: value,
+    );
+  }
 
   bool get isAmbiguous => kind == AssistantActionKind.showClarification;
   bool get isMissingContext =>
@@ -252,7 +284,11 @@ class SmartBrainPlanner {
     SubjectBindingCoordinator? subjectBinding,
     UnifiedBrainCoordinator? unifiedBrain,
     NluClient? nluClient,
-  })  : _intentResolver = intentResolver ?? RuleBasedIntentResolver(),
+    bool clinicalEnabled = true,
+    DateTime Function()? nowUtc,
+  })  : _clinicalEnabled = clinicalEnabled,
+        _nowUtc = nowUtc,
+        _intentResolver = intentResolver ?? RuleBasedIntentResolver(),
         _contextResolver = contextResolver ?? const ContextResolver(),
         _targetResolver = targetResolver ?? const DoctorTargetResolver(),
         _labTargetResolver =
@@ -365,6 +401,13 @@ class SmartBrainPlanner {
           labLookup: labLookup,
         ),
         _nluClient = nluClient ?? NluClient.fromAppConfig();
+
+  /// false = نطاق «بحث وتنفيذ» فقط: المسارات السريرية القديمة موجودة
+  /// في الكود لكنها غير مستخدمة (يُعاد تفعيلها بـ true). الافتراضي true
+  /// حتى لا يتغيّر سلوك الاختبارات القديمة؛ التطبيق يمرّر AppConfig.
+  final bool _clinicalEnabled;
+  final DateTime Function()? _nowUtc;
+  DateTime _clockUtc() => (_nowUtc ?? () => DateTime.now().toUtc())();
 
   final IntentResolver _intentResolver;
   final ContextResolver _contextResolver;
@@ -816,6 +859,24 @@ class SmartBrainPlanner {
         canExecute: false,
         textFirstOnly: true,
       );
+    }
+
+    // نطاق «بحث وتنفيذ» فقط: لا حوار طبي، لا تزيين عاطفي/شخصي (الكود القديم
+    // محفوظ ويعود عند clinicalEnabled=true). بوابة الأزمة النفسية أعلاه تبقى.
+    if (!_clinicalEnabled) {
+      final scoped = await _planScoped(query: pipelineQuery, context: context);
+      if (scoped.message.trim().isNotEmpty) {
+        context.setAssistantResponse(scoped.message);
+      }
+      return _conductCoordinator
+          .decoratePlan(
+            plan: scoped,
+            conduct: observed.result,
+            state: context.conductState,
+            turnId: context.turnId,
+            writeState: context.setConductState,
+          )
+          .withModifiers(scoped.modifiers);
     }
 
     final plan = await _planImpl(
@@ -2012,77 +2073,14 @@ class SmartBrainPlanner {
       }
     }
 
-    // Step 5 (أ): اقتراح تصحيح اسم طبيب معلّق («ما لقيت مطابقة دقيقة. هل تقصد
-    // د. …؟»). دلالة مستقلة عن PendingClarification: مرشّح واحد بلا ترتيب وبلا
-    // pendingAction — «نعم» تختار الطبيب فقط ولا تفتح اتصالاً/واتساب.
-    // استهلاك-مرة-واحدة: أي دور تالٍ يُنهي الاقتراح، قبولاً أو رفضاً أو تجاوزاً
-    // ببحث جديد، فلا يبقى اقتراح قديم يخطف عبارة «نعم» لاحقة.
-    final doctorSuggestion = context.pendingDoctorSuggestion;
-    if (doctorSuggestion != null) {
-      context.clearPendingDoctorSuggestion();
-      if (ArabicAnswerNormalizer.isBareYes(workingQuery)) {
-        return await _resumeAfterDoctorSuggestion(
-          context: context,
-          suggestion: doctorSuggestion,
-          intentResult: intent,
-        );
-      }
-    }
-
-    // Step 5: إن وُجد توضيح معلّق — حاول جواب التوضيح أولاً.
-    final pending = context.pendingClarification;
-    if (pending != null) {
-      // جواب يحدّد مرشّحاً بعينه («طبيب الأطفال» بين خيارين) هو إجابة على
-      // سؤالنا لا بحث جديد — حتى لو صُنِّف كبحث اختصاص صريح.
-      final clarified = _clarificationResolver.resolve(
-        query: workingQuery,
-        pending: pending,
-        intentResult: intent,
-      );
-      final answersPending =
-          clarified.status == ClarificationResolveStatus.resolved;
-      if (!answersPending &&
-          ClarificationResolver.isClearNewSearchIntent(intent, workingQuery)) {
-        context.clearPendingClarification();
-      } else {
-        switch (clarified.status) {
-          case ClarificationResolveStatus.resolved:
-            return await _resumeAfterClarification(
-              context: context,
-              pending: pending,
-              candidate: clarified.candidate!,
-              intentResult: intent,
-              actionOverride: (intent.isActionIntent &&
-                      intent.intent != AssistantIntent.selectResult)
-                  ? intent.intent
-                  : null,
-            );
-          case ClarificationResolveStatus.stillAmbiguous:
-          case ClarificationResolveStatus.invalidOrdinal:
-          case ClarificationResolveStatus.unsafeYesNo:
-            final candidates = switch (pending.entityType) {
-              ClarificationEntityType.laboratory => pending.labResults,
-              ClarificationEntityType.analysis => pending.analysisResults,
-              ClarificationEntityType.package ||
-              ClarificationEntityType.offer =>
-                pending.packageResults,
-              _ => pending.doctorResults,
-            };
-            context.setAssistantResponse(clarified.message);
-            return AssistantActionPlan(
-              kind: AssistantActionKind.showClarification,
-              intentResult: intent.copyWithClarification(true),
-              candidates: candidates,
-              message: clarified.message.isNotEmpty
-                  ? clarified.message
-                  : _clarificationResponses.build(pending),
-              canExecute: false,
-            );
-          case ClarificationResolveStatus.notAnAnswer:
-            break;
-        }
-      }
-    }
+    // Step 5 (أ) + Step 5: اقتراح تصحيح اسم معلّق / توضيح معلّق
+    // (مستخرَجان في _tryPendingResolution — نفس المنطق حرفيًا).
+    final pendingPlan = await _tryPendingResolution(
+      workingQuery: workingQuery,
+      context: context,
+      intent: intent,
+    );
+    if (pendingPlan != null) return pendingPlan;
 
     // —— Step 10A/10D: جواب السؤال الموجَّه قبل البحث العام ——
     final guidedState = context.guidedConversation;
@@ -2339,6 +2337,207 @@ class SmartBrainPlanner {
       context: context,
       intent: intent,
     );
+  }
+
+  /// رسالة النطاق عند لغة أعراض أثناء تعطيل الحوار الطبي — ثابتة وغير تشخيصية.
+  static const String scopedClinicalOffMessage =
+      'حالياً مساعد الغدير يساعدك بالبحث داخل التطبيق: أطباء، مختبرات، '
+      'تحاليل، باقات وعروض. ما أگدر أقدّم توجيه طبي. '
+      'وإذا حالتك طارئة توجّه لأقرب طوارئ.';
+
+  /// مسار «مساعد بحث وتنفيذ» (clinicalEnabled=false):
+  /// معلّق (نعم/توضيح) → سؤال تواجد طبيب → مُعدِّلات → نية → البحث/التنفيذ الحاليان.
+  /// لا مسار سريري ولا ذاكرة/رفيق ولا توجيه صحي هنا.
+  Future<AssistantActionPlan> _planScoped({
+    required String query,
+    required ConversationContext context,
+  }) async {
+    var intent = _intentResolver.resolve(query);
+    context.rememberQuery(query, intent: intent.intent);
+
+    if (context.activeYesNoConsumer ==
+        ConversationYesNoConsumer.pendingAction) {
+      final pendingAffirm =
+          _tryPlanPendingActionAffirmation(query, context, intent);
+      if (pendingAffirm != null) return pendingAffirm;
+    }
+
+    final pendingPlan = await _tryPendingResolution(
+      workingQuery: query,
+      context: context,
+      intent: intent,
+    );
+    if (pendingPlan != null) return pendingPlan;
+
+    // «هل دكتورة ميعاد متواجدة اليوم؟» — من بيانات Supabase الحقيقية فقط.
+    final presenceName = DoctorPresenceQuestion.tryParseName(query);
+    if (presenceName != null) {
+      final presenceIntent = IntentResult(
+        intent: AssistantIntent.doctorAvailability,
+        originalText: query,
+        normalizedText: ArabicTextUtils.normalize(query),
+        searchMeaning: intent.searchMeaning,
+        entities: intent.entities.copyWith(
+          doctorName: presenceName,
+          actionHint: 'availability',
+        ),
+        confidence: 90,
+        requiresContext: false,
+      );
+      return _planExplicitName(query, context, presenceIntent, presenceName);
+    }
+
+    // مُعدِّلات متوفر/اليوم/الأكثر طلبًا: النية تُحسب على الاستعلام المنظَّف.
+    final mods = SearchModifiers.parse(query);
+    var workingQuery = query;
+    if (!mods.isNone && mods.cleanedQuery.trim().isNotEmpty) {
+      workingQuery = mods.cleanedQuery.trim();
+      intent = _intentResolver.resolve(workingQuery);
+      context.rememberQuery(workingQuery, intent: intent.intent);
+    }
+
+    final redirect = _scopedSymptomRedirect(workingQuery, intent);
+    if (redirect != null) {
+      context.setAssistantResponse(redirect.message);
+      return redirect;
+    }
+
+    final plan = await _planNormalPipeline(
+      query: workingQuery,
+      context: context,
+      intent: intent,
+    );
+    return mods.isNone ? plan : plan.withModifiers(mods);
+  }
+
+  /// لغة أعراض بلا طلب خدمة صريح ← رسالة نطاق ثابتة (لا أسئلة أعراض ولا توجيه).
+  /// نفس استثناءات _tryHealthGuidance: أي طلب خدمة صريح يمر للبحث/التنفيذ.
+  AssistantActionPlan? _scopedSymptomRedirect(
+    String query,
+    IntentResult intent,
+  ) {
+    if (ClarificationResolver.isClearNewSearchIntent(intent, query)) {
+      return null;
+    }
+    switch (intent.intent) {
+      case AssistantIntent.findLab:
+      case AssistantIntent.findAnalysis:
+      case AssistantIntent.findPackage:
+      case AssistantIntent.findOffer:
+      case AssistantIntent.specialtySearch:
+      case AssistantIntent.callDoctor:
+      case AssistantIntent.messageDoctor:
+      case AssistantIntent.callLab:
+      case AssistantIntent.messageLab:
+      case AssistantIntent.bookAppointment:
+      case AssistantIntent.showProfile:
+      case AssistantIntent.showLocation:
+      case AssistantIntent.selectResult:
+        return null;
+      case AssistantIntent.doctorSearch:
+        final n = ArabicTextUtils.normalize(query);
+        if (RegExp(
+          r'(?:أريد|اريد|ابي|ابحث|دور).{0,16}(?:طبيب|دكتور)|(?:^|\s)(?:ال)?(?:دكتور|طبيب)\s+\S{2,}',
+        ).hasMatch(n)) {
+          return null;
+        }
+        break;
+      default:
+        break;
+    }
+    if (!_healthCoordinator.shouldConsiderHealthFlow(query) &&
+        !_looksLikeSymptomGuidance(query)) {
+      return null;
+    }
+    return AssistantActionPlan(
+      kind: AssistantActionKind.showMessage,
+      intentResult: intent,
+      message: scopedClinicalOffMessage,
+      canExecute: false,
+    );
+  }
+
+  /// اقتراح تصحيح اسم طبيب معلّق + توضيح معلّق (Step 5).
+  /// مستخرَج من _planImpl بلا تغيير في المنطق ليُستعمل أيضًا في مسار
+  /// «بحث وتنفيذ» (_planScoped). null = لا شيء معلّق يملك هذا الدور.
+  Future<AssistantActionPlan?> _tryPendingResolution({
+    required String workingQuery,
+    required ConversationContext context,
+    required IntentResult intent,
+  }) async {
+    // Step 5 (أ): اقتراح تصحيح اسم طبيب معلّق («ما لقيت مطابقة دقيقة. هل تقصد
+    // د. …؟»). دلالة مستقلة عن PendingClarification: مرشّح واحد بلا ترتيب وبلا
+    // pendingAction — «نعم» تختار الطبيب فقط ولا تفتح اتصالاً/واتساب.
+    // استهلاك-مرة-واحدة: أي دور تالٍ يُنهي الاقتراح، قبولاً أو رفضاً أو تجاوزاً
+    // ببحث جديد، فلا يبقى اقتراح قديم يخطف عبارة «نعم» لاحقة.
+    final doctorSuggestion = context.pendingDoctorSuggestion;
+    if (doctorSuggestion != null) {
+      context.clearPendingDoctorSuggestion();
+      if (ArabicAnswerNormalizer.isBareYes(workingQuery)) {
+        return await _resumeAfterDoctorSuggestion(
+          context: context,
+          suggestion: doctorSuggestion,
+          intentResult: intent,
+        );
+      }
+    }
+
+    // Step 5: إن وُجد توضيح معلّق — حاول جواب التوضيح أولاً.
+    final pending = context.pendingClarification;
+    if (pending != null) {
+      // جواب يحدّد مرشّحاً بعينه («طبيب الأطفال» بين خيارين) هو إجابة على
+      // سؤالنا لا بحث جديد — حتى لو صُنِّف كبحث اختصاص صريح.
+      final clarified = _clarificationResolver.resolve(
+        query: workingQuery,
+        pending: pending,
+        intentResult: intent,
+      );
+      final answersPending =
+          clarified.status == ClarificationResolveStatus.resolved;
+      if (!answersPending &&
+          ClarificationResolver.isClearNewSearchIntent(intent, workingQuery)) {
+        context.clearPendingClarification();
+      } else {
+        switch (clarified.status) {
+          case ClarificationResolveStatus.resolved:
+            return await _resumeAfterClarification(
+              context: context,
+              pending: pending,
+              candidate: clarified.candidate!,
+              intentResult: intent,
+              actionOverride: (intent.isActionIntent &&
+                      intent.intent != AssistantIntent.selectResult)
+                  ? intent.intent
+                  : null,
+            );
+          case ClarificationResolveStatus.stillAmbiguous:
+          case ClarificationResolveStatus.invalidOrdinal:
+          case ClarificationResolveStatus.unsafeYesNo:
+            final candidates = switch (pending.entityType) {
+              ClarificationEntityType.laboratory => pending.labResults,
+              ClarificationEntityType.analysis => pending.analysisResults,
+              ClarificationEntityType.package ||
+              ClarificationEntityType.offer =>
+                pending.packageResults,
+              _ => pending.doctorResults,
+            };
+            context.setAssistantResponse(clarified.message);
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showClarification,
+              intentResult: intent.copyWithClarification(true),
+              candidates: candidates,
+              message: clarified.message.isNotEmpty
+                  ? clarified.message
+                  : _clarificationResponses.build(pending),
+              canExecute: false,
+            );
+          case ClarificationResolveStatus.notAnAnswer:
+            break;
+        }
+      }
+    }
+
+    return null;
   }
 
   AssistantActionPlan? _tryHealthGuidance({
@@ -5139,6 +5338,7 @@ class SmartBrainPlanner {
     if (actionIntent == AssistantIntent.callDoctor ||
         actionIntent == AssistantIntent.messageDoctor ||
         actionIntent == AssistantIntent.showLocation ||
+        actionIntent == AssistantIntent.doctorAvailability ||
         actionIntent == AssistantIntent.showProfile) {
       final synthetic = IntentResult(
         intent: actionIntent,
@@ -6226,6 +6426,31 @@ class SmartBrainPlanner {
           target: target,
           message: 'فتح ملف ${target.title}.',
           canExecute: true,
+          targetResolution: targetResolution,
+        );
+      case AssistantIntent.doctorAvailability:
+        // الجواب من حقول Supabase الحقيقية للطبيب (دوام اليوم/إجازة/حالة الحجز).
+        final today = DoctorTodayAvailability.evaluate(
+          workingDays: target.workingDays ?? '',
+          workingHours: target.workingHours ?? '',
+          bookingStatus: target.bookingStatus ?? '',
+          absenceFrom: target.absenceFrom ?? '',
+          absenceTo: target.absenceTo ?? '',
+          nowUtc: _clockUtc(),
+        );
+        context.selectDoctor(target);
+        context.lastIntent = AssistantIntent.doctorAvailability;
+        final answer = today.describe(
+          doctorName: target.title,
+          gender: target.gender ?? '',
+        );
+        context.setAssistantResponse(answer);
+        return AssistantActionPlan(
+          kind: AssistantActionKind.selectEntity,
+          intentResult: intent,
+          target: target,
+          message: answer,
+          canExecute: false,
           targetResolution: targetResolution,
         );
       default:

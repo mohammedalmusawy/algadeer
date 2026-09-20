@@ -25,6 +25,16 @@ class AppConfig {
 
   static bool get isAiBackendConfigured => aiEdgeFunctionUrl.trim().isNotEmpty;
 
+  /// الحوار الطبي/السريري في Smart Brain (أسئلة أعراض، توجيه صحي، رفيق…).
+  ///
+  /// معطّل افتراضيًا: النطاق الحالي = مساعد بحث وتنفيذ داخل التطبيق فقط.
+  /// الكود السريري القديم محفوظ كما هو ويُعاد تفعيله بتمرير:
+  /// `--dart-define=SMART_BRAIN_CLINICAL_ENABLED=true`
+  static const bool smartBrainClinicalEnabled = bool.fromEnvironment(
+    'SMART_BRAIN_CLINICAL_ENABLED',
+    defaultValue: false,
+  );
+
   /// الراعي الرسمي الحالي لتطبيق الغدير (قيمة تجارية قابلة للتغيير).
   /// مصدر واحد — غيّره هنا أو عبر:
   /// `--dart-define=GHADEER_OFFICIAL_SPONSOR=...`

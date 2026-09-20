@@ -9,7 +9,7 @@ import '../labs/lab_card_links.dart';
 import '../models/doctor_item.dart';
 import '../services/app_stats_service.dart';
 import '../companion/personal_companion_profile_service.dart';
-import '../utils/clinic_contact_message.dart';
+import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import '../voice/voice_response_controller.dart';
 import 'doctor_availability_service.dart';
@@ -696,15 +696,14 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                 ? null
                 : () async {
                     _stats.recordWhatsAppTap(doctor.id);
-                    final name = await _profileService
-                        .preferredNameForPersonalization();
+                    final message =
+                        await WhatsAppMessageSettingsService().buildPrefill(
+                      providerTitle: doctor.name,
+                      profileService: _profileService,
+                    );
                     await launchClinicWhatsApp(
                       doctor.whatsapp,
-                      message: ClinicContactMessage.whatsAppPrefill(
-                        patientFullName: name,
-                        providerTitle: doctor.name,
-                        preferBookingWording: true,
-                      ),
+                      message: message,
                     );
                   },
           ),

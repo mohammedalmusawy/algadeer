@@ -4,6 +4,7 @@ import '../companion/personal_companion_profile.dart';
 import '../companion/personal_profile_foundation.dart';
 import '../services/user_profile_service.dart';
 import '../voice/voice_settings_page.dart';
+import 'whatsapp_message_settings_page.dart';
 import '../widgets/clinic_app_bar.dart';
 
 /// إعدادات المستخدم العامة — الملف الشخصي الأساسي + المساعد الذكي.
@@ -287,6 +288,29 @@ class _SettingsPageState extends State<SettingsPage> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const VoiceSettingsPage(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFE6F8F6),
+                        child: Icon(Icons.chat_rounded, color: teal),
+                      ),
+                      title: const Text(
+                        'رسالة الواتساب',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      subtitle: const Text('عدّل الرسالة الجاهزة عند التواصل'),
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const WhatsAppMessageSettingsPage(),
                           ),
                         );
                       },

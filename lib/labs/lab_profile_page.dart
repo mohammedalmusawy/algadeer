@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
 import '../models/lab_models.dart';
+import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import '../services/app_stats_service.dart';
 import '../voice/lab_packages_speech.dart';
@@ -769,9 +770,13 @@ class _LabProfilePageState extends State<LabProfilePage> {
           title: 'واتساب',
           filled: true,
           color: const Color(0xFF25D366),
-          onTap: () {
+          onTap: () async {
             _stats.recordLabWhatsAppTap(_lab.id);
-            launchClinicWhatsApp(_lab.whatsapp);
+            final message = await WhatsAppMessageSettingsService().buildPrefill(
+              providerTitle: _lab.name,
+              providerIsDoctor: false,
+            );
+            await launchClinicWhatsApp(_lab.whatsapp, message: message);
           },
         ),
       );

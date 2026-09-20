@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
 import '../models/radiology_models.dart';
+import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import 'radiology_default_images.dart';
 import 'radiology_service.dart';
@@ -422,7 +423,14 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
       buttons.add(
         Expanded(
           child: FilledButton.icon(
-            onPressed: () => launchClinicWhatsApp(_center.whatsapp),
+            onPressed: () async {
+              final message =
+                  await WhatsAppMessageSettingsService().buildPrefill(
+                providerTitle: _center.name,
+                providerIsDoctor: false,
+              );
+              await launchClinicWhatsApp(_center.whatsapp, message: message);
+            },
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF25D366),
             ),

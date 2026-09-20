@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/lab_models.dart';
+import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import 'lab_package_detail_page.dart';
 import 'labs_service.dart';
@@ -70,7 +71,14 @@ class _LabPackagesPageState extends State<LabPackagesPage> {
             if (lab.whatsapp.trim().isNotEmpty)
               IconButton(
                 tooltip: 'واتساب',
-                onPressed: () => launchClinicWhatsApp(lab.whatsapp),
+                onPressed: () async {
+                  final message =
+                      await WhatsAppMessageSettingsService().buildPrefill(
+                    providerTitle: lab.name,
+                    providerIsDoctor: false,
+                  );
+                  await launchClinicWhatsApp(lab.whatsapp, message: message);
+                },
                 icon: const Icon(Icons.chat_outlined),
               ),
           ],

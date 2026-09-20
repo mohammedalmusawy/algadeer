@@ -360,6 +360,22 @@ void main() {
       expect(plan.modifiers.byDemand, isTrue);
     });
 
+    test('ابحثلي عن طبيب أطفال متوفر اليوم الأكثر طلباً → المُعدِّلان معًا', () async {
+      const q = 'ابحثلي عن طبيب أطفال متوفر اليوم الأكثر طلباً';
+      final mods = SearchModifiers.parse(q);
+      expect(mods.availableOnly, isTrue);
+      expect(mods.byDemand, isTrue);
+      expect(mods.cleanedQuery, 'ابحثلي عن طبيب أطفال');
+
+      final plan = await scoped().plan(query: q, context: ctx);
+      expect(plan.kind, AssistantActionKind.runSpecialtySearch);
+      expect(plan.modifiers.availableOnly, isTrue);
+      expect(plan.modifiers.byDemand, isTrue);
+      // الاختصاص يُفهم من الاستعلام المنظَّف: كلمات المُعدِّل لا تلوّثه.
+      expect(plan.specialtyQuery ?? plan.doctorQuery ?? '', isNot(contains('متوفر')));
+      expect(plan.specialtyQuery ?? plan.doctorQuery ?? '', isNot(contains('طلب')));
+    });
+
     test('مختبر الأعلى طلبًا → مُعدِّل الطلب على بحث المختبرات', () async {
       final plan = await scoped().plan(
         query: 'جدلي مختبر الأعلى طلبًا',

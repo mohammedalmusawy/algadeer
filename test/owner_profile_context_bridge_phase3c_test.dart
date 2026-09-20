@@ -195,9 +195,8 @@ void main() {
       final msg = ClinicContactMessage.whatsAppPrefill(
         patientFullName: name,
         providerTitle: 'د. علي',
-        preferBookingWording: true,
       );
-      expect(msg, contains('الاسم: محمد عبد الحسن'));
+      expect(msg, contains('أني محمد عبد الحسن'));
       expect(msg, isNot(contains('1991')));
       expect(msg, isNot(contains('ذكر')));
       expect(msg, isNot(contains('male')));

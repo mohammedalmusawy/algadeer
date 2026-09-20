@@ -14,7 +14,7 @@ import '../labs/labs_service.dart';
 import '../medical/medical_navigation_service.dart';
 import '../models/doctor_item.dart';
 import '../utils/contact_launch.dart';
-import '../utils/clinic_contact_message.dart';
+import '../settings/whatsapp_message_settings.dart';
 import '../voice/arabic_speech_numbers.dart';
 import '../voice/assistant_orchestrator.dart';
 import '../voice/clarification/clarification_models.dart';
@@ -1561,17 +1561,15 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     }
     if (announce) await _voice.speak('جاري فتح واتساب ${result.title}');
     _externalContactLaunches++;
-    final patientName =
-        await _profileService.preferredNameForPersonalization();
     final isDoctor = result.type == SmartSearchResultType.doctor;
     await launchClinicWhatsApp(
       result.effectiveWhatsApp,
       message: whatsappMessage.isNotEmpty
           ? whatsappMessage
-          : ClinicContactMessage.whatsAppPrefill(
-              patientFullName: patientName,
-              providerTitle: isDoctor ? result.title : null,
-              preferBookingWording: isDoctor,
+          : await WhatsAppMessageSettingsService().buildPrefill(
+              providerTitle: result.title,
+              providerIsDoctor: isDoctor,
+              profileService: _profileService,
             ),
     );
   }

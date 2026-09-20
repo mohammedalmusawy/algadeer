@@ -60,18 +60,20 @@ void main() {
       final msg = ClinicContactMessage.whatsAppPrefill(
         patientFullName: 'محمد عبد الحسن',
         providerTitle: 'د. علي',
-        preferBookingWording: true,
       );
       expect(msg, contains('السلام عليكم'));
-      expect(msg, contains('أرغب بحجز موعد لدى د. علي'));
-      expect(msg, contains('الاسم: محمد عبد الحسن'));
+      expect(msg, contains('أريد أستفسر عن موعد عند د. علي'));
+      expect(
+        msg,
+        contains('أني محمد عبد الحسن — أتواصل وياكم من تطبيق الغدير'),
+      );
     });
 
     test('5 — بلا اسم تبقى الرسالة العامة', () {
       final msg = ClinicContactMessage.whatsAppPrefill();
       expect(msg, contains('السلام عليكم'));
-      expect(msg, contains('تواصل عبر تطبيق الغدير'));
-      expect(msg.contains('الاسم:'), isFalse);
+      expect(msg, contains('أتواصل وياكم من تطبيق الغدير'));
+      expect(msg.contains('أني'), isFalse);
     });
 
     test('6/7 — لا عمر ولا جنس في رسالة الحجز', () async {
@@ -89,9 +91,8 @@ void main() {
       final msg = ClinicContactMessage.whatsAppPrefill(
         patientFullName: name,
         providerTitle: 'د. سارة',
-        preferBookingWording: true,
       );
-      expect(msg, contains('الاسم: محمد عبد الحسن'));
+      expect(msg, contains('أني محمد عبد الحسن'));
       expect(msg.toLowerCase(), isNot(contains('1990')));
       expect(msg, isNot(contains('ذكر')));
       expect(msg, isNot(contains('أنثى')));

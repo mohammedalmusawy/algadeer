@@ -12,7 +12,6 @@ import 'package:ghadeer_clinic/clinical_knowledge/packs/respiratory/respiratory_
 import 'package:ghadeer_clinic/companion/adolescent/adolescent_evidence_catalog.dart';
 import 'package:ghadeer_clinic/companion/people/subject_binding/subject_binding_coordinator.dart';
 import 'package:ghadeer_clinic/companion/people/subject_binding/subject_binding_models.dart';
-import 'package:ghadeer_clinic/companion/personal_companion_profile.dart';
 import 'package:ghadeer_clinic/health/emotional_support/mental_health_safety_gate.dart';
 import 'package:ghadeer_clinic/search/smart_search_models.dart';
 import 'package:ghadeer_clinic/unified_brain/unified_brain.dart';

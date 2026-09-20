@@ -39,7 +39,7 @@ class MacOSArabicTtsChannel {
       final ok = await _channel.invokeMethod<bool>('speak', {
         'text': text,
         'identifier': identifier,
-        ?'rate': rate,
+        'rate': ?rate,
       });
       return ok == true;
     } catch (e, st) {

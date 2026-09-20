@@ -11,8 +11,6 @@ import 'package:ghadeer_clinic/voice/conduct/conversation_conduct_detector.dart'
 import 'package:ghadeer_clinic/voice/conduct/conversation_conduct_models.dart';
 import 'package:ghadeer_clinic/voice/conduct/conversation_ethics_response_builder.dart';
 import 'package:ghadeer_clinic/voice/conversation_context.dart';
-import 'package:ghadeer_clinic/voice/guided_conversation/guided_conversation_models.dart';
-import 'package:ghadeer_clinic/voice/intent/assistant_intent.dart';
 import 'package:ghadeer_clinic/voice/intent/smart_brain_planner.dart';
 
 void main() {

@@ -14,7 +14,6 @@ import 'package:ghadeer_clinic/health/understanding/symptom_models.dart';
 import 'package:ghadeer_clinic/models/lab_models.dart';
 import 'package:ghadeer_clinic/search/smart_search_models.dart';
 import 'package:ghadeer_clinic/voice/conversation_context.dart';
-import 'package:ghadeer_clinic/voice/guided_conversation/guided_conversation_models.dart';
 import 'package:ghadeer_clinic/voice/intent/smart_brain_planner.dart';
 
 void main() {

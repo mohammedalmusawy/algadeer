@@ -32,5 +32,9 @@
 	<string>يُستخدم الميكروفون للبحث الصوتي في عيادة الغدير.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>يُستخدم التعرف على الصوت لتحويل كلامك إلى نص للبحث.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>يُستخدم موقعك لترتيب الصيدليات الأقرب إليك.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>يُستخدم موقعك لترتيب الصيدليات الأقرب إليك.</string>
 </dict>
 </plist>

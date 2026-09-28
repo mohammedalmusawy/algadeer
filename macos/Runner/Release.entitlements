@@ -8,6 +8,8 @@
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<key>com.apple.security.personal-information.location</key>
+	<true/>
 	<!-- Required so Spoken Content voiceId writes reach the real System Voice
 	     domain that /usr/bin/say reads. Without this, sandboxed CFPreferences
 	     writes appear to succeed in-process while say keeps synthesizing Soha. -->

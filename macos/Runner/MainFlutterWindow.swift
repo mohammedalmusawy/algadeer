@@ -10,6 +10,9 @@ class MainFlutterWindow: NSWindow {
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
+    // خلفية النافذة بيضاء — بلا صبغة تركواز من نظام macOS.
+    self.backgroundColor = NSColor.white
+    flutterViewController.view.appearance = NSAppearance(named: .aqua)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     MacOSTccChannel.register(with: flutterViewController.engine.binaryMessenger)
@@ -64,21 +67,21 @@ enum MacOSTccChannel {
     let mic = micStatusName(AVCaptureDevice.authorizationStatus(for: .audio))
     let usageOk = hasRequiredUsageDescriptions()
     let launchOk = isLaunchServicesAttributed()
-    // CRITICAL: Under Flutter/Android Studio/Cursor the responsible process is the
-    // IDE (no NSSpeechRecognitionUsageDescription) → TCC SIGABRT on Speech APIs.
-    // Only allow initialize/listen when Launch Services attributes this .app.
-    let canInit = usageOk && launchOk
+    // TCC يُنسب لـ Bundle.main لهذه العملية (.app)، مو لأب flutter/dart.
+    // `flutter run` أبوه dartvm — نسمح إذا كنا داخل Runner.app مع Usage Description.
+    let canInit = usageOk && (launchOk || isRunningAsBundledApp())
 
     NSLog(
       "[PERMISSION] PID=\(getpid()) speechReadyState speech=\(speech) mic=\(mic) "
-        + "usageOk=\(usageOk) launchAttr=\(launchOk) canInit=\(canInit)"
+        + "usageOk=\(usageOk) launchAttr=\(launchOk) bundled=\(isRunningAsBundledApp()) "
+        + "canInit=\(canInit)"
     )
 
     return [
       "speech": speech,
       "microphone": mic,
       "usageDescriptionsPresent": usageOk,
-      "launchServicesAttributed": launchOk,
+      "launchServicesAttributed": launchOk || isRunningAsBundledApp(),
       "canInitializeSafely": canInit,
       "pid": Int(getpid()),
     ]
@@ -97,11 +100,11 @@ enum MacOSTccChannel {
       return
     }
 
-    // Never call AV/Speech permission APIs when TCC would attribute to the IDE.
-    guard isLaunchServicesAttributed() else {
+    // ارفض فقط إذا ما كنا .app حقيقياً (TCC بدون Usage Description → SIGABRT).
+    guard isLaunchServicesAttributed() || isRunningAsBundledApp() else {
       NSLog(
         "[PERMISSION] PID=\(pid) requestPermissionsInProcess REFUSED — "
-          + "parent not Launch Services (avoids TCC SIGABRT)"
+          + "not a bundled app (avoids TCC SIGABRT)"
       )
       completion(speechReadyState())
       return
@@ -129,6 +132,17 @@ enum MacOSTccChannel {
       finish()
       return
     }
+    // تحت flutter/Xcode الأب ليس launchd: requestAuthorization يسبب SIGABRT.
+    // افتح إعدادات النظام بدل الطلب المباشر — المستخدم يفعّل «التعرف على الكلام».
+    if !isLaunchServicesAttributed() {
+      NSLog(
+        "[PERMISSION] PID=\(getpid()) speech notDetermined under IDE host — "
+          + "skip requestAuthorization, open System Settings"
+      )
+      _ = openSystemPrivacySettings()
+      finish()
+      return
+    }
     SFSpeechRecognizer.requestAuthorization { _ in
       finish()
     }
@@ -137,10 +151,10 @@ enum MacOSTccChannel {
   /// يفتح إعدادات النظام فقط — لا يفتح Ghadeer.app أبداً.
   static func openSystemPrivacySettings() -> Bool {
     let pid = Int(getpid())
-    // macOS Ventura+ Privacy & Security pane.
+    // Speech أولاً — هذا ما كان notDetermined ويسبب الانهيار إن طُلب مباشرة.
     let candidates = [
-      "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
       "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition",
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
       "x-apple.systempreferences:com.apple.preference.security",
     ]
     for raw in candidates {
@@ -159,10 +173,17 @@ enum MacOSTccChannel {
   }
 
   /// عند الفتح الآمن: اطلب الصلاحيات فورًا إن لم تُحدَّد بعد (نفس العملية).
+  /// تحت IDE: لا تطلب Speech (SIGABRT) — الإعدادات فقط عند الحاجة من البحث.
   static func promptPermissionsIfSafeLaunch() {
     NSLog("[APP] PID=\(getpid()) promptPermissionsIfSafeLaunch")
     guard hasRequiredUsageDescriptions() else { return }
-    guard isLaunchServicesAttributed() else { return }
+    guard isLaunchServicesAttributed() else {
+      NSLog(
+        "[APP] PID=\(getpid()) skip startup permission prompt — IDE/flutter host"
+      )
+      return
+    }
+    guard isRunningAsBundledApp() else { return }
 
     requestPermissionsInProcess { _ in }
   }
@@ -173,6 +194,14 @@ enum MacOSTccChannel {
     let speech = info?["NSSpeechRecognitionUsageDescription"] as? String
     return !(mic ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       && !(speech ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+
+  /// Runner يعمل كـ `.app` موقّع — حتى لو الأب `flutter`/`dart` من بيئة التطوير.
+  static func isRunningAsBundledApp() -> Bool {
+    let path = Bundle.main.bundlePath
+    guard path.contains(".app") else { return false }
+    guard let bid = Bundle.main.bundleIdentifier, !bid.isEmpty else { return false }
+    return hasRequiredUsageDescriptions()
   }
 
   static func isLaunchServicesAttributed() -> Bool {

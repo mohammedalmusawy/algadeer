@@ -8,6 +8,10 @@ enum ClarificationEntityType {
   analysis,
   package,
   offer,
+  radiology,
+  pharmacy,
+  physio,
+  supply,
   unknown,
 }
 
@@ -74,6 +78,38 @@ class ClarificationCandidate {
     }
     return null;
   }
+
+  SmartSearchResult? get asRadiologyResult {
+    final p = payload;
+    if (p is SmartSearchResult && p.type == SmartSearchResultType.radiology) {
+      return p;
+    }
+    return null;
+  }
+
+  SmartSearchResult? get asPharmacyResult {
+    final p = payload;
+    if (p is SmartSearchResult && p.type == SmartSearchResultType.pharmacy) {
+      return p;
+    }
+    return null;
+  }
+
+  SmartSearchResult? get asPhysioResult {
+    final p = payload;
+    if (p is SmartSearchResult && p.type == SmartSearchResultType.physio) {
+      return p;
+    }
+    return null;
+  }
+
+  SmartSearchResult? get asSupplyResult {
+    final p = payload;
+    if (p is SmartSearchResult && p.type == SmartSearchResultType.supply) {
+      return p;
+    }
+    return null;
+  }
 }
 
 /// حالة توضيح معلّقة — مصدر حقيقة واحد داخل ConversationContext.
@@ -121,6 +157,26 @@ class PendingClarification {
       .map((c) => c.asPackageResult)
       .whereType<SmartSearchResult>()
       .toList(growable: false);
+
+  List<SmartSearchResult> get radiologyResults => candidates
+      .map((c) => c.asRadiologyResult)
+      .whereType<SmartSearchResult>()
+      .toList(growable: false);
+
+  List<SmartSearchResult> get pharmacyResults => candidates
+      .map((c) => c.asPharmacyResult)
+      .whereType<SmartSearchResult>()
+      .toList(growable: false);
+
+  List<SmartSearchResult> get physioResults => candidates
+      .map((c) => c.asPhysioResult)
+      .whereType<SmartSearchResult>()
+      .toList(growable: false);
+
+  List<SmartSearchResult> get supplyResults => candidates
+      .map((c) => c.asSupplyResult)
+      .whereType<SmartSearchResult>()
+      .toList(growable: false);
 }
 
 /// اقتراح تصحيح اسم طبيب معلّق — «هل تقصد د. …؟» بمرشّح واحد واثق.
@@ -139,6 +195,19 @@ class PendingDoctorSuggestion {
 
   /// الاسم المخزَّن كما ورد من فهرس الأطباء الحقيقيين.
   final String doctorName;
+}
+
+/// اقتراح كيان معلّق عام (فيزيو/صيدلية/…) — نفس دلالة PendingDoctorSuggestion.
+class PendingEntitySuggestion {
+  const PendingEntitySuggestion({
+    required this.entityType,
+    required this.entityId,
+    required this.entityName,
+  });
+
+  final ClarificationEntityType entityType;
+  final String entityId;
+  final String entityName;
 }
 
 /// نتيجة محاولة الإجابة على توضيح معلّق.

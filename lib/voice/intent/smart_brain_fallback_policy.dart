@@ -1,7 +1,6 @@
 import '../../health/guidance/health_guidance_models.dart';
 import '../../health/understanding/health_understanding_engine.dart';
 import '../conversation_context.dart';
-import '../guided_conversation/guided_conversation_models.dart';
 import 'assistant_intent.dart';
 import 'smart_brain_planner.dart';
 

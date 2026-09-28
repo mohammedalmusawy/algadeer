@@ -93,6 +93,10 @@ class GhadeerFollowUpContext {
   }) {
     return switch (type) {
       ConversationEntityType.laboratory => 'تقصد أي مختبر؟',
+      ConversationEntityType.radiology => 'تقصد أي مركز أشعة؟',
+      ConversationEntityType.pharmacy => 'تقصد أي صيدلية؟',
+      ConversationEntityType.physio => 'تقصد أي مركز علاج طبيعي؟',
+      ConversationEntityType.supply => 'تقصد أي محل مستلزمات؟',
       ConversationEntityType.package => 'تقصد أي باقة؟',
       ConversationEntityType.analysis => 'تقصد أي تحليل؟',
       ConversationEntityType.doctor || ConversationEntityType.none =>

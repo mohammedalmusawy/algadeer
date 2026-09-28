@@ -24,7 +24,7 @@ class VoiceSpecialtySearchCommand {
       caseSensitive: false,
     ).hasMatch(original);
     final hasDoctorPlusSpecialtyHint = RegExp(
-      r'(?:طبيب|دكتور)\s+(?:اختصاص|تخصص|جملة|باطن|أطفال|اطفال|عظام|قلب|أعصاب|اعصاب|نساء|جلد|أسنان|اسنان)',
+      r'(?:طبيب|دكتور)\s+(?:اختصاص|تخصص|جملة|باطن|أطفال|اطفال|اطفل|جهال|عظام|قلب|أعصاب|اعصاب|نساء|جلد|أسنان|اسنان)',
       caseSensitive: false,
     ).hasMatch(original) ||
         _hasCatalogSpecialtyAfterDoctorWord(original);
@@ -149,6 +149,8 @@ class VoiceSpecialtySearchCommand {
       'باطن',
       'اطفال',
       'أطفال',
+      'اطفل',
+      'جهال',
       'عظام',
       'قلب',
       'نساء',

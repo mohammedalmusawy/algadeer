@@ -4,16 +4,17 @@ import '../../branding/ghadeer_brand_mark.dart';
 import '../smart_search_models.dart';
 import '../smart_search_result_cards.dart';
 import 'smart_brain_chat_models.dart';
+import 'smart_brain_suggested_actions.dart';
 
 const Color _kTeal = Color(0xFF0FAFA3);
 const Color _kNavy = Color(0xFF123B42);
 
-/// اقتراحات ترحيب — اختصارات لنفس مسار الإرسال فقط.
+/// اقتراحات بحث سريعة — نفس مسار الإرسال (اختصاص → الأكثر طلباً داخل المجموعة).
 const List<String> kSmartBrainSuggestionChips = [
-  'أريد طبيب',
-  'عندي أعراض',
+  'أريد طبيب أطفال',
+  'أريد طبيب كسور',
+  'أريد طبيب أسنان',
   'أبحث عن مختبر',
-  'أريد أشعة',
 ];
 
 class SmartBrainUserBubble extends StatelessWidget {
@@ -60,21 +61,26 @@ class SmartBrainAssistantBubble extends StatelessWidget {
     super.key,
     required this.turn,
     required this.onResultTap,
+    this.onSuggestedAction,
     this.onSpeak,
     this.isSpeaking = false,
     this.onStopSpeak,
+    this.onCancelThinking,
   });
 
   final SmartBrainChatTurn turn;
   final void Function(SmartSearchResult result) onResultTap;
+  final void Function(SmartBrainSuggestedAction action)? onSuggestedAction;
   final VoidCallback? onSpeak;
   final VoidCallback? onStopSpeak;
   final bool isSpeaking;
+  /// إلغاء «الغدير يفكر» — يوقف الطلب الجاري.
+  final VoidCallback? onCancelThinking;
 
   @override
   Widget build(BuildContext context) {
     if (turn.isThinking) {
-      return const SmartBrainThinkingIndicator();
+      return SmartBrainThinkingIndicator(onCancel: onCancelThinking);
     }
 
     final urgent = turn.isUrgent;
@@ -178,6 +184,31 @@ class SmartBrainAssistantBubble extends StatelessWidget {
                       ),
                     ),
                   ],
+                  if (turn.suggestedActions.isNotEmpty &&
+                      onSuggestedAction != null) ...[
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final action in turn.suggestedActions)
+                          ActionChip(
+                            key: Key(
+                              'smart_brain_suggested_action_${action.kind.name}',
+                            ),
+                            label: Text(action.label),
+                            onPressed: () => onSuggestedAction!(action),
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFFB6E5E0)),
+                            labelStyle: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: _kNavy,
+                              fontSize: 13,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -189,7 +220,12 @@ class SmartBrainAssistantBubble extends StatelessWidget {
 }
 
 class SmartBrainThinkingIndicator extends StatelessWidget {
-  const SmartBrainThinkingIndicator({super.key});
+  const SmartBrainThinkingIndicator({
+    super.key,
+    this.onCancel,
+  });
+
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -203,10 +239,10 @@ class SmartBrainThinkingIndicator extends StatelessWidget {
           color: const Color(0xFFE6F8F6),
           borderRadius: BorderRadius.circular(14),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
+            const SizedBox(
               width: 14,
               height: 14,
               child: CircularProgressIndicator(
@@ -214,8 +250,8 @@ class SmartBrainThinkingIndicator extends StatelessWidget {
                 color: _kTeal,
               ),
             ),
-            SizedBox(width: 10),
-            Text(
+            const SizedBox(width: 10),
+            const Text(
               'الغدير يفكر…',
               style: TextStyle(
                 fontSize: 13,
@@ -223,6 +259,19 @@ class SmartBrainThinkingIndicator extends StatelessWidget {
                 color: Color(0xFF5B6C70),
               ),
             ),
+            if (onCancel != null) ...[
+              const SizedBox(width: 4),
+              TextButton(
+                key: const Key('smart_brain_thinking_cancel'),
+                onPressed: onCancel,
+                style: TextButton.styleFrom(
+                  foregroundColor: _kNavy,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: const Text('إيقاف'),
+              ),
+            ],
           ],
         ),
       ),
@@ -304,20 +353,23 @@ class SmartBrainComposerBar extends StatelessWidget {
             children: [
               IconButton.filled(
                 key: const Key('smart_brain_mic'),
-                tooltip: micActive ? 'إيقاف الصوت والإرسال' : 'تحدث',
+                tooltip: loading && !micActive
+                    ? 'إيقاف الطلب'
+                    : (micActive ? 'إيقاف الصوت والإرسال' : 'تحدث'),
                 onPressed: voiceBusy
                     ? null
-                    : (loading && !voiceSessionActive)
-                        ? null
-                        : onToggleVoice,
+                    : onToggleVoice,
                 style: IconButton.styleFrom(
-                  backgroundColor:
-                      micActive ? Colors.red : const Color(0xFF123B42),
+                  backgroundColor: (micActive || loading)
+                      ? Colors.red
+                      : const Color(0xFF123B42),
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey.shade300,
                 ),
                 icon: Icon(
-                  micActive ? Icons.stop_rounded : Icons.mic_rounded,
+                  (micActive || loading)
+                      ? Icons.stop_rounded
+                      : Icons.mic_rounded,
                 ),
               ),
               const SizedBox(width: 8),

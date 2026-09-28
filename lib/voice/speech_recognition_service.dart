@@ -57,11 +57,11 @@ class DeviceSpeechRecognitionService implements SpeechRecognitionService {
   static const recognitionFailedMessage =
       'تعذر التعرف على الصوت، حاول مرة أخرى.';
 
-  /// تشغيل تحت IDE/Flutter tools — استدعاء Speech يسبب SIGABRT (TCC).
+  /// تشغيل بلا Bundle .app (بدون Usage Description) — استدعاء Speech قد يسبب SIGABRT.
   /// لا نعيد فتح التطبيق ولا نطلق نسخة ثانية؛ رسالة فقط.
   static const macosDevHostBlockedMessage =
-      'البحث الصوتي غير متاح عند تشغيل التطبيق من بيئة التطوير. '
-      'افتح تطبيق الغدير مباشرة (ملف .app) ثم استخدم الميكروفون.';
+      'البحث الصوتي يحتاج تشغيل تطبيق الغدير كملف .app. '
+      'من التيرمنال: flutter run -d macos ثم اسمح بالتعرّف على الكلام عند الطلب.';
 
   @Deprecated('Second-app grant removed — use enablePermissionMessage')
   static const macosFirstGrantBlockedMessage = enablePermissionMessage;
@@ -402,6 +402,7 @@ class DeviceSpeechRecognitionService implements SpeechRecognitionService {
     }
 
     // notDetermined: اطلب في نفس العملية ثم أعد الفحص — لا تفتح .app.
+    // تحت flutter (launchAttr خام = false داخل Swift) الطلب يُحوَّل لإعدادات النظام.
     if (!ready.isFullyAuthorized &&
         (ready.speech == 'notDetermined' ||
             ready.microphone == 'notDetermined') &&
@@ -410,6 +411,14 @@ class DeviceSpeechRecognitionService implements SpeechRecognitionService {
         '[STT] PID=$pid notDetermined — requestPermissionsInProcess (same PID)',
       );
       ready = await requestPermissionsInProcess();
+      if (!ready.isFullyAuthorized && ready.isNotDetermined) {
+        debugPrint(
+          '[STT] PID=$pid still notDetermined after request — open Settings',
+        );
+        await openSystemPrivacySettings();
+        onError?.call(enablePermissionMessage);
+        return;
+      }
     }
 
     if (!ready.canInitializeSafely) {

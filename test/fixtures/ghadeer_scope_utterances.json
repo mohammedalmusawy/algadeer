@@ -1,0 +1,302 @@
+[
+  {
+    "id": "oos_world_cup",
+    "query": "من فاز بكأس العالم 2014؟",
+    "expect": "out_of_scope",
+    "tags": ["scope", "trivia"]
+  },
+  {
+    "id": "oos_world_cup_typo",
+    "query": "منو فاز بكاس العالم",
+    "expect": "out_of_scope",
+    "tags": ["scope", "trivia", "iraqi"]
+  },
+  {
+    "id": "oos_weather",
+    "query": "شلون الطقس اليوم",
+    "expect": "out_of_scope",
+    "tags": ["scope", "iraqi"]
+  },
+  {
+    "id": "oos_dollar",
+    "query": "شنو سعر الدولار",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "oos_translate",
+    "query": "ترجملي كلمة hello",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "oos_cooking",
+    "query": "عطني وصفة طبخ للرز",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "oos_capital",
+    "query": "وين عاصمة فرنسا",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "oos_youtube",
+    "query": "افتحلي يوتيوب",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "oos_prescribe",
+    "query": "عطني دواء للصداع",
+    "expect": "out_of_scope",
+    "tags": ["scope", "safety"]
+  },
+  {
+    "id": "oos_chatgpt",
+    "query": "انت شات جي بي تي",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "plat_specialty_kids",
+    "query": "اريد طبيب اطفال",
+    "expect": "platform",
+    "tags": ["platform", "specialty", "iraqi"]
+  },
+  {
+    "id": "plat_specialty_kids_alt",
+    "query": "دكتور أطفال",
+    "expect": "platform",
+    "tags": ["platform", "specialty"]
+  },
+  {
+    "id": "plat_doctor_call",
+    "query": "اتصل بدكتور علي",
+    "expect": "platform",
+    "tags": ["platform", "call"]
+  },
+  {
+    "id": "plat_whatsapp",
+    "query": "دزله واتساب",
+    "expect": "platform",
+    "tags": ["platform", "whatsapp", "iraqi"]
+  },
+  {
+    "id": "plat_lab",
+    "query": "وين مختبر قريب",
+    "expect": "platform",
+    "tags": ["platform", "lab", "iraqi"]
+  },
+  {
+    "id": "plat_package_hair",
+    "query": "باقات تساقط الشعر",
+    "expect": "platform",
+    "tags": ["platform", "package"]
+  },
+  {
+    "id": "plat_radiology_knee",
+    "query": "أريد أشعة للركبة",
+    "expect": "platform",
+    "tags": ["platform", "radiology"]
+  },
+  {
+    "id": "plat_pharmacy",
+    "query": "صيدلية قريبة مني",
+    "expect": "platform",
+    "tags": ["platform", "pharmacy"]
+  },
+  {
+    "id": "plat_offers",
+    "query": "شنو العروض الموجودة",
+    "expect": "platform",
+    "tags": ["platform", "offers", "iraqi"]
+  },
+  {
+    "id": "plat_analysis",
+    "query": "أريد تحليل السكر",
+    "expect": "platform",
+    "tags": ["platform", "analysis"]
+  },
+  {
+    "id": "plat_open_second",
+    "query": "افتح الثاني",
+    "expect": "platform",
+    "tags": ["platform", "ordinal"]
+  },
+  {
+    "id": "plat_available_today",
+    "query": "طبيب أطفال متوفر اليوم",
+    "expect": "platform",
+    "tags": ["platform", "modifiers"]
+  },
+  {
+    "id": "plat_radiology_typo",
+    "query": "اشعة سونار",
+    "expect": "platform",
+    "tags": ["platform", "radiology", "iraqi"]
+  },
+  {
+    "id": "plat_lab_list",
+    "query": "المختبرات الموجودة",
+    "expect": "platform",
+    "tags": ["platform", "lab"]
+  },
+  {
+    "id": "plat_book",
+    "query": "احجز موعد عند الدكتور",
+    "expect": "platform",
+    "tags": ["platform", "book"]
+  },
+  {
+    "id": "oos_fifa",
+    "query": "متى مباراة فيفا الجاية",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "oos_stocks",
+    "query": "شنو وضع البورصة اليوم",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "oos_who_is_president",
+    "query": "من فاز بكاس العالم ٢٠١٨",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "plat_name_ali",
+    "query": "علي ناصر",
+    "expect": "platform",
+    "tags": ["platform", "doctor_name"]
+  },
+  {
+    "id": "plat_profile",
+    "query": "افتح بطاقة الدكتور",
+    "expect": "platform",
+    "tags": ["platform", "profile"]
+  },
+  {
+    "id": "oos_gold_price",
+    "query": "سعر الذهب اليوم",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "plat_kids_dialect",
+    "query": "طبيب جهال",
+    "expect": "platform",
+    "tags": ["platform", "specialty", "iraqi"]
+  },
+  {
+    "id": "oos_recipe",
+    "query": "ابي طبخة سريعة",
+    "expect": "out_of_scope",
+    "tags": ["scope", "iraqi"]
+  },
+  {
+    "id": "plat_whatsapp_doctor",
+    "query": "واتساب للدكتور ناجي",
+    "expect": "platform",
+    "tags": ["platform", "whatsapp"]
+  },
+  {
+    "id": "plat_location",
+    "query": "وين موقع المختبر",
+    "expect": "platform",
+    "tags": ["platform", "location"]
+  },
+  {
+    "id": "oos_instagram",
+    "query": "افتحلي انستا",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "plat_package_offer",
+    "query": "ابي عرض باقة",
+    "expect": "platform",
+    "tags": ["platform", "package", "iraqi"]
+  },
+  {
+    "id": "oos_word_meaning",
+    "query": "معنى كلمة democracy",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "plat_radiology_xray",
+    "query": "صورة شعاعية للصدر",
+    "expect": "platform",
+    "tags": ["platform", "radiology"]
+  },
+  {
+    "id": "plat_call_him",
+    "query": "اتصل بيه",
+    "expect": "platform",
+    "tags": ["platform", "context"]
+  },
+  {
+    "id": "oos_champions",
+    "query": "من فاز بدوري الابطال",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "plat_specialty_bones",
+    "query": "اريد دكتور عظام",
+    "expect": "platform",
+    "tags": ["platform", "specialty"]
+  },
+  {
+    "id": "oos_temp",
+    "query": "درجة الحرارة برا",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "plat_pharmacy_typo",
+    "query": "صيدليه قريبة",
+    "expect": "platform",
+    "tags": ["platform", "pharmacy", "iraqi"]
+  },
+  {
+    "id": "plat_help_ghadeer",
+    "query": "ساعدني ابحث عن طبيب بالغدير",
+    "expect": "platform",
+    "tags": ["platform"]
+  },
+  {
+    "id": "oos_actor",
+    "query": "افتحلي فيسبوك",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "plat_select_first",
+    "query": "الاول",
+    "expect": "platform",
+    "tags": ["platform", "ordinal"]
+  },
+  {
+    "id": "oos_oil",
+    "query": "سعر النفط اليوم",
+    "expect": "out_of_scope",
+    "tags": ["scope"]
+  },
+  {
+    "id": "plat_lab_packages",
+    "query": "باقات المختبر",
+    "expect": "platform",
+    "tags": ["platform", "package", "lab"]
+  },
+  {
+    "id": "oos_diagnose_me",
+    "query": "شنو التشخيص حقي",
+    "expect": "out_of_scope",
+    "tags": ["scope", "safety"]
+  }
+]

@@ -322,6 +322,10 @@ class ContextResolver {
       ConversationEntityType.package => context.selectPackageByOrdinal(index),
       ConversationEntityType.analysis =>
         context.selectAnalysisByOrdinal(index),
+      ConversationEntityType.radiology => null,
+      ConversationEntityType.pharmacy => null,
+      ConversationEntityType.physio => null,
+      ConversationEntityType.supply => null,
       ConversationEntityType.none => null,
     };
   }
@@ -493,7 +497,8 @@ class ContextResolver {
     ).hasMatch(n)) {
       return true;
     }
-    if (RegExp(r'^(?:العنوان|الموقع)$').hasMatch(n.trim())) {
+    if (RegExp(r'^(?:العنوان|الموقع|وينه|وينها|وينهم|مكانهم)$')
+        .hasMatch(n.trim())) {
       return true;
     }
     // جملة قصيرة إشارية للموقع.

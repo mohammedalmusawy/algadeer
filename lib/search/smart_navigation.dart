@@ -149,6 +149,34 @@ class SmartNavigationResolver {
           target: target,
           confidence: target.score,
         );
+      case SmartSearchResultType.radiology:
+        return SmartNavigationDecision(
+          action: SmartNavAction.openLab,
+          message: 'فتح ملف الأشعة ${target.title}',
+          target: target,
+          confidence: target.score,
+        );
+      case SmartSearchResultType.pharmacy:
+        return SmartNavigationDecision(
+          action: SmartNavAction.openLab,
+          message: 'فتح ملف الصيدلية ${target.title}',
+          target: target,
+          confidence: target.score,
+        );
+      case SmartSearchResultType.physio:
+        return SmartNavigationDecision(
+          action: SmartNavAction.openLab,
+          message: 'فتح ملف العلاج الطبيعي ${target.title}',
+          target: target,
+          confidence: target.score,
+        );
+      case SmartSearchResultType.supply:
+        return SmartNavigationDecision(
+          action: SmartNavAction.openLab,
+          message: 'فتح ملف المستلزمات ${target.title}',
+          target: target,
+          confidence: target.score,
+        );
       case SmartSearchResultType.offer:
         return SmartNavigationDecision(
           action: SmartNavAction.openOffer,
@@ -275,6 +303,14 @@ class SmartNavigationResolver {
         return 'وجدت أكثر من طبيب ($count)، اختر الطبيب المقصود.';
       case SmartSearchResultType.lab:
         return 'وجدت أكثر من مختبر ($count)، اختر المختبر المقصود.';
+      case SmartSearchResultType.radiology:
+        return 'وجدت أكثر من مركز أشعة ($count)، اختر المقصود.';
+      case SmartSearchResultType.pharmacy:
+        return 'وجدت أكثر من صيدلية ($count)، اختر المقصودة.';
+      case SmartSearchResultType.physio:
+        return 'وجدت أكثر من مركز علاج طبيعي ($count)، اختر المقصود.';
+      case SmartSearchResultType.supply:
+        return 'وجدت أكثر من محل مستلزمات ($count)، اختر المقصود.';
       case SmartSearchResultType.package:
         return 'وجدت أكثر من باقة ($count)، اختر الباقة المقصودة.';
       case SmartSearchResultType.offer:

@@ -44,9 +44,19 @@ class IntentResult {
       intent == AssistantIntent.messageDoctor ||
       intent == AssistantIntent.callLab ||
       intent == AssistantIntent.messageLab ||
+      intent == AssistantIntent.callRadiology ||
+      intent == AssistantIntent.messageRadiology ||
+      intent == AssistantIntent.callPharmacy ||
+      intent == AssistantIntent.messagePharmacy ||
+      intent == AssistantIntent.callPhysio ||
+      intent == AssistantIntent.messagePhysio ||
+      intent == AssistantIntent.callSupply ||
+      intent == AssistantIntent.messageSupply ||
       intent == AssistantIntent.showLocation ||
       intent == AssistantIntent.showProfile ||
       intent == AssistantIntent.bookAppointment ||
+      intent == AssistantIntent.stopSpeaking ||
+      intent == AssistantIntent.repeatResponse ||
       intent == AssistantIntent.findPackage ||
       intent == AssistantIntent.findAnalysis ||
       intent == AssistantIntent.selectResult;

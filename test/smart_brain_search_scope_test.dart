@@ -9,6 +9,7 @@ import 'package:ghadeer_clinic/search/arabic_text_utils.dart';
 import 'package:ghadeer_clinic/search/search_refiner.dart';
 import 'package:ghadeer_clinic/search/smart_search_models.dart';
 import 'package:ghadeer_clinic/voice/conversation_context.dart';
+import 'package:ghadeer_clinic/voice/intent/assistant_intent.dart';
 import 'package:ghadeer_clinic/voice/intent/search_modifiers.dart';
 import 'package:ghadeer_clinic/voice/intent/smart_brain_planner.dart';
 
@@ -23,6 +24,7 @@ SmartSearchResult _doctor(
   String title = 'د. ميعاد',
   String status = 'available',
   String hours = _hours,
+  String days = '',
   String from = '',
   String to = '',
   int demand = 0,
@@ -38,7 +40,7 @@ SmartSearchResult _doctor(
     phone: '07700000000',
     whatsapp: '07700000000',
     bookingStatus: status,
-    workingDays: '',
+    workingDays: days,
     workingHours: hours,
     absenceFrom: from,
     absenceTo: to,
@@ -102,6 +104,17 @@ void main() {
   });
 
   group('DoctorPresenceQuestion', () {
+    test('متابعة قصيرة فقط، بلا اسم جديد أو طلب خدمة أو موعد آخر', () {
+      for (final q in ['وهي موجودة اليوم؟', 'هو متوفر هسه؟',
+        'الدكتور موجود اليوم؟', 'الثاني متواجد اليوم؟', 'موجود اليوم؟']) {
+        expect(DoctorPresenceQuestion.isContextual(q), isTrue, reason: q);
+      }
+      for (final q in ['دكتورة ميعاد موجودة اليوم؟', 'اريد طبيب متوفر اليوم',
+        'اتصل بالدكتور الموجود اليوم', 'هي موجودة باجر؟',
+        'وين موجود هذا التحليل', 'الدواء متوفر اليوم', 'هو مو موجود اليوم؟']) {
+        expect(DoctorPresenceQuestion.isContextual(q), isFalse, reason: q);
+      }
+    });
     test('سؤال تواجد باسم الطبيب', () {
       expect(
         DoctorPresenceQuestion.tryParseName('هل دكتورة ميعاد متواجدة اليوم؟'),
@@ -199,6 +212,37 @@ void main() {
       expect(a.state, DoctorTodayState.presentBookable);
       expect(a.period, isNull);
     });
+
+    test('جدول ساعات جزئي: غياب اليوم ليس دليلاً على العطلة', () {
+      final a = at(_sunday, hours: 'السبت: مساءً');
+      expect(a.state, DoctorTodayState.unknown);
+      expect(a.period, isNull);
+      expect(a.describe(doctorName: 'د. ميعاد', gender: 'female'),
+          contains('لا توجد لدي معلومة مؤكدة'));
+    });
+
+    test('اليوم من أيام الدوام مع ساعات يوم آخر: بلا فترة مخترعة', () {
+      final a = at(_sunday, hours: 'السبت: مساءً', days: 'السبت، الأحد');
+      expect(a.state, DoctorTodayState.presentBookable);
+      expect(a.period, isNull);
+      expect(a.describe(doctorName: 'د. ميعاد', gender: 'female'),
+          'نعم، د. ميعاد متواجدة اليوم، وحالة الحجز متاحة.');
+    });
+
+    test('عطلة صريحة تتقدم على قائمة أيام الدوام', () {
+      expect(at(_sunday, hours: 'الأحد: عطلة', days: 'كل أيام الأسبوع').state,
+          DoctorTodayState.dayOff);
+      expect(at(_sunday, hours: 'السبت: مساءً', days: 'السبت').state,
+          DoctorTodayState.dayOff);
+    });
+
+    test('نقص الجدول لا يخفي عدم إتاحة الحجز أو الإجازة', () {
+      expect(at(_sunday, hours: 'السبت: مساءً', status: 'unavailable').state,
+          DoctorTodayState.bookingUnavailable);
+      expect(at(_sunday, hours: 'السبت: مساءً',
+          from: '2026-09-19', to: '2026-09-22').state,
+          DoctorTodayState.onLeave);
+    });
   });
 
   group('SearchRefiner — ترتيب حقيقي بلا إضافة/حذف', () {
@@ -250,6 +294,18 @@ void main() {
       expect(identical(SearchRefiner.apply(all, SearchModifiers.none), all),
           isTrue);
       expect(SearchRefiner.summary(all, SearchModifiers.none), isNull);
+    });
+
+    test('جدول جزئي: المتاح المؤكد ثم المجهول ثم العطلة', () {
+      final shown = SearchRefiner.apply([
+        _doctor('off', hours: 'الأحد: عطلة'),
+        _doctor('unknown', hours: 'السبت: مساءً'),
+        _doctor('available', hours: 'السبت: مساءً', days: 'الأحد'),
+      ], const SearchModifiers(availableOnly: true), nowUtc: _sunday);
+      expect(ids(shown), ['available', 'unknown', 'off']);
+      expect(SearchRefiner.summary(shown,
+          const SearchModifiers(availableOnly: true), nowUtc: _sunday),
+          'المتاح منهم اليوم واحد.');
     });
 
     test('لا بيانات طلب → لا ادعاء ترتيب', () {
@@ -351,6 +407,97 @@ void main() {
       expect(plan.modifiers.availableOnly, isTrue);
     });
 
+    test('سؤال التواجد لا يحوّل جدولاً جزئياً إلى عطلة', () async {
+      doctorRow = _doctor('miaad', hours: 'السبت: مساءً');
+      final plan = await scoped().plan(
+        query: 'هل دكتورة ميعاد متواجدة اليوم؟', context: ctx);
+      expect(plan.kind, AssistantActionKind.selectEntity);
+      expect(plan.target?.doctorId, 'miaad');
+      expect(plan.message, 'لا توجد لدي معلومة مؤكدة عن دوام د. ميعاد اليوم.');
+      expect(plan.canExecute, isFalse);
+    });
+
+    test('متابعة التواجد للطبيبة المختارة دون بحث جديد أو اتصال', () async {
+      ctx.selectDoctor(doctorRow);
+      final brain = scoped();
+      for (final q in ['وهي موجودة اليوم؟', 'الدكتورة متوفرة هسه؟']) {
+        final plan = await brain.plan(query: q, context: ctx);
+        expect(plan.intentResult.intent, AssistantIntent.doctorAvailability);
+        expect(plan.target?.doctorId, 'miaad');
+        expect(plan.message, contains('متواجدة اليوم'));
+        expect(plan.canExecute, isFalse);
+        expect(brain.lastMatcherQueryForTest, isNull);
+      }
+    });
+
+    test('تواجد بلا طبيب أو بعد الانتقال لمختبر لا يستعمل طبيباً قديماً', () async {
+      var plan = await scoped().plan(query: 'هو موجود اليوم؟', context: ctx);
+      expect(plan.target, isNull);
+      expect(plan.message, contains('أي طبيب'));
+      ctx.selectDoctor(doctorRow);
+      ctx.selectLaboratory(const SmartSearchResult(
+        type: SmartSearchResultType.lab, title: 'مختبر الحياة',
+        subtitle: 'مختبر', labId: 'lab'));
+      plan = await scoped().plan(query: 'موجود اليوم؟', context: ctx);
+      expect(plan.target, isNull);
+      expect(plan.canExecute, isFalse);
+      expect(ctx.activeEntityType, ConversationEntityType.laboratory);
+    });
+
+    test('التواجد بعد عدة نتائج: توضيح ثم جواب للطبيب الثاني', () async {
+      ctx.rememberResults([
+        doctorRow,
+        _doctor('ali', title: 'د. علي', gender: 'male', status: 'full'),
+      ], query: 'طبيب أطفال', intent: AssistantIntent.doctorSearch);
+      final brain = scoped();
+      final ask = await brain.plan(query: 'موجود اليوم؟', context: ctx);
+      expect(ask.kind, AssistantActionKind.showClarification);
+      expect(ctx.pendingClarification?.pendingAction,
+          AssistantIntent.doctorAvailability);
+      final answer = await brain.plan(query: 'الثاني', context: ctx);
+      expect(answer.target?.doctorId, 'ali');
+      expect(answer.message, 'د. علي متواجد اليوم لكن الحجز مكتمل.');
+      expect(answer.canExecute, isFalse);
+      expect(ctx.pendingClarification, isNull);
+    });
+
+    test('ترتيب صريح للتواجد يسبق الطبيب المختار', () async {
+      ctx.rememberResults([
+        doctorRow,
+        _doctor('ali', title: 'د. علي', gender: 'male', status: 'full'),
+      ], query: 'طبيب أطفال', intent: AssistantIntent.doctorSearch);
+      ctx.selectDoctor(doctorRow);
+      final plan = await scoped().plan(query: 'الثاني موجود اليوم؟', context: ctx);
+      expect(plan.target?.doctorId, 'ali');
+      expect(plan.message, contains('الحجز مكتمل'));
+    });
+
+    test('سؤال التواجد ينهي تأكيد اتصال قديم ولا تعيده نعم', () async {
+      ctx.selectDoctor(doctorRow);
+      ctx.setPendingAction('call');
+      final brain = scoped();
+      await brain.plan(query: 'وهي موجودة اليوم؟', context: ctx);
+      expect(ctx.pendingAction, isNull);
+      final yes = await brain.plan(query: 'نعم', context: ctx);
+      expect(yes.kind, isNot(AssistantActionKind.prepareCall));
+      expect(yes.kind, isNot(AssistantActionKind.prepareWhatsApp));
+    });
+
+    test('اسم جديد صريح يتقدم على الطبيبة المختارة', () async {
+      ctx.selectDoctor(_doctor('old', title: 'د. سارة'));
+      final plan = await scoped().plan(
+        query: 'دكتورة ميعاد موجودة اليوم؟', context: ctx);
+      expect(plan.target?.doctorId, 'miaad');
+    });
+
+    test('ترتيب خارج النتائج لا يعود للطبيب المختار', () async {
+      ctx.rememberResults([doctorRow], intent: AssistantIntent.doctorSearch);
+      final plan = await scoped().plan(query: 'الثالث موجود اليوم؟', context: ctx);
+      expect(plan.target, isNull);
+      expect(plan.canExecute, isFalse);
+      expect(plan.message, contains('خيار ثالث'));
+    });
+
     test('أكثر طبيب أطفال طلبًا → مُعدِّل الطلب', () async {
       final plan = await scoped().plan(
         query: 'منو أكثر طبيب أطفال طلبًا؟',
@@ -358,6 +505,50 @@ void main() {
       );
       expect(plan.kind, AssistantActionKind.runSpecialtySearch);
       expect(plan.modifiers.byDemand, isTrue);
+    });
+
+    test('أريد طبيب أطفال → byDemand تلقائياً داخل اختصاص الأطفال', () async {
+      final plan = await scoped().plan(
+        query: 'أريد طبيب أطفال',
+        context: ctx,
+      );
+      expect(plan.kind, AssistantActionKind.runSpecialtySearch);
+      expect(plan.modifiers.byDemand, isTrue);
+      expect(plan.modifiers.availableOnly, isFalse);
+    });
+
+    test('أريد طبيب كسور → byDemand تلقائياً داخل اختصاص الكسور', () async {
+      final plan = await scoped().plan(
+        query: 'أريد طبيب كسور',
+        context: ctx,
+      );
+      expect(plan.kind, AssistantActionKind.runSpecialtySearch);
+      expect(plan.modifiers.byDemand, isTrue);
+      expect(
+        plan.specialtyQuery ?? '',
+        anyOf(contains('كسور'), contains('عظام')),
+      );
+    });
+
+    test('جدلي طبيب أطفال متوفر → متوفر + طلب داخل الأطفال', () async {
+      final plan = await scoped().plan(
+        query: 'جدلي طبيب أطفال متوفر',
+        context: ctx,
+      );
+      expect(plan.kind, AssistantActionKind.runSpecialtySearch);
+      expect(plan.modifiers.availableOnly, isTrue);
+      expect(plan.modifiers.byDemand, isTrue);
+    });
+
+    test('ترتيب داخل مجموعة الاختصاص حسب demandScore', () {
+      final a = _doctor('a', title: 'د. أ', demand: 10);
+      final b = _doctor('b', title: 'د. ب', demand: 50);
+      final c = _doctor('c', title: 'د. ج', demand: 30);
+      final ranked = SearchRefiner.apply(
+        [a, b, c],
+        const SearchModifiers(byDemand: true),
+      );
+      expect(ranked.map((r) => r.doctorId).toList(), ['b', 'c', 'a']);
     });
 
     test('ابحثلي عن طبيب أطفال متوفر اليوم الأكثر طلباً → المُعدِّلان معًا', () async {

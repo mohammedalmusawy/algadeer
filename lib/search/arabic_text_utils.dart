@@ -76,10 +76,17 @@ class ArabicTextUtils {
       ' طبيب ',
     ),
     (RegExp(r'(?:^|\s)(?:مختبرات)(?=\s|$)'), ' مختبر '),
-    (RegExp(r'(?:^|\s)(?:تحاليل)(?=\s|$)'), ' تحليل '),
+    (RegExp(r'(?:^|\s)(?:تحاليل|تحليلات)(?=\s|$)'), ' تحليل '),
     (RegExp(r'(?:^|\s)(?:باقات)(?=\s|$)'), ' باقه '),
     (RegExp(r'(?:^|\s)(?:عروض)(?=\s|$)'), ' عرض '),
     (RegExp(r'(?:^|\s)(?:اشعه|أشعة|اشعة)(?=\s|$)'), ' اشعه '),
+    // لهجة عراقية شائعة — توحيد لمعنى البحث فقط.
+    (RegExp(r'(?:^|\s)(?:جهال|الجهال)(?=\s|$)'), ' اطفال '),
+    (RegExp(r'(?:^|\s)(?:اطفل)(?=\s|$)'), ' اطفال '),
+    (RegExp(r'(?:^|\s)(?:صيدليه|صيدليةه)(?=\s|$)'), ' صيدليه '),
+    (RegExp(r'(?:^|\s)(?:وتساب|واتس\s*اب)(?=\s|$)'), ' واتساب '),
+    // أخطاء صوت شائعة: طبييعي → طبيعي
+    (RegExp(r'(?:^|\s)طبيي+عي(?=\s|$)'), ' طبيعي '),
   ];
 
   /// مكمّلات مضبوطة لـ«عبد» — تُوحَّد شكلاً مفصولاً/موصولاً.
@@ -163,6 +170,112 @@ class ArabicTextUtils {
     return canonicalizeCompoundNames(_prepareNameQuery(input));
   }
 
+  /// تجهيز استعلام اسم مختبر — نفس ضجيج الاتصال/واتساب، بلا قواعد أطباء.
+  /// يعمل لأي مختبر يُضاف لاحقاً (بدون أسماء ثابتة).
+  static String prepareLabNameQuery(String input) {
+    var s = _prepareNameQuery(input);
+    // بقايا «ل/لل» قبل كلمة مختبر (للمختبر / لمختبر الحياة).
+    s = s.replaceFirst(RegExp(r'^ل{1,2}(?=مختبر)'), '').trim();
+    s = s
+        .replaceFirst(
+          RegExp(r'^(?:ب|ل|على)?(?:ال)?مختبر(?:ات)?\s*'),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'(?:^|\s)(?:ال)?(?:مختبر|مختبرات)(?=\s|$)'),
+          ' ',
+        )
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return s;
+  }
+
+  /// تجهيز استعلام اسم مركز أشعة — عام لأي مركز يُضاف لاحقاً.
+  static String prepareRadiologyNameQuery(String input) {
+    var s = _prepareNameQuery(input);
+    s = s.replaceFirst(RegExp(r'^ل{1,2}(?=اشعه|اشعة|أشعة|مركز)'), '').trim();
+    s = s
+        .replaceFirst(
+          RegExp(r'^(?:ب|ل|على)?(?:ال)?(?:اشعه|اشعة|أشعة|مركز\s*اشعه|مركز\s*أشعة)\s*'),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'(?:^|\s)(?:ال)?(?:اشعه|اشعة|أشعة|مركز)(?=\s|$)'),
+          ' ',
+        )
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return s;
+  }
+
+  /// تجهيز استعلام اسم صيدلية — عام لأي صيدلية تُضاف لاحقاً.
+  static String preparePharmacyNameQuery(String input) {
+    var s = _prepareNameQuery(input);
+    s = s.replaceFirst(RegExp(r'^ل{1,2}(?=صيدل)'), '').trim();
+    s = s
+        .replaceFirst(
+          RegExp(
+            r'^(?:ب|ل|على)?(?:ال)?(?:صيدليه|صيدلية|صيدليات)\s*',
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'(?:^|\s)(?:ال)?(?:صيدليه|صيدلية|صيدليات)(?=\s|$)'),
+          ' ',
+        )
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return s;
+  }
+
+  /// تجهيز استعلام مركز علاج طبيعي — عام لأي مركز في المنصة.
+  static String preparePhysioNameQuery(String input) {
+    var s = _prepareNameQuery(input);
+    s = s
+        .replaceFirst(
+          RegExp(
+            r'^(?:ب|ل|على)?(?:ال)?(?:مركز|مراكز)?\s*'
+            r'(?:علاج\s*طبيعي|العلاج\s*الطبيعي|فيزيو(?:ثيرابي)?|'
+            r'تاهيل(?:\s*حركي)?|تأهيل(?:\s*حركي)?)\s*',
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'(?:^|\s)(?:ال)?(?:علاج\s*طبيعي|فيزيو(?:ثيرابي)?|'
+            r'تاهيل|تأهيل|معالج\s*طبيعي)(?=\s|$)',
+          ),
+          ' ',
+        )
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return s;
+  }
+
+  /// تجهيز استعلام محل مستلزمات — عام لأي محل في المنصة.
+  static String prepareSupplyNameQuery(String input) {
+    var s = _prepareNameQuery(input);
+    s = s
+        .replaceFirst(
+          RegExp(
+            r'^(?:ب|ل|على)?(?:ال)?(?:محل|محلات|معرض)?\s*'
+            r'(?:مستلزمات(?:\s*طبيه)?|تجهيزات(?:\s*طبيه)?|'
+            r'مواد\s*طبيه|معدات\s*طبيه)\s*',
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'(?:^|\s)(?:ال)?(?:مستلزمات|تجهيزات|مواد\s*طبيه|'
+            r'معدات\s*طبيه)(?=\s|$)',
+          ),
+          ' ',
+        )
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return s;
+  }
+
   /// تجهيز اسم مخزَّن للمقارنة مع الاستعلام.
   static String prepareDoctorStoredName(String storedName) {
     return canonicalizeCompoundNames(normalize(stripHonorifics(storedName)));
@@ -185,7 +298,13 @@ class ArabicTextUtils {
         .toLowerCase()
         .replaceAll('\u0640', '') // tatweel
         .replaceAll(_invisibleAndTashkeel, '')
-        .replaceAll(_punctuation, ' ')
+        .replaceAll(_punctuation, ' ');
+    // احفظ حرف الجر «على» ككلمة كاملة قبل طي ى→ي (وإلا على→علي).
+    // مهم: لا تلمس «الأعلى/أعلى» التي تحتوي على كسلسلة جزئية.
+    const alaToken = '\uE000ALA\uE001';
+    s = ' $s ';
+    s = s.replaceAll(' على ', ' $alaToken ');
+    s = s
         // Yeh / Kaf variants (macOS speech often emits Persian forms).
         .replaceAll('ی', 'ي') // U+06CC → U+064A
         .replaceAll('ى', 'ي')
@@ -196,6 +315,7 @@ class ArabicTextUtils {
         .replaceAll('ؤ', 'و')
         .replaceAll('ئ', 'ي')
         .replaceAll('ة', 'ه')
+        .replaceAll(alaToken, 'على')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     return s;
@@ -240,11 +360,16 @@ class ArabicTextUtils {
       if (next == s) break;
       s = next;
     }
-    // «د.» أو «د» أو «الدكتور» ملتصقة بالاسم بدون مسافة.
+    // «د.» أو «د » قبل الاسم — لا تقطع «دلني/دورلي/دزله».
+    s = s.replaceFirst(RegExp(r'^د\.\s*'), '').trim();
+    s = s.replaceFirst(RegExp(r'^د\s+'), '').trim();
     s = s
-        .replaceFirst(RegExp(r'^(?:ال)?د(?:\.|كتور|كتورة)?(?=\s|[^\s]|$)'), '')
+        .replaceFirst(
+          RegExp(r'^(?:ال)?دكتور(?:ه|ة)?\s*'),
+          '',
+        )
         .trim();
-    s = s.replaceFirst(RegExp(r'^د\.?\s*'), '').trim();
+    s = s.replaceFirst(RegExp(r'^(?:ال)?دكتورة?\s*'), '').trim();
     // ألقاب شائعة إضافية قد تسبق الاسم (ليست جزءاً من النسب).
     s = s
         .replaceAll(
@@ -385,7 +510,13 @@ class ArabicTextUtils {
 
   /// كلمات استعلام شائعة ليست جزءاً من اسم الطبيب.
   static final RegExp _nameQueryNoise = RegExp(
-    r'(?:^|\s)(?:افتح|اريدلي|أريدلي|اريد|أريد|اكو|أكو|ابي|أبغى|عاوز|وين|ابحث(?:\s*لي)?(?:\s+عن)?)(?=\s|$)',
+    r'(?:^|\s)(?:افتح|اريدلي|أريدلي|اريد|أريد|اكو|أكو|ابي|أبغى|عاوز|وين|'
+    r'ابحث(?:\s*لي)?(?:\s+عن)?|'
+    r'عياده|عيادته|عيادة|عيادتها|مكان|مكانه|موقع|موقعه|عنوان|عنوانه|'
+    r'رساله|رسالة|راسل|مارسل|مرسل|'
+    r'اتصل|اتصال|كل[مّ]|كلم|رن|رنّ|dial|call|'
+    r'واتساب|واتس|وتساب|whatsapp|watsapp|'
+    r'دزله|دزّله|دزوله|راسل|أرسل|ارسل)(?=\s|$)',
   );
 
   /// أجزاء الاسم ذات المعنى بعد إزالة الألقاب وضجيج الاستعلام.
@@ -396,11 +527,59 @@ class ArabicTextUtils {
   }
 
   static String _prepareNameQuery(String input) {
-    var s = normalize(stripHonorifics(input.replaceAll('%', '')));
+    // تطبيع مبكّر ثم إزالة فعل الاتصال وحرف الجر قبل اللقب، ثم الألقاب.
+    // مهم: stripHonorifics قبل إزالة «علي»(من «على») يحوّل
+    // «علي دكتور علي ناصر» → «علي علي ناصر» ويُفسد المطابقة.
+    var s = normalize(input.replaceAll('%', ''));
+    s = s
+        .replaceFirst(
+          RegExp(
+            r'^(?:اتصل|اتصال|كل[مّ]|كلم|رن|رنّ|dial|call)\s+',
+          ),
+          '',
+        )
+        .trim();
+    // بالدكتور / للدكتور / على الدكتور / علي الدكتور (بعد تطبيع على→علي)
+    s = s
+        .replaceFirst(
+          RegExp(
+            r'^(?:ب|ل|على|علي)?\s*(?:ال)?(?:دكتور|دكتوره|طبيب|طبيبه)\s+',
+          ),
+          '',
+        )
+        .trim();
+    // بقايا «على/علي» قبل لقب إن بقي اللقب، أو قبل ترتيب فقط.
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:على|علي)\s+(?=ال?(?:دكتور|دكتوره|طبيب|طبيبه)|'
+        r'ال?(?:اول|أول|ثاني|ثالث|رابع|خامس|اخير|أخير))',
+      ),
+      '',
+    );
+    s = stripHonorifics(s);
+    s = normalize(s);
     s = s
         .replaceAll(_nameQueryNoise, ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
+    s = s.replaceFirst(RegExp(r'^[بل]\s+'), '').trim();
+    if (RegExp(
+      r'^(?:على|علي)\s+ال?(?:اول|أول|ثاني|ثالث|رابع|خامس|اخير|أخير)\b',
+    ).hasMatch(s)) {
+      return '';
+    }
+    // ترتيب وحده بعد إزالة «على/علي» — ليس اسم طبيب.
+    if (RegExp(
+      r'^ال?(?:اول|أول|ثاني|ثالث|رابع|خامس|اخير|أخير)(?:\s*واحد)?$',
+    ).hasMatch(s)) {
+      return '';
+    }
+    // أفعال إرشاد بلا هدف.
+    if (RegExp(
+      r'^(?:دلني|وريني|شوفلي|طلعلي|دورلي|جيبلي)(?:\s+على)?$',
+    ).hasMatch(s)) {
+      return '';
+    }
     return s;
   }
 
@@ -527,6 +706,13 @@ class ArabicTextUtils {
   static bool looksLikeDoctorNameQuery(String query) {
     final raw = query.trim();
     if (raw.isEmpty) return false;
+    final n = normalize(raw);
+    // أفعال إرشاد بلا هدف — ليست اسم طبيب ولو صارت كلمتين بعد التطبيع.
+    if (RegExp(
+      r'^(?:دلني|وريني|شوفلي|طلعلي|دورلي|جيبلي)(?:\s+على)?$',
+    ).hasMatch(n)) {
+      return false;
+    }
     if (_honorifics.hasMatch(raw) ||
         raw.startsWith('د.') ||
         raw.startsWith('د ')) {

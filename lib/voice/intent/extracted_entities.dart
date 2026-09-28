@@ -4,6 +4,10 @@ class ExtractedEntities {
     this.doctorName,
     this.specialty,
     this.laboratory,
+    this.radiology,
+    this.pharmacy,
+    this.physio,
+    this.supply,
     this.packageName,
     this.offerName,
     this.analysis,
@@ -21,6 +25,10 @@ class ExtractedEntities {
   final String? doctorName;
   final String? specialty;
   final String? laboratory;
+  final String? radiology;
+  final String? pharmacy;
+  final String? physio;
+  final String? supply;
   final String? packageName;
   final String? offerName;
 
@@ -59,6 +67,10 @@ class ExtractedEntities {
       doctorName == null &&
       specialty == null &&
       laboratory == null &&
+      radiology == null &&
+      pharmacy == null &&
+      physio == null &&
+      supply == null &&
       packageName == null &&
       offerName == null &&
       analysis == null &&
@@ -75,6 +87,10 @@ class ExtractedEntities {
     Object? doctorName = _unset,
     Object? specialty = _unset,
     Object? laboratory = _unset,
+    Object? radiology = _unset,
+    Object? pharmacy = _unset,
+    Object? physio = _unset,
+    Object? supply = _unset,
     Object? packageName = _unset,
     Object? offerName = _unset,
     Object? analysis = _unset,
@@ -98,6 +114,14 @@ class ExtractedEntities {
       laboratory: identical(laboratory, _unset)
           ? this.laboratory
           : laboratory as String?,
+      radiology: identical(radiology, _unset)
+          ? this.radiology
+          : radiology as String?,
+      pharmacy: identical(pharmacy, _unset)
+          ? this.pharmacy
+          : pharmacy as String?,
+      physio: identical(physio, _unset) ? this.physio : physio as String?,
+      supply: identical(supply, _unset) ? this.supply : supply as String?,
       packageName: identical(packageName, _unset)
           ? this.packageName
           : packageName as String?,

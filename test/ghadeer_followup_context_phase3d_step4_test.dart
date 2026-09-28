@@ -56,7 +56,7 @@ void main() {
       expect(plan.kind, AssistantActionKind.prepareCall);
       expect(plan.target?.doctorId, 'b');
       expect(plan.canExecute, isTrue);
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
     });
   });
 
@@ -172,7 +172,7 @@ void main() {
       expect(plan.kind, isNot(AssistantActionKind.prepareCall));
       expect(plan.canExecute, isFalse);
       expect(plan.target, isNull);
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
     });
 
     test('empty replacement results drop the previously selected laboratory',
@@ -265,7 +265,7 @@ void main() {
       expect(plan.kind, isNot(AssistantActionKind.prepareCall));
       expect(plan.canExecute, isFalse);
       expect(plan.target, isNull);
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(plan.message, contains('طبيب'));
     });
   });
@@ -361,7 +361,7 @@ void main() {
         expect(call.target?.doctorId, 'b');
         expect(call.target?.phone, '0700b');
         expect(h.context.selectedDoctor?.doctorId, 'b');
-        expect(h.lookupQueries, isEmpty);
+        expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       });
     }
 
@@ -374,7 +374,7 @@ void main() {
       expect(plan.kind, AssistantActionKind.prepareWhatsApp);
       expect(plan.canExecute, isTrue);
       expect(plan.target?.doctorId, 'b');
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
     });
   });
 
@@ -453,6 +453,7 @@ class _Harness {
       nluClient: NluClient.disabled,
       doctorLookup: (q) async {
         lookupQueries.add(q);
+        if (q.trim().isEmpty) return _sessionDoctors(context);
         final n = ArabicTextUtils.normalize(q);
         if (n.contains('علي') && n.contains('ناصر')) {
           return [_doc('ali_nasser', 'د. علي ناصر السعيدي')];
@@ -481,4 +482,25 @@ class _Harness {
 
   Future<AssistantActionPlan> turn(String query) =>
       planner.plan(query: query, context: context);
+}
+
+List<SmartSearchResult> _sessionDoctors(ConversationContext ctx) {
+  final out = <SmartSearchResult>[];
+  final seen = <String>{};
+  void add(SmartSearchResult? r) {
+    if (r == null || r.type != SmartSearchResultType.doctor) return;
+    final id = (r.doctorId ?? '').trim();
+    if (id.isEmpty || !seen.add(id)) return;
+    out.add(r);
+  }
+
+  final items = ctx.currentResultContext?.items;
+  if (items != null) {
+    for (final r in items) {
+      add(r);
+    }
+  }
+  add(ctx.selectedDoctor);
+  add(ctx.selectedEntity);
+  return out;
 }

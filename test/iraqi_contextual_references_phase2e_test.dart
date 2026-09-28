@@ -29,7 +29,7 @@ void main() {
       await h.turn('الثاني');
       expect(h.context.selectedDoctor?.doctorId, 'b');
       final plan = await h.turn('اتصل بيه');
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue); // M7.1 live revalidation probe
       expect(plan.target?.doctorId, 'b');
       expect(
         plan.kind,
@@ -75,7 +75,7 @@ void main() {
           AssistantActionKind.selectEntity,
         ),
       );
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue); // M7.1
     });
   });
 
@@ -118,7 +118,7 @@ void main() {
       expect(plan.kind, isNot(AssistantActionKind.prepareCall));
       expect(plan.canExecute, isFalse);
       expect(plan.target, isNull);
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(
         plan.kind,
         anyOf(
@@ -141,7 +141,7 @@ void main() {
       expect(plan.kind, isNot(AssistantActionKind.prepareCall));
       expect(plan.kind, isNot(AssistantActionKind.prepareWhatsApp));
       expect(plan.canExecute, isFalse);
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
     });
   });
 
@@ -235,7 +235,7 @@ void main() {
         h.context.respiratorySession.fever,
         anyOf(RespiratoryTriState.present, RespiratoryTriState.unknown),
       );
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
     });
   });
 
@@ -275,7 +275,7 @@ void main() {
       expect(plan.kind, isNot(AssistantActionKind.prepareCall));
       expect(plan.canExecute, isFalse);
       expect(plan.target, isNull);
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(
         plan.kind,
         anyOf(
@@ -387,6 +387,8 @@ class _Harness {
       nluClient: NluClient.disabled,
       doctorLookup: (q) async {
         lookupQueries.add(q);
+        // M7.1: empty catalog = live session roster (fixture = platform).
+        if (q.trim().isEmpty) return _doctorsFromContext(context);
         final n = ArabicTextUtils.normalize(q);
         if (n.contains('علي') && n.contains('ناصر')) {
           return [_doc('ali_nasser', 'د. علي ناصر السعيدي')];
@@ -408,4 +410,25 @@ class _Harness {
 
   Future<AssistantActionPlan> turn(String query) =>
       planner.plan(query: query, context: context);
+}
+
+List<SmartSearchResult> _doctorsFromContext(ConversationContext ctx) {
+  final out = <SmartSearchResult>[];
+  final seen = <String>{};
+  void add(SmartSearchResult? r) {
+    if (r == null || r.type != SmartSearchResultType.doctor) return;
+    final id = (r.doctorId ?? '').trim();
+    if (id.isEmpty || !seen.add(id)) return;
+    out.add(r);
+  }
+
+  final items = ctx.currentResultContext?.items;
+  if (items != null) {
+    for (final r in items) {
+      add(r);
+    }
+  }
+  add(ctx.selectedDoctor);
+  add(ctx.selectedEntity);
+  return out;
 }

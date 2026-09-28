@@ -90,6 +90,34 @@ class MedicalNavigationService {
           result: result,
           disclaimer: defaultDisclaimer,
         );
+      case SmartSearchResultType.radiology:
+        return MedicalNavigationDecision(
+          action: MedicalNavigationAction.openLab,
+          safeMessage: 'فتح ملف الأشعة ${result.title}',
+          result: result,
+          disclaimer: defaultDisclaimer,
+        );
+      case SmartSearchResultType.pharmacy:
+        return MedicalNavigationDecision(
+          action: MedicalNavigationAction.openLab,
+          safeMessage: 'فتح ملف الصيدلية ${result.title}',
+          result: result,
+          disclaimer: defaultDisclaimer,
+        );
+      case SmartSearchResultType.physio:
+        return MedicalNavigationDecision(
+          action: MedicalNavigationAction.openLab,
+          safeMessage: 'فتح ملف العلاج الطبيعي ${result.title}',
+          result: result,
+          disclaimer: defaultDisclaimer,
+        );
+      case SmartSearchResultType.supply:
+        return MedicalNavigationDecision(
+          action: MedicalNavigationAction.openLab,
+          safeMessage: 'فتح ملف المستلزمات ${result.title}',
+          result: result,
+          disclaimer: defaultDisclaimer,
+        );
       case SmartSearchResultType.package:
         return MedicalNavigationDecision(
           action: MedicalNavigationAction.openPackage,

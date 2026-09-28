@@ -38,14 +38,25 @@ import '../../follow_up/follow_up_service.dart';
 import '../../wellness/wellness_coordinator.dart';
 import '../../health/family_sensitive/family_health_command_coordinator.dart';
 import '../../health/sensitive_profile/sensitive_health_profile_coordinator.dart';
+import '../../doctors/doctor_gender.dart';
 import '../../doctors/doctor_today_availability.dart';
 import '../../labs/labs_service.dart';
 import '../../models/lab_models.dart';
+import '../../pharmacies/pharmacies_store.dart';
+import '../../pharmacies/pharmacy_models.dart';
+import '../../physio/physio_models.dart';
+import '../../physio/physio_store.dart';
+import '../../supplies/supplies_store.dart';
+import '../../supplies/supply_models.dart';
 import '../../search/analysis_name_matcher.dart';
+import '../../search/catalog_name_matcher.dart';
 import '../../search/arabic_text_utils.dart';
 import '../../search/doctor_name_matcher.dart';
 import '../../search/laboratory_name_matcher.dart';
+import '../../search/pharmacy_name_matcher.dart';
+import '../../search/radiology_name_matcher.dart';
 import '../../search/package_name_matcher.dart';
+import '../../search/conversation/smart_brain_suggested_actions.dart';
 import '../../search/smart_search_models.dart';
 import '../../search/smart_search_service.dart';
 import '../../search/voice_specialty_search_command.dart';
@@ -73,11 +84,20 @@ import 'analysis_target_resolver.dart';
 import 'assistant_intent.dart';
 import 'doctor_target_resolver.dart';
 import 'entity_target_resolver.dart';
+import 'ghadeer_scope_gate.dart';
 import 'intent_resolver.dart';
 import 'intent_result.dart';
 import 'laboratory_target_resolver.dart';
+import 'pharmacy_target_resolver.dart';
+import 'physio_target_resolver.dart';
+import 'supply_target_resolver.dart';
+import 'radiology_target_resolver.dart';
 import 'package_target_resolver.dart';
+import 'platform_grounding.dart';
+import 'confidence_policy.dart';
+import 'result_set_refiner.dart';
 import 'search_modifiers.dart';
+import 'unified_entity_discovery.dart';
 
 /// نوع إجراء مخطَّط — الواجهة تنفّذ عبر الآليات الحالية فقط.
 enum AssistantActionKind {
@@ -105,6 +125,8 @@ enum AssistantActionKind {
   runPackageSearch,
   guidedConversation,
   healthGuidance,
+  stopSpeaking,
+  repeatResponse,
 }
 
 /// خطة فعل خفيفة — لا تطلق UI بنفسها.
@@ -131,6 +153,7 @@ class AssistantActionPlan {
     this.healthDecision,
     this.textFirstOnly = false,
     this.modifiers = SearchModifiers.none,
+    this.suggestedActions = const [],
   });
 
   final AssistantActionKind kind;
@@ -159,6 +182,9 @@ class AssistantActionPlan {
   /// مُعدِّلات البحث (متوفر/اليوم، الأكثر طلبًا) — تُطبَّق على نتائج حقيقية فقط.
   final SearchModifiers modifiers;
 
+  /// اقتراحات خطوة تالية (اختياري) — الواجهة تبنيها أيضاً من النتائج المعروضة.
+  final List<SmartBrainSuggestedAction> suggestedActions;
+
   AssistantActionPlan withModifiers(SearchModifiers value) {
     return AssistantActionPlan(
       kind: kind,
@@ -182,6 +208,7 @@ class AssistantActionPlan {
       healthDecision: healthDecision,
       textFirstOnly: textFirstOnly,
       modifiers: value,
+      suggestedActions: suggestedActions,
     );
   }
 
@@ -198,6 +225,22 @@ typedef SmartBrainDoctorLookup = Future<List<SmartSearchResult>> Function(
 );
 
 typedef SmartBrainLabLookup = Future<List<SmartSearchResult>> Function(
+  String query,
+);
+
+typedef SmartBrainRadiologyLookup = Future<List<SmartSearchResult>> Function(
+  String query,
+);
+
+typedef SmartBrainPharmacyLookup = Future<List<SmartSearchResult>> Function(
+  String query,
+);
+
+typedef SmartBrainPhysioLookup = Future<List<SmartSearchResult>> Function(
+  String query,
+);
+
+typedef SmartBrainSupplyLookup = Future<List<SmartSearchResult>> Function(
   String query,
 );
 
@@ -239,10 +282,16 @@ class SmartBrainPlanner {
     ContextResolver? contextResolver,
     DoctorTargetResolver? targetResolver,
     LaboratoryTargetResolver? laboratoryTargetResolver,
+    RadiologyTargetResolver? radiologyTargetResolver,
+    PharmacyTargetResolver? pharmacyTargetResolver,
+    PhysioTargetResolver? physioTargetResolver,
+    SupplyTargetResolver? supplyTargetResolver,
     AnalysisTargetResolver? analysisTargetResolver,
     PackageTargetResolver? packageTargetResolver,
     DoctorNameMatcher? doctorNameMatcher,
     LaboratoryNameMatcher? laboratoryNameMatcher,
+    RadiologyNameMatcher? radiologyNameMatcher,
+    PharmacyNameMatcher? pharmacyNameMatcher,
     AnalysisNameMatcher? analysisNameMatcher,
     PackageNameMatcher? packageNameMatcher,
     ClarificationResolver? clarificationResolver,
@@ -250,6 +299,10 @@ class SmartBrainPlanner {
     SmartSearchService? search,
     SmartBrainDoctorLookup? doctorLookup,
     SmartBrainLabLookup? labLookup,
+    SmartBrainRadiologyLookup? radiologyLookup,
+    SmartBrainPharmacyLookup? pharmacyLookup,
+    SmartBrainPhysioLookup? physioLookup,
+    SmartBrainSupplyLookup? supplyLookup,
     SmartBrainLabPackagesLookup? packagesLookup,
     SmartBrainAnalysisLookup? analysisLookup,
     SmartBrainPackagesForAnalysisLookup? packagesForAnalysisLookup,
@@ -293,12 +346,22 @@ class SmartBrainPlanner {
         _targetResolver = targetResolver ?? const DoctorTargetResolver(),
         _labTargetResolver =
             laboratoryTargetResolver ?? const LaboratoryTargetResolver(),
+        _radTargetResolver =
+            radiologyTargetResolver ?? const RadiologyTargetResolver(),
+        _pharmacyTargetResolver =
+            pharmacyTargetResolver ?? const PharmacyTargetResolver(),
+        _physioTargetResolver =
+            physioTargetResolver ?? const PhysioTargetResolver(),
+        _supplyTargetResolver =
+            supplyTargetResolver ?? const SupplyTargetResolver(),
         _analysisTargetResolver =
             analysisTargetResolver ?? const AnalysisTargetResolver(),
         _packageTargetResolver =
             packageTargetResolver ?? const PackageTargetResolver(),
         _matcher = doctorNameMatcher ?? const DoctorNameMatcher(),
         _labMatcher = laboratoryNameMatcher ?? const LaboratoryNameMatcher(),
+        _radMatcher = radiologyNameMatcher ?? const RadiologyNameMatcher(),
+        _pharmacyMatcher = pharmacyNameMatcher ?? const PharmacyNameMatcher(),
         _analysisMatcher = analysisNameMatcher ?? const AnalysisNameMatcher(),
         _packageMatcher = packageNameMatcher ?? const PackageNameMatcher(),
         _clarificationResolver =
@@ -308,6 +371,10 @@ class SmartBrainPlanner {
         _search = search,
         _doctorLookup = doctorLookup,
         _labLookup = labLookup,
+        _radiologyLookup = radiologyLookup,
+        _pharmacyLookup = pharmacyLookup,
+        _physioLookup = physioLookup,
+        _supplyLookup = supplyLookup,
         _packagesLookup = packagesLookup,
         _analysisLookup = analysisLookup,
         _packagesForAnalysisLookup = packagesForAnalysisLookup,
@@ -413,10 +480,16 @@ class SmartBrainPlanner {
   final ContextResolver _contextResolver;
   final DoctorTargetResolver _targetResolver;
   final LaboratoryTargetResolver _labTargetResolver;
+  final RadiologyTargetResolver _radTargetResolver;
+  final PharmacyTargetResolver _pharmacyTargetResolver;
+  final PhysioTargetResolver _physioTargetResolver;
+  final SupplyTargetResolver _supplyTargetResolver;
   final AnalysisTargetResolver _analysisTargetResolver;
   final PackageTargetResolver _packageTargetResolver;
   final DoctorNameMatcher _matcher;
   final LaboratoryNameMatcher _labMatcher;
+  final RadiologyNameMatcher _radMatcher;
+  final PharmacyNameMatcher _pharmacyMatcher;
   final AnalysisNameMatcher _analysisMatcher;
   final PackageNameMatcher _packageMatcher;
   final ClarificationResolver _clarificationResolver;
@@ -424,6 +497,10 @@ class SmartBrainPlanner {
   final SmartSearchService? _search;
   final SmartBrainDoctorLookup? _doctorLookup;
   final SmartBrainLabLookup? _labLookup;
+  final SmartBrainRadiologyLookup? _radiologyLookup;
+  final SmartBrainPharmacyLookup? _pharmacyLookup;
+  final SmartBrainPhysioLookup? _physioLookup;
+  final SmartBrainSupplyLookup? _supplyLookup;
   final SmartBrainLabPackagesLookup? _packagesLookup;
   final SmartBrainAnalysisLookup? _analysisLookup;
   final SmartBrainPackagesForAnalysisLookup? _packagesForAnalysisLookup;
@@ -466,6 +543,13 @@ class SmartBrainPlanner {
       const ConversationReferenceResolver();
   final EntityRelationshipResolver _relationshipResolver =
       const EntityRelationshipResolver();
+
+  final CatalogNameMatcher _physioMatcher = CatalogNameMatcher(
+    prepareQuery: ArabicTextUtils.preparePhysioNameQuery,
+  );
+  final CatalogNameMatcher _supplyMatcher = CatalogNameMatcher(
+    prepareQuery: ArabicTextUtils.prepareSupplyNameQuery,
+  );
 
   GuidedConversationEngine get guidedConversationEngine => _guidedEngine;
   HealthGuidanceCoordinator get healthGuidanceCoordinator =>
@@ -617,24 +701,910 @@ class SmartBrainPlanner {
     );
   }
 
-  Future<List<SmartSearchResult>> _lookupDoctors(String query) {
+  Future<List<SmartSearchResult>> _lookupDoctors(String query) async {
     final lookup = _doctorLookup;
     if (lookup != null) return lookup(query);
     final search = _search ?? SmartSearchService();
+    // استعلام فارغ = الكتالوج السلطوي (مثل الصيدلية/العلاج الطبيعي).
+    if (query.trim().isEmpty) {
+      return search.activeDoctorsCatalog();
+    }
     return search.search(query, limit: 16);
   }
 
   Future<List<SmartSearchResult>> _lookupLabs(String query) async {
     final lookup = _labLookup;
     if (lookup != null) return lookup(query);
+    // استعلام فارغ = كل المختبرات العامة النشطة (إعادة تحقق بالـ ID).
+    if (query.trim().isEmpty) {
+      final labs = await LabsService().fetchPublicLabs();
+      return [
+        for (final lab in labs) _labItemToSearchResult(lab),
+      ];
+    }
     final search = _search ?? SmartSearchService();
-    final results = await search.search(
-      query.trim().isEmpty ? 'مختبر' : query,
-      limit: 16,
-    );
+    final results = await search.search(query, limit: 16);
     return results
         .where((r) => r.type == SmartSearchResultType.lab)
         .toList(growable: false);
+  }
+
+  static SmartSearchResult _labItemToSearchResult(LabItem lab) {
+    return SmartSearchResult(
+      type: SmartSearchResultType.lab,
+      title: lab.name,
+      subtitle: lab.address.trim().isNotEmpty ? lab.address : 'مختبر',
+      labId: lab.id,
+      labName: lab.name,
+      score: 80,
+      phone: lab.phone.trim().isNotEmpty ? lab.phone.trim() : null,
+      whatsapp: lab.whatsapp.trim().isNotEmpty ? lab.whatsapp.trim() : null,
+      clinicLocation:
+          lab.address.trim().isNotEmpty ? lab.address.trim() : null,
+      imageUrl: lab.imageUrl.trim().isNotEmpty ? lab.imageUrl : null,
+    );
+  }
+  Future<List<SmartSearchResult>> _lookupRadiology(String query) async {
+    final lookup = _radiologyLookup;
+    if (lookup != null) return lookup(query);
+    final results = await (_search ?? SmartSearchService()).search(query, limit: 16);
+    return results
+        .where((r) => r.type == SmartSearchResultType.radiology)
+        .toList(growable: false);
+  }
+
+  Future<List<SmartSearchResult>> _lookupPharmacy(String query) async {
+    final lookup = _pharmacyLookup;
+    if (lookup != null) return lookup(query);
+    await PharmaciesStore.instance.load();
+    final items = PharmaciesStore.instance.items;
+    if (items.isEmpty) return const [];
+    final prepared = ArabicTextUtils.preparePharmacyNameQuery(query);
+    if (prepared.isEmpty) {
+      return [for (final p in items) _pharmacyToSearchResult(p, score: 80)];
+    }
+    final batch = _pharmacyMatcher.matchPharmacies(
+      query: prepared,
+      pharmacies: [for (final p in items) (id: p.id, name: p.name)],
+    );
+    if (batch.matches.isEmpty) {
+      final n = ArabicTextUtils.normalize(prepared);
+      return [
+        for (final p in items)
+          if (ArabicTextUtils.normalize(p.name).contains(n))
+            _pharmacyToSearchResult(p, score: 70),
+      ];
+    }
+    final byId = {for (final p in items) p.id: p};
+    return [
+      for (final m in batch.matches)
+        if (byId[m.pharmacyId] != null)
+          _pharmacyToSearchResult(byId[m.pharmacyId]!, score: m.score),
+    ];
+  }
+
+  static SmartSearchResult _pharmacyToSearchResult(
+    PharmacyItem p, {
+    int score = 90,
+  }) {
+    return SmartSearchResult(
+      type: SmartSearchResultType.pharmacy,
+      title: p.name,
+      subtitle: p.address.trim().isNotEmpty ? p.address : 'صيدلية',
+      pharmacyId: p.id,
+      score: score,
+      phone: p.phone,
+      whatsapp: p.whatsapp,
+      clinicLocation: p.address,
+      imageUrl: p.logoUrl.trim().isNotEmpty
+          ? p.logoUrl
+          : (p.imageUrl.trim().isNotEmpty ? p.imageUrl : null),
+    );
+  }
+
+  Future<List<SmartSearchResult>> _lookupPhysio(String query) async {
+    final lookup = _physioLookup;
+    if (lookup != null) return lookup(query);
+    await PhysioStore.instance.load();
+    final items = PhysioStore.instance.items;
+    if (items.isEmpty) return const [];
+    final prepared = ArabicTextUtils.preparePhysioNameQuery(query);
+    if (prepared.isEmpty) {
+      return [for (final p in items) _physioToSearchResult(p, score: 80)];
+    }
+    final batch = _physioMatcher.match(
+      query: prepared,
+      entities: [for (final p in items) (id: p.id, name: p.name)],
+    );
+    if (batch.matches.isEmpty) {
+      final n = ArabicTextUtils.normalize(prepared);
+      return [
+        for (final p in items)
+          if (ArabicTextUtils.normalize(p.name).contains(n))
+            _physioToSearchResult(p, score: 70),
+      ];
+    }
+    final byId = {for (final p in items) p.id: p};
+    return [
+      for (final m in batch.matches)
+        if (m.entityId != null && byId[m.entityId] != null)
+          _physioToSearchResult(byId[m.entityId]!, score: m.score),
+    ];
+  }
+
+  static SmartSearchResult _physioToSearchResult(
+    PhysioCenter p, {
+    int score = 90,
+  }) {
+    return SmartSearchResult(
+      type: SmartSearchResultType.physio,
+      title: p.name,
+      subtitle: p.address.trim().isNotEmpty ? p.address : 'علاج طبيعي',
+      physioId: p.id,
+      score: score,
+      phone: p.phone,
+      whatsapp: p.whatsapp,
+      clinicLocation: p.address,
+      imageUrl: p.imageUrl.trim().isNotEmpty ? p.imageUrl : null,
+    );
+  }
+
+  Future<List<SmartSearchResult>> _lookupSupply(String query) async {
+    final lookup = _supplyLookup;
+    if (lookup != null) return lookup(query);
+    await SuppliesStore.instance.load();
+    final items = SuppliesStore.instance.items;
+    if (items.isEmpty) return const [];
+    final prepared = ArabicTextUtils.prepareSupplyNameQuery(query);
+    if (prepared.isEmpty) {
+      return [for (final v in items) _supplyToSearchResult(v, score: 80)];
+    }
+    final batch = _supplyMatcher.match(
+      query: prepared,
+      entities: [for (final v in items) (id: v.id, name: v.name)],
+    );
+    if (batch.matches.isEmpty) {
+      final n = ArabicTextUtils.normalize(prepared);
+      return [
+        for (final v in items)
+          if (ArabicTextUtils.normalize(v.name).contains(n))
+            _supplyToSearchResult(v, score: 70),
+      ];
+    }
+    final byId = {for (final v in items) v.id: v};
+    return [
+      for (final m in batch.matches)
+        if (m.entityId != null && byId[m.entityId] != null)
+          _supplyToSearchResult(byId[m.entityId]!, score: m.score),
+    ];
+  }
+
+  static SmartSearchResult _supplyToSearchResult(
+    SupplyVendor v, {
+    int score = 90,
+  }) {
+    return SmartSearchResult(
+      type: SmartSearchResultType.supply,
+      title: v.name,
+      subtitle: v.address.trim().isNotEmpty ? v.address : 'مستلزمات طبية',
+      supplyId: v.id,
+      score: score,
+      phone: v.phone,
+      whatsapp: v.whatsapp,
+      clinicLocation: v.address,
+      imageUrl: v.imageUrl.trim().isNotEmpty ? v.imageUrl : null,
+    );
+  }
+
+  // ─── M5: Unified dynamic entity discovery ───────────────────────────
+
+  static const _unifiedDiscovery = UnifiedEntityDiscovery();
+
+  /// يبني كتالوج البحث من مصادر المنصة الحالية (lookups/stores) — بلا أسماء ثابتة.
+  ///
+  /// [nameHint] يُمرَّر لبحث الأطباء/المختبرات (Supabase)؛ المتاجر المحلية
+  /// تُحمَّل كاملة (نشطة فقط) لأنها صغيرة وفي الذاكرة.
+  ///
+  /// [typeHint] يضيّق التحميل عند وجود تلميح نوع صريح (دكتور/صيدلية/…).
+  /// فشل مصدر واحد لا يُسمّم بقية الكتالوج.
+  Future<List<SearchablePlatformEntity>> _loadUnifiedCatalog({
+    String nameHint = '',
+    ConversationEntityType? typeHint,
+  }) async {
+    final out = <SearchablePlatformEntity>[];
+    final seen = <String>{};
+    var anySourceFailed = false;
+
+    Future<void> absorb(
+      Future<List<SmartSearchResult>> Function() load,
+    ) async {
+      try {
+        final list = await load();
+        for (final r in list) {
+          final e = UnifiedEntityDiscovery.fromResult(r);
+          if (e.entityType == ConversationEntityType.none) continue;
+          if (e.canonicalId.isEmpty) continue;
+          final key = '${e.entityType.name}:${e.canonicalId}';
+          if (!seen.add(key)) continue;
+          out.add(e);
+        }
+      } catch (_) {
+        anySourceFailed = true;
+      }
+    }
+
+    final hint = nameHint.trim();
+    final wantAll = typeHint == null || typeHint == ConversationEntityType.none;
+    bool want(ConversationEntityType t) => wantAll || typeHint == t;
+
+    if (want(ConversationEntityType.doctor)) {
+      await absorb(() => _lookupDoctors(hint));
+    }
+    if (want(ConversationEntityType.laboratory)) {
+      await absorb(() => _lookupLabs(hint));
+    }
+    if (want(ConversationEntityType.radiology)) {
+      await absorb(() => _lookupRadiology(hint));
+    }
+    // متاجر محلية: قائمة نشطة كاملة — الاكتشاف بالاسم يتم عبر المطابق.
+    if (want(ConversationEntityType.pharmacy)) {
+      await absorb(() => _lookupPharmacy(''));
+    }
+    if (want(ConversationEntityType.physio)) {
+      await absorb(() => _lookupPhysio(''));
+    }
+    if (want(ConversationEntityType.supply)) {
+      await absorb(() => _lookupSupply(''));
+    }
+
+    // إن لم تُبنَ أي نتيجة وفشل مصدر واحد على الأقل → NETWORK/DATA
+    // (لا تُفسَّر القوائم الفارغة الناجحة كـ «ما لكيت» إن انهار مصدر آخر).
+    if (out.isEmpty && anySourceFailed) {
+      throw StateError('unified_catalog_unavailable');
+    }
+    return out;
+  }
+
+  /// يعيد الكيان الحي من الكتالوج الحالي أو null إن اختفى/أُخفي.
+  ///
+  /// الهوية = canonical ID (إعادة التسمية لا تلغي الكيان).
+  /// يُرمى عند فشل المصدر السلطوي (Fail-closed للاتصال/واتساب).
+  Future<SmartSearchResult?> _revalidateLiveResult(
+    SmartSearchResult target,
+  ) async {
+    final snap = UnifiedEntityDiscovery.fromResult(target);
+    if (snap.entityType == ConversationEntityType.none ||
+        snap.canonicalId.isEmpty) {
+      return null;
+    }
+
+    SmartSearchResult? matchIn(List<SmartSearchResult> pool) {
+      for (final r in pool) {
+        final e = UnifiedEntityDiscovery.fromResult(r);
+        if (e.entityType == snap.entityType &&
+            e.canonicalId == snap.canonicalId) {
+          return e.result;
+        }
+      }
+      return null;
+    }
+
+    Future<List<SmartSearchResult>> catalog(String query) async {
+      return switch (snap.entityType) {
+        ConversationEntityType.doctor => await _lookupDoctors(query),
+        ConversationEntityType.laboratory => await _lookupLabs(query),
+        ConversationEntityType.radiology => await _lookupRadiology(query),
+        ConversationEntityType.pharmacy => await _lookupPharmacy(query),
+        ConversationEntityType.physio => await _lookupPhysio(query),
+        ConversationEntityType.supply => await _lookupSupply(query),
+        ConversationEntityType.none ||
+        ConversationEntityType.analysis ||
+        ConversationEntityType.package =>
+          const <SmartSearchResult>[],
+      };
+    }
+
+    // 1) كتالوج النوع (استعلام فارغ = القائمة/المتجر السلطوي).
+    final hit = matchIn(await catalog(''));
+    if (hit != null) return hit;
+
+    // 2) بحث بالعنوان الحالي (خدمات بعيدة قد تتجاهل الاستعلام الفارغ).
+    final title = target.title.trim();
+    if (title.isNotEmpty) {
+      final byTitle = matchIn(await catalog(title));
+      if (byTitle != null) return byTitle;
+    }
+
+    // غير موجود في المصدر السلطوي → مخفي/محذوف/غير نشط.
+    return null;
+  }
+
+  static String _entityUnavailableMessage(SmartSearchResult? target) {
+    final name = (target?.title ?? '').trim();
+    if (name.isEmpty) {
+      return 'هذا الخيار مو متوفر حالياً بالمنصة.';
+    }
+    return '$name مو متوفر حالياً بالمنصة.';
+  }
+
+  /// رفض اقتراح معلّق بلا بحث جديد («مو هذا» / «غيره»).
+  static bool _looksLikePendingSuggestionReject(String raw) {
+    final n = ArabicTextUtils.normalize(raw).trim();
+    return RegExp(
+      r'^(?:مو\s*(?:هذا|هاي|هذي|هذه|هو|هي|هذاك|ذاك)|غيره|غيرها|'
+      r'لا\s*مو\s*(?:هذا|هاي|هو)|مو\s*هذيج)$',
+    ).hasMatch(n);
+  }
+
+  /// إعادة تحقق حية قبل أي فعل سياقي (اتصال/واتساب/موقع/ملف).
+  /// سياق المحادثة مرجع فقط — ليس دليلاً على أن الكيان ما زال حياً.
+  Future<AssistantActionPlan> _withLiveEntity({
+    required SmartSearchResult target,
+    required IntentResult intent,
+    required FutureOr<AssistantActionPlan> Function(SmartSearchResult live)
+        plan,
+  }) async {
+    try {
+      final live = await _revalidateLiveResult(target);
+      if (live == null) {
+        final message = _entityUnavailableMessage(target);
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showMessage,
+          intentResult: intent,
+          message: message,
+          canExecute: false,
+        );
+      }
+      return await plan(live);
+    } catch (_) {
+      // فشل المصدر السلطوي المطلوب لهذا الكيان — لا تستخدم بيانات بالية.
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: PlatformGrounding.accessProblemMessage,
+        canExecute: false,
+      );
+    }
+  }
+
+  bool _shouldTryUnifiedEntityDiscovery(IntentResult intent, String query) {
+    switch (intent.intent) {
+      case AssistantIntent.generalSearch:
+      case AssistantIntent.doctorSearch:
+      case AssistantIntent.callDoctor:
+      case AssistantIntent.messageDoctor:
+      case AssistantIntent.showLocation:
+      case AssistantIntent.showProfile:
+        return UnifiedEntityDiscovery.extractNamePhrase(query) != null;
+      default:
+        return false;
+    }
+  }
+
+  /// مسار مخصّص بنوع صريح (findPhysio/…) يتولّاه الـ pipeline العادي.
+  bool _hasTypedEntityPipeline(IntentResult intent, ConversationContext context) {
+    switch (intent.intent) {
+      case AssistantIntent.findPhysio:
+      case AssistantIntent.callPhysio:
+      case AssistantIntent.messagePhysio:
+      case AssistantIntent.findSupply:
+      case AssistantIntent.callSupply:
+      case AssistantIntent.messageSupply:
+      case AssistantIntent.findPharmacy:
+      case AssistantIntent.callPharmacy:
+      case AssistantIntent.messagePharmacy:
+      case AssistantIntent.findLab:
+      case AssistantIntent.callLab:
+      case AssistantIntent.messageLab:
+      case AssistantIntent.findRadiology:
+      case AssistantIntent.callRadiology:
+      case AssistantIntent.messageRadiology:
+      case AssistantIntent.specialtySearch:
+      case AssistantIntent.findPackage:
+      case AssistantIntent.findOffer:
+      case AssistantIntent.findAnalysis:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  Future<AssistantActionPlan?> _tryUnifiedEntityDiscovery({
+    required String query,
+    required ConversationContext context,
+    required IntentResult intent,
+  }) async {
+    if (!_shouldTryUnifiedEntityDiscovery(intent, query)) return null;
+    if (_hasTypedEntityPipeline(intent, context)) return null;
+
+    // ضمير سياقي بلا اسم — يُعالَج عبر ResultContext/المسار العادي.
+    final namePhrase = UnifiedEntityDiscovery.extractNamePhrase(query);
+    if (namePhrase == null) return null;
+
+    final typeHint = UnifiedEntityDiscovery.typeHintFromQuery(query);
+
+    late final List<SearchablePlatformEntity> catalog;
+    try {
+      catalog = await _loadUnifiedCatalog(
+        nameHint: namePhrase,
+        typeHint: typeHint,
+      );
+    } catch (_) {
+      // كل المصادر المطلوبة فشلت — NETWORK/DATA لا NO_RESULTS.
+      final message = PlatformGrounding.accessProblemMessage;
+      context.setAssistantResponse(message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: message,
+        canExecute: false,
+      );
+    }
+
+    // كتالوج ضيّق فارغ لنوع صريح → دع المسار العادي يقرّر NO_RESULTS / بحث.
+    if (catalog.isEmpty && typeHint != null) {
+      return null;
+    }
+
+    final discovery = _unifiedDiscovery.resolve(
+      nameQuery: query,
+      catalog: catalog,
+      typeHint: typeHint,
+    );
+
+    if (discovery.isEmpty) {
+      // بحث طبيب صريح بلا تلميح قسم آخر: اترك مسار التصحيح الإملائي الحالي.
+      if (intent.intent == AssistantIntent.doctorSearch &&
+          (typeHint == null || typeHint == ConversationEntityType.doctor) &&
+          !RegExp(r'(?:مركز|صيدلي|مختبر|مستلزم|تجهيز)').hasMatch(namePhrase)) {
+        return null;
+      }
+      final message = PlatformGrounding.noMatchFor(
+        entityLabelAr: 'نتيجة مطابقة',
+        nameQuery: namePhrase,
+      );
+      context.setAssistantResponse(message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: message,
+        canExecute: false,
+      );
+    }
+
+    if (discovery.isAmbiguous) {
+      final rivals = <UnifiedEntityHit>[discovery.hits.first];
+      for (final h in discovery.hits.skip(1)) {
+        if (h.score >= discovery.hits.first.score - UnifiedEntityDiscovery.ambiguousGap) {
+          rivals.add(h);
+        }
+        if (rivals.length >= 5) break;
+      }
+      if (rivals.length < 2) {
+        // فجوة كافية — عالج كوحيد.
+      } else {
+        final results = [for (final h in rivals) h.result];
+        final pending = const AmbiguityGate().fromUnifiedResults(
+          results: results,
+          originalIntent: intent.intent,
+          originalQuery: query,
+          pendingAction: intent.isActionIntent ? intent.intent : null,
+          reason: ClarificationReason.ambiguousName,
+        );
+        if (pending != null) {
+          context.setPendingClarification(pending);
+          context.rememberResults(
+            results,
+            query: query,
+            intent: intent.intent,
+            clearSelection: true,
+          );
+          final message = _clarificationResponses.build(pending);
+          context.setAssistantResponse(message);
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showClarification,
+            intentResult: intent.copyWithClarification(true),
+            candidates: results,
+            message: message,
+            canExecute: false,
+          );
+        }
+      }
+    }
+
+    final best = discovery.best!;
+    final band = SmartBrainConfidencePolicy.forUniqueNameResolution(
+      intentScore: intent.confidence,
+      matchScore: best.score,
+      isUniqueNonAmbiguous: !discovery.isAmbiguous &&
+          discovery.hits
+                  .where(
+                    (h) =>
+                        h.score >=
+                        best.score - UnifiedEntityDiscovery.ambiguousGap,
+                  )
+                  .length ==
+              1,
+      hasExplicitTypeHint: typeHint != null,
+    );
+
+    if (SmartBrainConfidencePolicy.shouldClarify(band)) {
+      final message =
+          'ما وضحت عندي الاسم. تگدر تكتب الاسم أوضح أو نوع الخدمة؟';
+      context.setAssistantResponse(message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: message,
+        canExecute: false,
+      );
+    }
+
+    if (SmartBrainConfidencePolicy.shouldConfirm(band)) {
+      if (best.entityType == ConversationEntityType.doctor) {
+        // M2: اقتراح الطبيب يبقى PendingDoctorSuggestion.
+        context.setPendingDoctorSuggestion(
+          PendingDoctorSuggestion(
+            doctorId: best.canonicalId,
+            doctorName: best.entity.displayName,
+          ),
+        );
+      } else {
+        final clarType = _clarificationTypeFor(best.entityType);
+        context.setPendingEntitySuggestion(
+          PendingEntitySuggestion(
+            entityType: clarType,
+            entityId: best.canonicalId,
+            entityName: best.entity.displayName,
+          ),
+        );
+      }
+      final typeLabel = _typeLabelAr(best.entityType);
+      final specialty = best.entityType == ConversationEntityType.doctor
+          ? (best.result.specialty ?? best.result.subtitle).trim()
+          : '';
+      final message = best.entityType == ConversationEntityType.doctor &&
+              specialty.isNotEmpty
+          ? 'تقصد ${best.entity.displayName}، اختصاص $specialty؟'
+          : typeLabel.isEmpty
+              ? 'تقصد ${best.entity.displayName}؟'
+              : 'تقصد ${best.entity.displayName} ($typeLabel)؟';
+      context.rememberResults(
+        [best.result],
+        query: query,
+        intent: intent.intent,
+        clearSelection: true,
+        assistantResponse: message,
+      );
+      context.setAssistantResponse(message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        candidates: [best.result],
+        message: message,
+        canExecute: false,
+      );
+    }
+
+    return _planForResolvedUnifiedEntity(
+      context: context,
+      intent: intent,
+      target: best.result,
+      query: query,
+    );
+  }
+
+  static ClarificationEntityType _clarificationTypeFor(
+    ConversationEntityType t,
+  ) {
+    switch (t) {
+      case ConversationEntityType.doctor:
+        return ClarificationEntityType.doctor;
+      case ConversationEntityType.laboratory:
+        return ClarificationEntityType.laboratory;
+      case ConversationEntityType.pharmacy:
+        return ClarificationEntityType.pharmacy;
+      case ConversationEntityType.physio:
+        return ClarificationEntityType.physio;
+      case ConversationEntityType.supply:
+        return ClarificationEntityType.supply;
+      case ConversationEntityType.radiology:
+        return ClarificationEntityType.radiology;
+      default:
+        return ClarificationEntityType.unknown;
+    }
+  }
+
+  static String _typeLabelAr(ConversationEntityType t) {
+    switch (t) {
+      case ConversationEntityType.doctor:
+        return 'طبيب';
+      case ConversationEntityType.laboratory:
+        return 'مختبر';
+      case ConversationEntityType.pharmacy:
+        return 'صيدلية';
+      case ConversationEntityType.physio:
+        return 'علاج طبيعي';
+      case ConversationEntityType.supply:
+        return 'مستلزمات';
+      case ConversationEntityType.radiology:
+        return 'أشعة';
+      default:
+        return '';
+    }
+  }
+
+  Future<AssistantActionPlan> _planForResolvedUnifiedEntity({
+    required ConversationContext context,
+    required IntentResult intent,
+    required SmartSearchResult target,
+    required String query,
+  }) async {
+    context.rememberResults(
+      [target],
+      query: query,
+      intent: intent.intent,
+    );
+    switch (target.type) {
+      case SmartSearchResultType.physio:
+        context.selectPhysio(target);
+        return _planForResolvedPhysio(
+          _actionIntentForEntity(
+            intent,
+            ConversationEntityType.physio,
+            query: query,
+          ),
+          target,
+        );
+      case SmartSearchResultType.supply:
+        context.selectSupply(target);
+        return _planForResolvedSupply(
+          _actionIntentForEntity(
+            intent,
+            ConversationEntityType.supply,
+            query: query,
+          ),
+          target,
+        );
+      case SmartSearchResultType.pharmacy:
+        context.selectPharmacy(target);
+        return _planForResolvedPharmacy(
+          _actionIntentForEntity(
+            intent,
+            ConversationEntityType.pharmacy,
+            query: query,
+          ),
+          target,
+        );
+      case SmartSearchResultType.lab:
+        context.selectLaboratory(target);
+        return _planForResolvedLab(
+          _actionIntentForEntity(
+            intent,
+            ConversationEntityType.laboratory,
+            query: query,
+          ),
+          target,
+          context: context,
+        );
+      case SmartSearchResultType.doctor:
+        context.selectDoctor(target);
+        return _planForResolvedTarget(
+          context,
+          intent,
+          target,
+          targetResolution: DoctorTargetResolution(
+            source: DoctorTargetSource.explicitName,
+            doctor: target,
+            explicitName: query,
+          ),
+        );
+      default:
+        context.selectEntity(target);
+        return AssistantActionPlan(
+          kind: AssistantActionKind.selectEntity,
+          intentResult: intent,
+          target: target,
+          message: 'تم اختيار ${target.title}.',
+          canExecute: true,
+        );
+    }
+  }
+
+  IntentResult _actionIntentForEntity(
+    IntentResult intent,
+    ConversationEntityType type, {
+    String query = '',
+  }) {
+    AssistantIntent mapped = intent.intent;
+    final n = ArabicTextUtils.normalize(query);
+    final looksLocation = RegExp(
+      r'(?:^|\s)(?:وين|اين|أين|موقع|عنوان)(?:\s|$)',
+    ).hasMatch(n);
+    if (looksLocation || intent.intent == AssistantIntent.showLocation) {
+      mapped = AssistantIntent.showLocation;
+    } else {
+      switch (intent.intent) {
+        case AssistantIntent.callDoctor:
+          mapped = switch (type) {
+            ConversationEntityType.physio => AssistantIntent.callPhysio,
+            ConversationEntityType.supply => AssistantIntent.callSupply,
+            ConversationEntityType.pharmacy => AssistantIntent.callPharmacy,
+            ConversationEntityType.laboratory => AssistantIntent.callLab,
+            _ => AssistantIntent.callDoctor,
+          };
+        case AssistantIntent.messageDoctor:
+          mapped = switch (type) {
+            ConversationEntityType.physio => AssistantIntent.messagePhysio,
+            ConversationEntityType.supply => AssistantIntent.messageSupply,
+            ConversationEntityType.pharmacy => AssistantIntent.messagePharmacy,
+            ConversationEntityType.laboratory => AssistantIntent.messageLab,
+            _ => AssistantIntent.messageDoctor,
+          };
+        case AssistantIntent.generalSearch:
+        case AssistantIntent.doctorSearch:
+        case AssistantIntent.showProfile:
+          mapped = switch (type) {
+            ConversationEntityType.physio => AssistantIntent.findPhysio,
+            ConversationEntityType.supply => AssistantIntent.findSupply,
+            ConversationEntityType.pharmacy => AssistantIntent.findPharmacy,
+            ConversationEntityType.laboratory => AssistantIntent.findLab,
+            _ => intent.intent,
+          };
+        default:
+          break;
+      }
+    }
+    return IntentResult(
+      intent: mapped,
+      originalText: intent.originalText,
+      normalizedText: intent.normalizedText,
+      searchMeaning: intent.searchMeaning,
+      entities: intent.entities,
+      confidence: intent.confidence,
+      requiresContext: intent.requiresContext,
+      source: intent.source,
+    );
+  }
+
+  Future<AssistantActionPlan> _resumeAfterEntitySuggestion({
+    required ConversationContext context,
+    required PendingEntitySuggestion suggestion,
+    required IntentResult intentResult,
+  }) async {
+    final catalog = await _loadUnifiedCatalog(nameHint: suggestion.entityName);
+    final wantType = switch (suggestion.entityType) {
+      ClarificationEntityType.doctor => ConversationEntityType.doctor,
+      ClarificationEntityType.laboratory => ConversationEntityType.laboratory,
+      ClarificationEntityType.pharmacy => ConversationEntityType.pharmacy,
+      ClarificationEntityType.physio => ConversationEntityType.physio,
+      ClarificationEntityType.supply => ConversationEntityType.supply,
+      ClarificationEntityType.radiology => ConversationEntityType.radiology,
+      _ => ConversationEntityType.none,
+    };
+    SearchablePlatformEntity? found;
+    for (final e in catalog) {
+      if (e.canonicalId == suggestion.entityId &&
+          (wantType == ConversationEntityType.none ||
+              e.entityType == wantType)) {
+        found = e;
+        break;
+      }
+    }
+    if (found == null) {
+      final message = _entityUnavailableMessage(
+        SmartSearchResult(
+          type: SmartSearchResultType.doctor,
+          title: suggestion.entityName,
+          subtitle: '',
+          score: 0,
+        ),
+      );
+      context.setAssistantResponse(message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intentResult,
+        message: message,
+        canExecute: false,
+      );
+    }
+    return _planForResolvedUnifiedEntity(
+      context: context,
+      intent: intentResult,
+      target: found.result,
+      query: suggestion.entityName,
+    );
+  }
+
+  Future<AssistantActionPlan?> _resumeUnifiedClarificationCandidate({
+    required ConversationContext context,
+    required PendingClarification pending,
+    required ClarificationCandidate candidate,
+    required IntentResult intentResult,
+    AssistantIntent? actionOverride,
+  }) async {
+    final physio = candidate.asPhysioResult;
+    if (physio != null) {
+      context.selectPhysio(physio);
+      context.clearPendingClarification();
+      final action = actionOverride ??
+          pending.pendingAction ??
+          AssistantIntent.selectResult;
+      final synthetic = IntentResult(
+        intent: action == AssistantIntent.callDoctor
+            ? AssistantIntent.callPhysio
+            : action == AssistantIntent.messageDoctor
+                ? AssistantIntent.messagePhysio
+                : action,
+        originalText: intentResult.originalText,
+        normalizedText: intentResult.normalizedText,
+        searchMeaning: intentResult.searchMeaning,
+        entities: intentResult.entities,
+        confidence: intentResult.confidence,
+        requiresContext: false,
+        source: IntentSource.context,
+      );
+      return _withLiveEntity(
+        target: physio,
+        intent: intentResult,
+        plan: (live) => _planForResolvedPhysio(synthetic, live),
+      );
+    }
+    final supply = candidate.asSupplyResult;
+    if (supply != null) {
+      context.selectSupply(supply);
+      context.clearPendingClarification();
+      final action = actionOverride ??
+          pending.pendingAction ??
+          AssistantIntent.selectResult;
+      final synthetic = IntentResult(
+        intent: action == AssistantIntent.callDoctor
+            ? AssistantIntent.callSupply
+            : action == AssistantIntent.messageDoctor
+                ? AssistantIntent.messageSupply
+                : action,
+        originalText: intentResult.originalText,
+        normalizedText: intentResult.normalizedText,
+        searchMeaning: intentResult.searchMeaning,
+        entities: intentResult.entities,
+        confidence: intentResult.confidence,
+        requiresContext: false,
+        source: IntentSource.context,
+      );
+      return _withLiveEntity(
+        target: supply,
+        intent: intentResult,
+        plan: (live) => _planForResolvedSupply(synthetic, live),
+      );
+    }
+    final pharmacy = candidate.asPharmacyResult;
+    if (pharmacy != null) {
+      context.selectPharmacy(pharmacy);
+      context.clearPendingClarification();
+      final action = actionOverride ??
+          pending.pendingAction ??
+          AssistantIntent.selectResult;
+      final synthetic = IntentResult(
+        intent: action == AssistantIntent.callDoctor
+            ? AssistantIntent.callPharmacy
+            : action == AssistantIntent.messageDoctor
+                ? AssistantIntent.messagePharmacy
+                : action,
+        originalText: intentResult.originalText,
+        normalizedText: intentResult.normalizedText,
+        searchMeaning: intentResult.searchMeaning,
+        entities: intentResult.entities,
+        confidence: intentResult.confidence,
+        requiresContext: false,
+        source: IntentSource.context,
+      );
+      return _withLiveEntity(
+        target: pharmacy,
+        intent: intentResult,
+        plan: (live) => _planForResolvedPharmacy(synthetic, live),
+      );
+    }
+    return null;
   }
 
   Future<List<LabPackageItem>> _lookupPackages(String labId) async {
@@ -747,10 +1717,24 @@ class SmartBrainPlanner {
       case AssistantIntent.messageDoctor:
       case AssistantIntent.callLab:
       case AssistantIntent.messageLab:
+      case AssistantIntent.findRadiology:
+      case AssistantIntent.callRadiology:
+      case AssistantIntent.messageRadiology:
+      case AssistantIntent.findPharmacy:
+      case AssistantIntent.callPharmacy:
+      case AssistantIntent.messagePharmacy:
+      case AssistantIntent.findPhysio:
+      case AssistantIntent.callPhysio:
+      case AssistantIntent.messagePhysio:
+      case AssistantIntent.findSupply:
+      case AssistantIntent.callSupply:
+      case AssistantIntent.messageSupply:
       case AssistantIntent.showLocation:
       case AssistantIntent.showProfile:
       case AssistantIntent.bookAppointment:
       case AssistantIntent.selectResult:
+      case AssistantIntent.stopSpeaking:
+      case AssistantIntent.repeatResponse:
         return true;
       case AssistantIntent.doctorSearch:
         final n = ArabicTextUtils.normalize(query);
@@ -969,6 +1953,74 @@ class SmartBrainPlanner {
     var intent = _intentResolver.resolve(workingQuery);
     context.rememberQuery(workingQuery, intent: intent.intent);
     var guidedAllowed = allowGuided;
+
+    // تواجد طبيب (سياقي أو باسم) — نفس منطق مسار scoped، في المسار السريري أيضاً.
+    if (intent.intent != AssistantIntent.stopSpeaking &&
+        intent.intent != AssistantIntent.repeatResponse &&
+        intent.intent != AssistantIntent.showMore &&
+        intent.entities.actionHint != 'share_or_favorite') {
+      if (DoctorPresenceQuestion.isContextual(workingQuery)) {
+        return _planContextualPresence(workingQuery, context, intent);
+      }
+      final presenceName = DoctorPresenceQuestion.tryParseName(workingQuery);
+      if (presenceName != null) {
+        final presenceIntent = IntentResult(
+          intent: AssistantIntent.doctorAvailability,
+          originalText: workingQuery,
+          normalizedText: ArabicTextUtils.normalize(workingQuery),
+          searchMeaning: intent.searchMeaning,
+          entities: intent.entities.copyWith(
+            doctorName: presenceName,
+            actionHint: 'availability',
+          ),
+          confidence: 90,
+          requiresContext: false,
+        );
+        return _planExplicitName(
+          workingQuery,
+          context,
+          presenceIntent,
+          presenceName,
+        );
+      }
+    }
+
+    // أوامر صوت قصيرة / قائمة — قبل التوضيح المعلّق وفعل الاتصال المعلّق.
+    if (intent.intent == AssistantIntent.showMore) {
+      return _planShowMore(workingQuery, context, intent);
+    }
+    if (intent.intent == AssistantIntent.stopSpeaking) {
+      if ((context.pendingAction ?? '').trim().isNotEmpty) {
+        context.clearPending();
+      }
+      return AssistantActionPlan(
+        kind: AssistantActionKind.stopSpeaking,
+        intentResult: intent,
+        message: 'تمام، أوقفت الصوت.',
+        canExecute: true,
+        textFirstOnly: true,
+      );
+    }
+    if (intent.intent == AssistantIntent.repeatResponse) {
+      final last = (context.lastAssistantResponse ?? '').trim();
+      if (last.isEmpty) {
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showMessage,
+          intentResult: intent,
+          message: 'ما عندي رد أكرره حالياً.',
+          canExecute: false,
+        );
+      }
+      return AssistantActionPlan(
+        kind: AssistantActionKind.repeatResponse,
+        intentResult: intent,
+        message: last,
+        canExecute: true,
+      );
+    }
+    if (intent.entities.actionHint == 'share_or_favorite') {
+      return _planShareFavoriteClarification(workingQuery, context, intent);
+    }
 
     // —— استمرارية قصيرة: تأكيد/رفض فعل معلّق فقط إن كان هو التوقع الحي الحالي ——
     if (context.activeYesNoConsumer ==
@@ -2355,12 +3407,20 @@ class SmartBrainPlanner {
     var intent = _intentResolver.resolve(query);
     context.rememberQuery(query, intent: intent.intent);
 
+    if (DoctorPresenceQuestion.isContextual(query)) {
+      return _planContextualPresence(query, context, intent);
+    }
+
     if (context.activeYesNoConsumer ==
         ConversationYesNoConsumer.pendingAction) {
       final pendingAffirm =
           _tryPlanPendingActionAffirmation(query, context, intent);
       if (pendingAffirm != null) return pendingAffirm;
     }
+
+    // M3 — تصفية القائمة قبل استهلاك pending clarification كاتصال/واتساب.
+    final refineEarly = _tryPlanResultSetRefinement(query, context, intent);
+    if (refineEarly != null) return refineEarly;
 
     final pendingPlan = await _tryPendingResolution(
       workingQuery: query,
@@ -2402,12 +3462,284 @@ class SmartBrainPlanner {
       return redirect;
     }
 
+    // قفل النطاق: خارج الغدير / unknown بلا مسار منصة → رفض مهذّب، بلا بحث عام.
+    if (GhadeerScopeGate.shouldRefuse(query: workingQuery, intent: intent)) {
+      final refuse = AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: GhadeerScopeGate.outOfScopeMessage,
+        canExecute: false,
+      );
+      context.setAssistantResponse(refuse.message);
+      return refuse;
+    }
+
+    // M5 — اكتشاف كيان ديناميكي بالاسم دون كلمة قسم (مركز النور، علي ناصر، …).
+    final unified = await _tryUnifiedEntityDiscovery(
+      query: workingQuery,
+      context: context,
+      intent: intent,
+    );
+    if (unified != null) {
+      return _enforcePlatformGrounding(unified);
+    }
+
     final plan = await _planNormalPipeline(
       query: workingQuery,
       context: context,
       intent: intent,
     );
-    return mods.isNone ? plan : plan.withModifiers(mods);
+    // بحث اختصاص: رتّب داخل نتائج ذلك الاختصاص حسب الأكثر طلباً
+    // (أطفال بين الأطفال، كسور بين الكسور) حتى بلا عبارة «الأكثر طلباً».
+    final effective = _withDefaultSpecialtyDemand(plan, mods);
+    final grounded = _enforcePlatformGrounding(
+      effective.isNone ? plan : plan.withModifiers(effective),
+    );
+    return grounded;
+  }
+
+  /// Fail-closed: لا اتصال/واتساب/ملف بلا كيان منصّة حقيقي قابل للتنقل.
+  static AssistantActionPlan _enforcePlatformGrounding(AssistantActionPlan plan) {
+    switch (plan.kind) {
+      case AssistantActionKind.prepareCall:
+      case AssistantActionKind.prepareWhatsApp:
+      case AssistantActionKind.openProfile:
+      case AssistantActionKind.showLocation:
+        final t = plan.target;
+        if (t == null || !t.hasNavigableEntity) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: plan.intentResult,
+            message: plan.message.trim().isNotEmpty
+                ? plan.message
+                : PlatformGrounding.noResultsMessage,
+            canExecute: false,
+            textFirstOnly: plan.textFirstOnly,
+          );
+        }
+        if (plan.kind == AssistantActionKind.prepareCall && !t.canCall) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: plan.intentResult,
+            target: t,
+            message: PlatformGrounding.phoneUnavailableFor(t.title),
+            canExecute: false,
+            textFirstOnly: plan.textFirstOnly,
+          );
+        }
+        if (plan.kind == AssistantActionKind.prepareWhatsApp &&
+            !t.canWhatsApp) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: plan.intentResult,
+            target: t,
+            message: PlatformGrounding.whatsappUnavailableFor(t.title),
+            canExecute: false,
+            textFirstOnly: plan.textFirstOnly,
+          );
+        }
+        if (plan.kind == AssistantActionKind.showLocation) {
+          final loc = (t.clinicLocation ?? t.subtitle).trim();
+          final generic = loc.isEmpty ||
+              loc == 'مختبر' ||
+              loc == 'صيدلية' ||
+              loc == 'مركز أشعة' ||
+              loc == 'علاج طبيعي' ||
+              loc == 'مستلزمات طبية';
+          if (generic) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showMessage,
+              intentResult: plan.intentResult,
+              target: t,
+              message: PlatformGrounding.locationUnavailableFor(t.title),
+              canExecute: false,
+              textFirstOnly: plan.textFirstOnly,
+            );
+          }
+        }
+        return plan;
+      default:
+        return plan;
+    }
+  }
+
+  /// بحث اختصاص → `byDemand` داخل القائمة المعروضة فقط (بعد فلترة الاختصاص).
+  static SearchModifiers _withDefaultSpecialtyDemand(
+    AssistantActionPlan plan,
+    SearchModifiers mods,
+  ) {
+    if (plan.kind != AssistantActionKind.runSpecialtySearch) return mods;
+    if (mods.byDemand) return mods;
+    return SearchModifiers(
+      availableOnly: mods.availableOnly,
+      byDemand: true,
+      cleanedQuery: mods.cleanedQuery,
+    );
+  }
+
+  /// M3 — تصفية ResultContext الحالي بقيود واتساب/اتصال/جنس بلا بحث منصة جديد.
+  AssistantActionPlan? _tryPlanResultSetRefinement(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+  ) {
+    final constraint = ResultSetRefiner.parse(query);
+    if (constraint == null) return null;
+
+    final ctx = context.currentResultContext;
+    final items = (ctx != null && ctx.isNotEmpty)
+        ? ctx.items
+        : (context.activeEntityType != ConversationEntityType.none
+            ? context.authoritativeItemsFor(context.activeEntityType)
+            : context.lastResults);
+
+    if (items.isEmpty) {
+      final message =
+          'سوّ بحث أول داخل الغدير (مثلاً أطباء أطفال)، بعدين گلي الشرط — مثل اللي عنده واتساب.';
+      context.setAssistantResponse(message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: message,
+        canExecute: false,
+      );
+    }
+
+    if (items.length == 1) {
+      final only = items.first;
+      final message = _singleResultConstraintAnswer(only, constraint);
+      context.setAssistantResponse(message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        target: only,
+        candidates: [only],
+        message: message,
+        canExecute: false,
+      );
+    }
+
+    final filtered = ResultSetRefiner.apply(items, constraint);
+    final message = ResultSetRefiner.messageFor(
+      constraint: constraint,
+      beforeCount: items.length,
+      afterCount: filtered.length,
+    );
+    context.setAssistantResponse(message);
+
+    if (filtered.isEmpty) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        candidates: items,
+        message: message,
+        canExecute: false,
+      );
+    }
+
+    context.rememberResults(
+      filtered,
+      query: query,
+      intent: AssistantIntent.selectResult,
+      clearSelection: true,
+      assistantResponse: message,
+      pendingActionForClarification: AssistantIntent.selectResult,
+    );
+    // قائمة فقط — بلا pendingAction تنفيذي (call/whatsapp) من نية التصفية.
+    return AssistantActionPlan(
+      kind: AssistantActionKind.showClarification,
+      intentResult: intent.copyWithClarification(true),
+      candidates: filtered,
+      message: message,
+      canExecute: false,
+    );
+  }
+
+  static String _singleResultConstraintAnswer(
+    SmartSearchResult only,
+    ResultSetConstraint constraint,
+  ) {
+    final name = only.title;
+    if (constraint.requiresWhatsApp) {
+      final hasWa = (only.whatsapp ?? '').trim().isNotEmpty;
+      return hasWa
+          ? 'إي، $name عنده واتساب ضمن بيانات الغدير.'
+          : 'حالياً ماكو واتساب لـ $name داخل المنصة.';
+    }
+    if (constraint.requiresPhone) {
+      return only.canCall
+          ? 'إي، $name عنده رقم اتصال ضمن بيانات الغدير.'
+          : 'حالياً ماكو رقم اتصال لـ $name داخل المنصة.';
+    }
+    if (constraint.gender == DoctorGender.female) {
+      return DoctorGender.isFemale(only.gender)
+          ? 'إي، $name طبيبة.'
+          : '$name مو مصنَّف كطبيبة ضمن البيانات الحالية.';
+    }
+    if (constraint.gender == DoctorGender.male) {
+      return DoctorGender.normalize(only.gender) == DoctorGender.male
+          ? 'إي، $name طبيب.'
+          : '$name مو مصنَّف كطبيب ذكر ضمن البيانات الحالية.';
+    }
+    return 'هذي النتيجة الحالية: $name.';
+  }
+
+  AssistantActionPlan _planContextualPresence(
+    String query,
+    ConversationContext context,
+    IntentResult original,
+  ) {
+    context.clearPending();
+    context.clearPendingDoctorSuggestion();
+    final intent = IntentResult(
+      intent: AssistantIntent.doctorAvailability,
+      originalText: query,
+      normalizedText: original.normalizedText,
+      entities: original.entities.copyWith(doctorName: null),
+      requiresContext: true,
+      source: IntentSource.context,
+      confidence: 90,
+    );
+    // الضمير لا يعيد طبيباً قديماً بعد الانتقال إلى مختبر أو باقة أو تحليل.
+    final doctorContext =
+        context.activeEntityType == ConversationEntityType.doctor ||
+        context.activeEntityType == ConversationEntityType.none;
+    final target = doctorContext
+        ? _targetResolver.resolve(intentResult: intent, context: context)
+        : DoctorTargetResolution.unresolved;
+    if (target.hasDoctor) {
+      return _planForResolvedTarget(context, intent, target.doctor!,
+          targetResolution: target);
+    }
+    final candidates = doctorContext
+        ? context.authoritativeItemsFor(ConversationEntityType.doctor)
+        : <SmartSearchResult>[];
+    final pending = const AmbiguityGate().fromDoctorResults(
+      doctors: candidates,
+      originalIntent: intent.intent,
+      originalQuery: query,
+      pendingAction: intent.intent,
+      reason: ClarificationReason.incompleteReference,
+    );
+    if (pending != null) {
+      context.setPendingClarification(pending);
+    } else {
+      context.clearPendingClarification();
+    }
+    final message = pending == null
+        ? target.message
+        : _clarificationResponses.build(pending);
+    context.setAssistantResponse(message);
+    return AssistantActionPlan(
+      kind: pending == null
+          ? AssistantActionKind.showMessage
+          : AssistantActionKind.showClarification,
+      intentResult: intent.copyWithClarification(true),
+      message: message,
+      candidates: candidates,
+      canExecute: false,
+      targetResolution: target,
+    );
   }
 
   /// لغة أعراض بلا طلب خدمة صريح ← رسالة نطاق ثابتة (لا أسئلة أعراض ولا توجيه).
@@ -2429,10 +3761,26 @@ class SmartBrainPlanner {
       case AssistantIntent.messageDoctor:
       case AssistantIntent.callLab:
       case AssistantIntent.messageLab:
+      case AssistantIntent.findRadiology:
+      case AssistantIntent.callRadiology:
+      case AssistantIntent.messageRadiology:
+      case AssistantIntent.findPharmacy:
+      case AssistantIntent.callPharmacy:
+      case AssistantIntent.messagePharmacy:
+      case AssistantIntent.findPhysio:
+      case AssistantIntent.callPhysio:
+      case AssistantIntent.messagePhysio:
+      case AssistantIntent.findSupply:
+      case AssistantIntent.callSupply:
+      case AssistantIntent.messageSupply:
       case AssistantIntent.bookAppointment:
       case AssistantIntent.showProfile:
       case AssistantIntent.showLocation:
       case AssistantIntent.selectResult:
+      case AssistantIntent.stopSpeaking:
+      case AssistantIntent.repeatResponse:
+      case AssistantIntent.showMore:
+      case AssistantIntent.doctorAvailability:
         return null;
       case AssistantIntent.doctorSearch:
         final n = ArabicTextUtils.normalize(query);
@@ -2480,6 +3828,40 @@ class SmartBrainPlanner {
           intentResult: intent,
         );
       }
+      if (ArabicAnswerNormalizer.isBareNo(workingQuery) ||
+          _looksLikePendingSuggestionReject(workingQuery)) {
+        final message = 'تمام. إذا تحب نكمّل، وضّح الطلب — مثلاً اسم أو نوع الخدمة.';
+        context.setAssistantResponse(message);
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showMessage,
+          intentResult: intent,
+          message: message,
+          canExecute: false,
+        );
+      }
+    }
+
+    final entitySuggestion = context.pendingEntitySuggestion;
+    if (entitySuggestion != null) {
+      context.clearPendingEntitySuggestion();
+      if (ArabicAnswerNormalizer.isBareYes(workingQuery)) {
+        return await _resumeAfterEntitySuggestion(
+          context: context,
+          suggestion: entitySuggestion,
+          intentResult: intent,
+        );
+      }
+      if (ArabicAnswerNormalizer.isBareNo(workingQuery) ||
+          _looksLikePendingSuggestionReject(workingQuery)) {
+        final message = 'تمام. إذا تحب نكمّل، وضّح الطلب — مثلاً اسم أو نوع الخدمة.';
+        context.setAssistantResponse(message);
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showMessage,
+          intentResult: intent,
+          message: message,
+          canExecute: false,
+        );
+      }
     }
 
     // Step 5: إن وُجد توضيح معلّق — حاول جواب التوضيح أولاً.
@@ -2497,6 +3879,8 @@ class SmartBrainPlanner {
       if (!answersPending &&
           ClarificationResolver.isClearNewSearchIntent(intent, workingQuery)) {
         context.clearPendingClarification();
+        context.clearPendingDoctorSuggestion();
+        context.clearPending();
       } else {
         switch (clarified.status) {
           case ClarificationResolveStatus.resolved:
@@ -2513,6 +3897,43 @@ class SmartBrainPlanner {
           case ClarificationResolveStatus.stillAmbiguous:
           case ClarificationResolveStatus.invalidOrdinal:
           case ClarificationResolveStatus.unsafeYesNo:
+            // Bare «اتصل/واتساب» على قائمة مفتوحة: رقِّ الفعل وانتظر الأول/الثاني
+            // بدل «ما زال غير واضح» (لا ترتيب/اسم يحل المرشّح).
+            final contactUpgrade = clarified.status ==
+                    ClarificationResolveStatus.stillAmbiguous
+                ? _contactActionForPendingUpgrade(intent)
+                : null;
+            if (contactUpgrade != null &&
+                (pending.entityType == ClarificationEntityType.doctor ||
+                    pending.entityType ==
+                        ClarificationEntityType.laboratory)) {
+              final upgraded = PendingClarification(
+                entityType: pending.entityType,
+                reason: pending.reason,
+                candidates: pending.candidates,
+                originalIntent: pending.originalIntent ?? intent.intent,
+                originalQuery: pending.originalQuery ?? workingQuery,
+                pendingAction: contactUpgrade,
+                createdAt: pending.createdAt,
+              );
+              context.setPendingClarification(upgraded);
+              final message = _clarificationResponses.build(
+                upgraded,
+                customLead: _contactClarificationLead(contactUpgrade),
+              );
+              final candidates = switch (upgraded.entityType) {
+                ClarificationEntityType.laboratory => upgraded.labResults,
+                _ => upgraded.doctorResults,
+              };
+              context.setAssistantResponse(message);
+              return AssistantActionPlan(
+                kind: AssistantActionKind.showClarification,
+                intentResult: intent.copyWithClarification(true),
+                candidates: candidates,
+                message: message,
+                canExecute: false,
+              );
+            }
             final candidates = switch (pending.entityType) {
               ClarificationEntityType.laboratory => pending.labResults,
               ClarificationEntityType.analysis => pending.analysisResults,
@@ -2562,6 +3983,10 @@ class SmartBrainPlanner {
       case AssistantIntent.callLab:
       case AssistantIntent.messageLab:
       case AssistantIntent.bookAppointment:
+      case AssistantIntent.stopSpeaking:
+      case AssistantIntent.repeatResponse:
+      case AssistantIntent.showMore:
+      case AssistantIntent.doctorAvailability:
         return null;
       case AssistantIntent.doctorSearch:
         // بحث طبيب صريح فقط يمنع المسار الصحي — لا العبارات الصحية القصيرة.
@@ -2925,6 +4350,50 @@ class SmartBrainPlanner {
       return _planAnalysis(query, context, intent);
     }
 
+    // مسار العلاج الطبيعي — قبل الصيدليات.
+    if (EntityTargetResolver.prefersPhysio(
+          intent: intent,
+          context: context,
+        ) ||
+        intent.intent == AssistantIntent.findPhysio ||
+        intent.intent == AssistantIntent.callPhysio ||
+        intent.intent == AssistantIntent.messagePhysio) {
+      return _planPhysio(query, context, intent);
+    }
+
+    // مسار المستلزمات — قبل الصيدليات.
+    if (EntityTargetResolver.prefersSupply(
+          intent: intent,
+          context: context,
+        ) ||
+        intent.intent == AssistantIntent.findSupply ||
+        intent.intent == AssistantIntent.callSupply ||
+        intent.intent == AssistantIntent.messageSupply) {
+      return _planSupply(query, context, intent);
+    }
+
+    // مسار الصيدليات — قبل الأشعة/المختبر.
+    if (EntityTargetResolver.prefersPharmacy(
+          intent: intent,
+          context: context,
+        ) ||
+        intent.intent == AssistantIntent.findPharmacy ||
+        intent.intent == AssistantIntent.callPharmacy ||
+        intent.intent == AssistantIntent.messagePharmacy) {
+      return _planPharmacy(query, context, intent);
+    }
+
+    // مسار الأشعة — قبل المختبر حتى لا يُخلط.
+    if (EntityTargetResolver.prefersRadiology(
+          intent: intent,
+          context: context,
+        ) ||
+        intent.intent == AssistantIntent.findRadiology ||
+        intent.intent == AssistantIntent.callRadiology ||
+        intent.intent == AssistantIntent.messageRadiology) {
+      return _planRadiology(query, context, intent);
+    }
+
     // مسار المختبرات عبر EntityTargetResolver.
     if (EntityTargetResolver.prefersLaboratory(
           intent: intent,
@@ -2938,6 +4407,37 @@ class SmartBrainPlanner {
     }
 
     switch (intent.intent) {
+      case AssistantIntent.stopSpeaking:
+        // لا نطق جديد — الصفحة أوقفت الصوت عند بدء الدور إن كان يعمل.
+        return AssistantActionPlan(
+          kind: AssistantActionKind.stopSpeaking,
+          intentResult: intent,
+          message: 'تمام، أوقفت الصوت.',
+          canExecute: true,
+          textFirstOnly: true,
+        );
+
+      case AssistantIntent.repeatResponse:
+        final last = (context.lastAssistantResponse ?? '').trim();
+        if (last.isEmpty) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: 'ما عندي رد أكرره حالياً.',
+            canExecute: false,
+          );
+        }
+        // لا تُحدّث lastAssistantResponse هنا — نعيد نفس الرد.
+        return AssistantActionPlan(
+          kind: AssistantActionKind.repeatResponse,
+          intentResult: intent,
+          message: last,
+          canExecute: true,
+        );
+
+      case AssistantIntent.showMore:
+        return _planShowMore(query, context, intent);
+
       case AssistantIntent.selectResult:
         return _planSelect(query, context, intent);
 
@@ -2945,10 +4445,16 @@ class SmartBrainPlanner {
       case AssistantIntent.callDoctor:
       case AssistantIntent.messageDoctor:
       case AssistantIntent.showProfile:
+        if (intent.entities.actionHint == 'share_or_favorite') {
+          return _planShareFavoriteClarification(query, context, intent);
+        }
         return _planAction(query, context, intent);
 
       case AssistantIntent.bookAppointment:
         return _planContextualBooking(query, context, intent);
+
+      case AssistantIntent.doctorAvailability:
+        return _planContextualPresence(query, context, intent);
 
       case AssistantIntent.specialtySearch:
         context.beginNewDoctorSearch(
@@ -2970,6 +4476,22 @@ class SmartBrainPlanner {
           query: query,
           intent: intent.intent,
         );
+        final nameQuery =
+            (intent.entities.doctorName ?? query).trim();
+        if (nameQuery.isNotEmpty) {
+          final resolved = await _planExplicitName(
+            query,
+            context,
+            intent,
+            nameQuery,
+          );
+          // بلا مطابقة اسم → أعد البحث للواجهة (اقتراح تصحيح إملائي وغيره).
+          final noNameHit = resolved.kind == AssistantActionKind.showMessage &&
+              !context.hasPendingDoctorSuggestion &&
+              resolved.candidates.isEmpty &&
+              resolved.target == null;
+          if (!noNameHit) return resolved;
+        }
         return AssistantActionPlan(
           kind: AssistantActionKind.runDoctorSearch,
           intentResult: intent,
@@ -2979,6 +4501,15 @@ class SmartBrainPlanner {
 
       case AssistantIntent.generalSearch:
         // «نعم/لا» الحرّة لا تصل هنا — يستهلكها إقرار المحادثة أعلاه.
+        if (!_clinicalEnabled &&
+            GhadeerScopeGate.shouldRefuse(query: query, intent: intent)) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: GhadeerScopeGate.outOfScopeMessage,
+            canExecute: false,
+          );
+        }
         context.beginNewDoctorSearch(
           query: query,
           intent: intent.intent,
@@ -2991,6 +4522,16 @@ class SmartBrainPlanner {
 
       case AssistantIntent.unknown:
       default:
+        // في مسار البحث والتنفيذ: لا نرقّي unknown إلى بحث عام يخترع نتائج.
+        if (!_clinicalEnabled ||
+            GhadeerScopeGate.shouldRefuse(query: query, intent: intent)) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: GhadeerScopeGate.outOfScopeMessage,
+            canExecute: false,
+          );
+        }
         if (query.trim().isNotEmpty) {
           context.beginNewDoctorSearch(
             query: query,
@@ -3436,13 +4977,17 @@ class SmartBrainPlanner {
     }
 
     final packageName = (intent.entities.packageName ?? '').trim();
-    if (packageName.isNotEmpty || hint == 'search') {
-      if (packageName.isNotEmpty) {
-        return _planPackageNameSearch(query, context, intent, packageName);
-      }
+    final genericPackageName = RegExp(
+      r'^(?:ال)?(?:باقه|باقة|باقات|تحليل|تحاليل|تحليلات|فحوصات|فحوص)$',
+    ).hasMatch(ArabicTextUtils.normalize(packageName));
+    if (packageName.isNotEmpty && !genericPackageName) {
+      return _planPackageNameSearch(query, context, intent, packageName);
+    }
+    if (hint == 'search' && packageName.isNotEmpty && !genericPackageName) {
+      return _planPackageNameSearch(query, context, intent, packageName);
     }
 
-    // قائمة عامة: أريد باقات.
+    // قائمة عامة: أريد باقة / أريد باقات — بسيطة ومفيدة.
     return _planGlobalPackageList(query, context, intent);
   }
 
@@ -3795,13 +5340,8 @@ class SmartBrainPlanner {
     }
 
     if (labName.isEmpty && labId.isEmpty) return null;
-    return SmartSearchResult(
-      type: SmartSearchResultType.lab,
-      title: labName.isNotEmpty ? labName : 'مختبر',
-      subtitle: '',
-      labId: labId.isNotEmpty ? labId : null,
-      labName: labName.isNotEmpty ? labName : null,
-    );
+    // Fail-closed: لا نختلق صف مختبر من اسم الباقة وحدها.
+    return null;
   }
 
   Future<AssistantActionPlan> _planPackageOffers(
@@ -4219,14 +5759,26 @@ class SmartBrainPlanner {
     final results = [for (final link in links) _packageToResult(link)];
     context.beginNewPackageSearch(query: query, intent: intent.intent);
     context.rememberResults(results, query: query, intent: intent.intent);
+    if (results.length == 1) {
+      context.selectPackage(results.first);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.selectEntity,
+        intentResult: intent,
+        target: results.first,
+        candidates: results,
+        packages: [for (final l in links) l.package],
+        message: 'وجدت باقة واحدة: ${results.first.title}. تگدر تقول اتصل أو واتساب.',
+        canExecute: true,
+      );
+    }
     return AssistantActionPlan(
       kind: AssistantActionKind.runPackageSearch,
       intentResult: intent,
       candidates: results,
       packages: [for (final l in links) l.package],
       message: scopedLabId != null && context.selectedLaboratory != null
-          ? 'هذه الباقات المتوفرة حالياً في ${context.selectedLaboratory!.title}.'
-          : 'هذه الباقات المعروضة حالياً.',
+          ? 'هذي الباقات المتوفرة في ${context.selectedLaboratory!.title}. قل الأول أو الثاني أو اسم الباقة.'
+          : 'هذي الباقات المتوفرة. قل الأول أو الثاني أو اسم الباقة.',
       canExecute: true,
     );
   }
@@ -4640,6 +6192,930 @@ class SmartBrainPlanner {
     ).hasMatch(n);
   }
 
+  Future<AssistantActionPlan> _planPharmacy(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+  ) async {
+    if (intent.intent == AssistantIntent.findPharmacy) {
+      final name = (intent.entities.pharmacy ?? '').trim();
+      context.beginNewPharmacySearch(query: query, intent: intent.intent);
+      if (name.isEmpty) {
+        late final List<SmartSearchResult> all;
+        try {
+          all = await _lookupPharmacy('');
+        } catch (_) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: PlatformGrounding.accessProblemMessage,
+            canExecute: false,
+          );
+        }
+        if (all.isEmpty) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: PlatformGrounding.emptyCatalogMessage,
+          );
+        }
+        context.rememberResults(all, query: query, intent: intent.intent);
+        if (all.length == 1) {
+          context.selectPharmacy(all.first);
+          return AssistantActionPlan(
+            kind: AssistantActionKind.selectEntity,
+            intentResult: intent,
+            target: all.first,
+            message: 'وجدت ${all.first.title}.',
+            canExecute: true,
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.runGeneralSearch,
+          intentResult: intent,
+          candidates: all,
+          message: 'هذي الصيدليات المتوفرة.',
+          canExecute: true,
+        );
+      }
+      return _planExplicitPharmacyName(query, context, intent, name);
+    }
+
+    final syntheticIntent = switch (intent.intent) {
+      AssistantIntent.callDoctor
+          when context.activeEntityType == ConversationEntityType.pharmacy =>
+        AssistantIntent.callPharmacy,
+      AssistantIntent.messageDoctor
+          when context.activeEntityType == ConversationEntityType.pharmacy =>
+        AssistantIntent.messagePharmacy,
+      _ => intent.intent,
+    };
+    final synthetic = IntentResult(
+      intent: syntheticIntent,
+      originalText: intent.originalText,
+      normalizedText: intent.normalizedText,
+      searchMeaning: intent.searchMeaning,
+      entities: intent.entities,
+      confidence: intent.confidence,
+      requiresContext: intent.requiresContext,
+      source: intent.source,
+    );
+
+    final target = _pharmacyTargetResolver.resolve(
+      intentResult: synthetic,
+      context: context,
+    );
+    switch (target.source) {
+      case PharmacyTargetSource.explicitName:
+        return _planExplicitPharmacyName(
+          query,
+          context,
+          synthetic,
+          target.explicitName!,
+        );
+      case PharmacyTargetSource.ordinal:
+      case PharmacyTargetSource.selectedContext:
+        if (!target.hasPharmacy) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: synthetic,
+            message: target.message.isNotEmpty
+                ? target.message
+                : PharmacyTargetResolution.unresolved.message,
+          );
+        }
+        return _withLiveEntity(
+          target: target.pharmacy!,
+          intent: synthetic,
+          plan: (live) => _planForResolvedPharmacy(synthetic, live),
+        );
+      case PharmacyTargetSource.unresolved:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showMessage,
+          intentResult: synthetic,
+          message: target.message.isNotEmpty
+              ? target.message
+              : 'أي صيدلية تقصد؟ اذكر الاسم أو ابحث أولاً.',
+          candidates: target.candidates,
+        );
+    }
+  }
+
+  Future<AssistantActionPlan> _planExplicitPharmacyName(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+    String nameQuery,
+  ) async {
+    late final List<SmartSearchResult> pharmacies;
+    try {
+      pharmacies = await _lookupPharmacy(nameQuery);
+    } catch (_) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: PlatformGrounding.accessProblemMessage,
+        canExecute: false,
+      );
+    }
+    final batch = _pharmacyMatcher.matchPharmacies(
+      query: nameQuery,
+      pharmacies: [
+        for (final c in pharmacies)
+          (id: c.pharmacyId ?? c.title, name: c.title),
+      ],
+    );
+    final ranked = <SmartSearchResult>[];
+    if (batch.matches.isNotEmpty) {
+      for (final m in batch.matches) {
+        ranked.add(
+          pharmacies.firstWhere(
+            (c) => (c.pharmacyId ?? c.title) == m.pharmacyId,
+            orElse: () => pharmacies.first,
+          ),
+        );
+      }
+    } else {
+      ranked.addAll(pharmacies);
+    }
+    if (ranked.isEmpty) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: PlatformGrounding.noMatchFor(
+          entityLabelAr: 'صيدلية مطابقة',
+          nameQuery: nameQuery,
+        ),
+      );
+    }
+    context.rememberResults(ranked, query: query, intent: intent.intent);
+    if (ranked.length == 1 || (batch.best != null && !batch.isAmbiguous)) {
+      context.selectPharmacy(ranked.first);
+      return _planForResolvedPharmacy(intent, ranked.first);
+    }
+    return AssistantActionPlan(
+      kind: AssistantActionKind.showClarification,
+      intentResult: intent,
+      candidates: ranked,
+      message: 'لقيت أكثر من صيدلية. أي واحدة تقصد؟',
+      canExecute: true,
+    );
+  }
+
+  AssistantActionPlan _planForResolvedPharmacy(
+    IntentResult intent,
+    SmartSearchResult target,
+  ) {
+    switch (intent.intent) {
+      case AssistantIntent.callPharmacy:
+      case AssistantIntent.callDoctor:
+        if (!target.canCall) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'رقم اتصال ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.prepareCall,
+          intentResult: intent,
+          target: target,
+          message: 'جاهز للاتصال بـ ${target.title}.',
+          canExecute: true,
+        );
+      case AssistantIntent.messagePharmacy:
+      case AssistantIntent.messageDoctor:
+        if (!target.canWhatsApp) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'واتساب ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.prepareWhatsApp,
+          intentResult: intent,
+          target: target,
+          message: 'جاهز لفتح واتساب ${target.title}.',
+          canExecute: true,
+        );
+      case AssistantIntent.showLocation:
+        final loc = (target.clinicLocation ?? target.subtitle).trim();
+        if (loc.isEmpty || loc == 'صيدلية') {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'موقع ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showLocation,
+          intentResult: intent,
+          target: target,
+          message: '${target.title}: $loc',
+          canExecute: true,
+        );
+      case AssistantIntent.showProfile:
+      case AssistantIntent.findPharmacy:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.openProfile,
+          intentResult: intent,
+          target: target,
+          message: 'فتح ملف ${target.title}.',
+          canExecute: true,
+        );
+      default:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.selectEntity,
+          intentResult: intent,
+          target: target,
+          message: 'تم اختيار ${target.title}.',
+          canExecute: true,
+        );
+    }
+  }
+
+  Future<AssistantActionPlan> _planPhysio(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+  ) async {
+    if (intent.intent == AssistantIntent.findPhysio) {
+      final name = (intent.entities.physio ?? '').trim();
+      context.beginNewPhysioSearch(query: query, intent: intent.intent);
+      if (name.isEmpty) {
+        final all = await _lookupPhysio('');
+        if (all.isEmpty) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: PlatformGrounding.emptyCatalogMessage,
+          );
+        }
+        context.rememberResults(all, query: query, intent: intent.intent);
+        if (all.length == 1) {
+          context.selectPhysio(all.first);
+          return AssistantActionPlan(
+            kind: AssistantActionKind.selectEntity,
+            intentResult: intent,
+            target: all.first,
+            message: 'وجدت ${all.first.title}.',
+            canExecute: true,
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.runGeneralSearch,
+          intentResult: intent,
+          candidates: all,
+          message: 'هذي مراكز العلاج الطبيعي المتوفرة.',
+          canExecute: true,
+        );
+      }
+      return _planExplicitPhysioName(query, context, intent, name);
+    }
+
+    final syntheticIntent = switch (intent.intent) {
+      AssistantIntent.callDoctor
+          when context.activeEntityType == ConversationEntityType.physio =>
+        AssistantIntent.callPhysio,
+      AssistantIntent.messageDoctor
+          when context.activeEntityType == ConversationEntityType.physio =>
+        AssistantIntent.messagePhysio,
+      _ => intent.intent,
+    };
+    final synthetic = IntentResult(
+      intent: syntheticIntent,
+      originalText: intent.originalText,
+      normalizedText: intent.normalizedText,
+      searchMeaning: intent.searchMeaning,
+      entities: intent.entities,
+      confidence: intent.confidence,
+      requiresContext: intent.requiresContext,
+      source: intent.source,
+    );
+
+    final target = _physioTargetResolver.resolve(
+      intentResult: synthetic,
+      context: context,
+    );
+    switch (target.source) {
+      case PhysioTargetSource.explicitName:
+        return _planExplicitPhysioName(
+          query,
+          context,
+          synthetic,
+          target.explicitName!,
+        );
+      case PhysioTargetSource.ordinal:
+      case PhysioTargetSource.selectedContext:
+        if (!target.hasPhysio) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: synthetic,
+            message: target.message.isNotEmpty
+                ? target.message
+                : PhysioTargetResolution.unresolved.message,
+          );
+        }
+        return _withLiveEntity(
+          target: target.physio!,
+          intent: synthetic,
+          plan: (live) => _planForResolvedPhysio(synthetic, live),
+        );
+      case PhysioTargetSource.unresolved:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showMessage,
+          intentResult: synthetic,
+          message: target.message.isNotEmpty
+              ? target.message
+              : 'أي مركز علاج طبيعي تقصد؟ اذكر الاسم أو ابحث أولاً.',
+          candidates: target.candidates,
+        );
+    }
+  }
+
+  Future<AssistantActionPlan> _planExplicitPhysioName(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+    String nameQuery,
+  ) async {
+    final centers = await _lookupPhysio(nameQuery);
+    final batch = _physioMatcher.match(
+      query: nameQuery,
+      entities: [
+        for (final c in centers)
+          (id: c.physioId ?? c.title, name: c.title),
+      ],
+    );
+    final ranked = <SmartSearchResult>[];
+    if (batch.matches.isNotEmpty) {
+      for (final m in batch.matches) {
+        ranked.add(
+          centers.firstWhere(
+            (c) => (c.physioId ?? c.title) == m.entityId,
+            orElse: () => centers.first,
+          ),
+        );
+      }
+    } else {
+      ranked.addAll(centers);
+    }
+    if (ranked.isEmpty) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: PlatformGrounding.noMatchFor(
+          entityLabelAr: 'مركز علاج طبيعي مطابق',
+          nameQuery: nameQuery,
+        ),
+      );
+    }
+    context.rememberResults(ranked, query: query, intent: intent.intent);
+    if (ranked.length == 1 || (batch.best != null && !batch.isAmbiguous)) {
+      context.selectPhysio(ranked.first);
+      return _planForResolvedPhysio(intent, ranked.first);
+    }
+    return AssistantActionPlan(
+      kind: AssistantActionKind.showClarification,
+      intentResult: intent,
+      candidates: ranked,
+      message: 'لقيت أكثر من مركز علاج طبيعي. أي واحد تقصد؟',
+      canExecute: true,
+    );
+  }
+
+  AssistantActionPlan _planForResolvedPhysio(
+    IntentResult intent,
+    SmartSearchResult target,
+  ) {
+    switch (intent.intent) {
+      case AssistantIntent.callPhysio:
+      case AssistantIntent.callDoctor:
+        if (!target.canCall) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'رقم اتصال ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.prepareCall,
+          intentResult: intent,
+          target: target,
+          message: 'جاهز للاتصال بـ ${target.title}.',
+          canExecute: true,
+        );
+      case AssistantIntent.messagePhysio:
+      case AssistantIntent.messageDoctor:
+        if (!target.canWhatsApp) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'واتساب ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.prepareWhatsApp,
+          intentResult: intent,
+          target: target,
+          message: 'جاهز لفتح واتساب ${target.title}.',
+          canExecute: true,
+        );
+      case AssistantIntent.showLocation:
+        final loc = (target.clinicLocation ?? target.subtitle).trim();
+        if (loc.isEmpty || loc == 'علاج طبيعي') {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'موقع ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showLocation,
+          intentResult: intent,
+          target: target,
+          message: '${target.title}: $loc',
+          canExecute: true,
+        );
+      case AssistantIntent.showProfile:
+      case AssistantIntent.findPhysio:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.openProfile,
+          intentResult: intent,
+          target: target,
+          message: 'فتح ملف ${target.title}.',
+          canExecute: true,
+        );
+      default:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.selectEntity,
+          intentResult: intent,
+          target: target,
+          message: 'تم اختيار ${target.title}.',
+          canExecute: true,
+        );
+    }
+  }
+
+  Future<AssistantActionPlan> _planSupply(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+  ) async {
+    if (intent.intent == AssistantIntent.findSupply) {
+      final name = (intent.entities.supply ?? '').trim();
+      context.beginNewSupplySearch(query: query, intent: intent.intent);
+      if (name.isEmpty) {
+        final all = await _lookupSupply('');
+        if (all.isEmpty) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: PlatformGrounding.emptyCatalogMessage,
+          );
+        }
+        context.rememberResults(all, query: query, intent: intent.intent);
+        if (all.length == 1) {
+          context.selectSupply(all.first);
+          return AssistantActionPlan(
+            kind: AssistantActionKind.selectEntity,
+            intentResult: intent,
+            target: all.first,
+            message: 'وجدت ${all.first.title}.',
+            canExecute: true,
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.runGeneralSearch,
+          intentResult: intent,
+          candidates: all,
+          message: 'هذي محلات المستلزمات الطبية المتوفرة.',
+          canExecute: true,
+        );
+      }
+      return _planExplicitSupplyName(query, context, intent, name);
+    }
+
+    final syntheticIntent = switch (intent.intent) {
+      AssistantIntent.callDoctor
+          when context.activeEntityType == ConversationEntityType.supply =>
+        AssistantIntent.callSupply,
+      AssistantIntent.messageDoctor
+          when context.activeEntityType == ConversationEntityType.supply =>
+        AssistantIntent.messageSupply,
+      _ => intent.intent,
+    };
+    final synthetic = IntentResult(
+      intent: syntheticIntent,
+      originalText: intent.originalText,
+      normalizedText: intent.normalizedText,
+      searchMeaning: intent.searchMeaning,
+      entities: intent.entities,
+      confidence: intent.confidence,
+      requiresContext: intent.requiresContext,
+      source: intent.source,
+    );
+
+    final target = _supplyTargetResolver.resolve(
+      intentResult: synthetic,
+      context: context,
+    );
+    switch (target.source) {
+      case SupplyTargetSource.explicitName:
+        return _planExplicitSupplyName(
+          query,
+          context,
+          synthetic,
+          target.explicitName!,
+        );
+      case SupplyTargetSource.ordinal:
+      case SupplyTargetSource.selectedContext:
+        if (!target.hasSupply) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: synthetic,
+            message: target.message.isNotEmpty
+                ? target.message
+                : SupplyTargetResolution.unresolved.message,
+          );
+        }
+        return _withLiveEntity(
+          target: target.supply!,
+          intent: synthetic,
+          plan: (live) => _planForResolvedSupply(synthetic, live),
+        );
+      case SupplyTargetSource.unresolved:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showMessage,
+          intentResult: synthetic,
+          message: target.message.isNotEmpty
+              ? target.message
+              : 'أي محل مستلزمات تقصد؟ اذكر الاسم أو ابحث أولاً.',
+          candidates: target.candidates,
+        );
+    }
+  }
+
+  Future<AssistantActionPlan> _planExplicitSupplyName(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+    String nameQuery,
+  ) async {
+    final vendors = await _lookupSupply(nameQuery);
+    final batch = _supplyMatcher.match(
+      query: nameQuery,
+      entities: [
+        for (final c in vendors)
+          (id: c.supplyId ?? c.title, name: c.title),
+      ],
+    );
+    final ranked = <SmartSearchResult>[];
+    if (batch.matches.isNotEmpty) {
+      for (final m in batch.matches) {
+        ranked.add(
+          vendors.firstWhere(
+            (c) => (c.supplyId ?? c.title) == m.entityId,
+            orElse: () => vendors.first,
+          ),
+        );
+      }
+    } else {
+      ranked.addAll(vendors);
+    }
+    if (ranked.isEmpty) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: PlatformGrounding.noMatchFor(
+          entityLabelAr: 'محل مستلزمات مطابق',
+          nameQuery: nameQuery,
+        ),
+      );
+    }
+    context.rememberResults(ranked, query: query, intent: intent.intent);
+    if (ranked.length == 1 || (batch.best != null && !batch.isAmbiguous)) {
+      context.selectSupply(ranked.first);
+      return _planForResolvedSupply(intent, ranked.first);
+    }
+    return AssistantActionPlan(
+      kind: AssistantActionKind.showClarification,
+      intentResult: intent,
+      candidates: ranked,
+      message: 'لقيت أكثر من محل مستلزمات. أي واحد تقصد؟',
+      canExecute: true,
+    );
+  }
+
+  AssistantActionPlan _planForResolvedSupply(
+    IntentResult intent,
+    SmartSearchResult target,
+  ) {
+    switch (intent.intent) {
+      case AssistantIntent.callSupply:
+      case AssistantIntent.callDoctor:
+        if (!target.canCall) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'رقم اتصال ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.prepareCall,
+          intentResult: intent,
+          target: target,
+          message: 'جاهز للاتصال بـ ${target.title}.',
+          canExecute: true,
+        );
+      case AssistantIntent.messageSupply:
+      case AssistantIntent.messageDoctor:
+        if (!target.canWhatsApp) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'واتساب ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.prepareWhatsApp,
+          intentResult: intent,
+          target: target,
+          message: 'جاهز لفتح واتساب ${target.title}.',
+          canExecute: true,
+        );
+      case AssistantIntent.showLocation:
+        final loc = (target.clinicLocation ?? target.subtitle).trim();
+        if (loc.isEmpty || loc == 'مستلزمات طبية') {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'موقع ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showLocation,
+          intentResult: intent,
+          target: target,
+          message: '${target.title}: $loc',
+          canExecute: true,
+        );
+      case AssistantIntent.showProfile:
+      case AssistantIntent.findSupply:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.openProfile,
+          intentResult: intent,
+          target: target,
+          message: 'فتح ملف ${target.title}.',
+          canExecute: true,
+        );
+      default:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.selectEntity,
+          intentResult: intent,
+          target: target,
+          message: 'تم اختيار ${target.title}.',
+          canExecute: true,
+        );
+    }
+  }
+
+  Future<AssistantActionPlan> _planRadiology(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+  ) async {
+    if (intent.intent == AssistantIntent.findRadiology) {
+      final name = (intent.entities.radiology ?? '').trim();
+      context.beginNewRadiologySearch(query: query, intent: intent.intent);
+      if (name.isEmpty) {
+        final all = await _lookupRadiology('أشعة');
+        if (all.isEmpty) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: PlatformGrounding.emptyCatalogMessage,
+          );
+        }
+        context.rememberResults(all, query: query, intent: intent.intent);
+        if (all.length == 1) {
+          context.selectRadiology(all.first);
+          return AssistantActionPlan(
+            kind: AssistantActionKind.selectEntity,
+            intentResult: intent,
+            target: all.first,
+            message: 'وجدت ${all.first.title}.',
+            canExecute: true,
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.runGeneralSearch,
+          intentResult: intent,
+          candidates: all,
+          message: 'هذي مراكز الأشعة المتوفرة.',
+          canExecute: true,
+        );
+      }
+      return _planExplicitRadiologyName(query, context, intent, name);
+    }
+
+    final syntheticIntent = switch (intent.intent) {
+      AssistantIntent.callDoctor
+          when context.activeEntityType == ConversationEntityType.radiology =>
+        AssistantIntent.callRadiology,
+      AssistantIntent.messageDoctor
+          when context.activeEntityType == ConversationEntityType.radiology =>
+        AssistantIntent.messageRadiology,
+      _ => intent.intent,
+    };
+    final synthetic = IntentResult(
+      intent: syntheticIntent,
+      originalText: intent.originalText,
+      normalizedText: intent.normalizedText,
+      searchMeaning: intent.searchMeaning,
+      entities: intent.entities,
+      confidence: intent.confidence,
+      requiresContext: intent.requiresContext,
+      source: intent.source,
+    );
+
+    final target = _radTargetResolver.resolve(
+      intentResult: synthetic,
+      context: context,
+    );
+    switch (target.source) {
+      case RadiologyTargetSource.explicitName:
+        return _planExplicitRadiologyName(
+          query,
+          context,
+          synthetic,
+          target.explicitName!,
+        );
+      case RadiologyTargetSource.ordinal:
+      case RadiologyTargetSource.selectedContext:
+        if (!target.hasRadiology) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: synthetic,
+            message: target.message.isNotEmpty
+                ? target.message
+                : RadiologyTargetResolution.unresolved.message,
+          );
+        }
+        return _withLiveEntity(
+          target: target.radiology!,
+          intent: synthetic,
+          plan: (live) => _planForResolvedRadiology(synthetic, live),
+        );
+      case RadiologyTargetSource.unresolved:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showMessage,
+          intentResult: synthetic,
+          message: target.message.isNotEmpty
+              ? target.message
+              : 'أي مركز أشعة تقصد؟ اذكر الاسم أو ابحث أولاً.',
+          candidates: target.candidates,
+        );
+    }
+  }
+
+  Future<AssistantActionPlan> _planExplicitRadiologyName(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+    String nameQuery,
+  ) async {
+    final centers = await _lookupRadiology(nameQuery);
+    final batch = _radMatcher.matchCenters(
+      query: nameQuery,
+      centers: [
+        for (final c in centers)
+          (id: c.radiologyId ?? c.title, name: c.title),
+      ],
+    );
+    final ranked = <SmartSearchResult>[];
+    if (batch.matches.isNotEmpty) {
+      for (final m in batch.matches) {
+        ranked.add(
+          centers.firstWhere(
+            (c) => (c.radiologyId ?? c.title) == m.centerId,
+            orElse: () => centers.first,
+          ),
+        );
+      }
+    } else {
+      ranked.addAll(centers);
+    }
+    if (ranked.isEmpty) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: PlatformGrounding.noMatchFor(
+          entityLabelAr: 'مركز أشعة مطابقاً',
+          nameQuery: nameQuery,
+        ),
+      );
+    }
+    context.rememberResults(ranked, query: query, intent: intent.intent);
+    if (ranked.length == 1 || (batch.best != null && !batch.isAmbiguous)) {
+      context.selectRadiology(ranked.first);
+      return _planForResolvedRadiology(intent, ranked.first);
+    }
+    return AssistantActionPlan(
+      kind: AssistantActionKind.showClarification,
+      intentResult: intent,
+      candidates: ranked,
+      message: 'لقيت أكثر من مركز أشعة. أي واحد تقصد؟',
+      canExecute: true,
+    );
+  }
+
+  AssistantActionPlan _planForResolvedRadiology(
+    IntentResult intent,
+    SmartSearchResult target,
+  ) {
+    switch (intent.intent) {
+      case AssistantIntent.callRadiology:
+      case AssistantIntent.callDoctor:
+        if (!target.canCall) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'رقم اتصال ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.prepareCall,
+          intentResult: intent,
+          target: target,
+          message: 'جاهز للاتصال بـ ${target.title}.',
+          canExecute: true,
+        );
+      case AssistantIntent.messageRadiology:
+      case AssistantIntent.messageDoctor:
+        if (!target.canWhatsApp) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'واتساب ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.prepareWhatsApp,
+          intentResult: intent,
+          target: target,
+          message: 'جاهز لفتح واتساب ${target.title}.',
+          canExecute: true,
+        );
+      case AssistantIntent.showLocation:
+        final loc = (target.clinicLocation ?? target.subtitle).trim();
+        if (loc.isEmpty || loc == 'مركز أشعة') {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: 'موقع ${target.title} غير متوفر حالياً.',
+          );
+        }
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showLocation,
+          intentResult: intent,
+          target: target,
+          message: '${target.title}: $loc',
+          canExecute: true,
+        );
+      case AssistantIntent.showProfile:
+      case AssistantIntent.findRadiology:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.openProfile,
+          intentResult: intent,
+          target: target,
+          message: 'فتح ملف ${target.title}.',
+          canExecute: true,
+        );
+      default:
+        return AssistantActionPlan(
+          kind: AssistantActionKind.selectEntity,
+          intentResult: intent,
+          target: target,
+          message: 'تم اختيار ${target.title}.',
+          canExecute: true,
+        );
+    }
+  }
+
   Future<AssistantActionPlan> _planLaboratory(
     String query,
     ConversationContext context,
@@ -4707,11 +7183,15 @@ class SmartBrainPlanner {
             labTargetResolution: target,
           );
         }
-        return _planForResolvedLab(
-          synthetic,
-          target.laboratory!,
-          targetResolution: target,
-          context: context,
+        return _withLiveEntity(
+          target: target.laboratory!,
+          intent: synthetic,
+          plan: (live) => _planForResolvedLab(
+            synthetic,
+            live,
+            targetResolution: target,
+            context: context,
+          ),
         );
 
       case LaboratoryTargetSource.unresolved:
@@ -4770,7 +7250,10 @@ class SmartBrainPlanner {
         return AssistantActionPlan(
           kind: AssistantActionKind.showMessage,
           intentResult: intent,
-          message: 'لم أجد مختبراً مطابقاً لـ «$nameQuery».',
+          message: PlatformGrounding.noMatchFor(
+            entityLabelAr: 'مختبراً مطابقاً',
+            nameQuery: nameQuery,
+          ),
           canExecute: false,
           labTargetResolution: LaboratoryTargetResolution(
             source: LaboratoryTargetSource.explicitName,
@@ -5317,6 +7800,16 @@ class SmartBrainPlanner {
       );
     }
 
+    // M5 — مرشّح غير طبيب من توضيح موحّد متعدد الأنواع.
+    final unifiedResume = await _resumeUnifiedClarificationCandidate(
+      context: context,
+      pending: pending,
+      candidate: candidate,
+      intentResult: intentResult,
+      actionOverride: actionOverride,
+    );
+    if (unifiedResume != null) return unifiedResume;
+
     final doctor = candidate.asDoctorResult;
     if (doctor == null) {
       return AssistantActionPlan(
@@ -5681,6 +8174,105 @@ class SmartBrainPlanner {
             );
           }
           break;
+        case ConversationEntityType.radiology:
+          final target = _radTargetResolver.resolve(
+            intentResult: intent,
+            context: context,
+          );
+          if (target.source == RadiologyTargetSource.ordinal &&
+              target.hasRadiology) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.selectEntity,
+              intentResult: intent,
+              target: target.radiology,
+              message: 'تم اختيار ${target.radiology!.title}.',
+              canExecute: true,
+            );
+          }
+          if (target.requiresClarification) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showClarification,
+              intentResult: intent.copyWithClarification(true),
+              message: target.message,
+              candidates: resultCtx.items,
+            );
+          }
+          break;
+        case ConversationEntityType.pharmacy:
+          final target = _pharmacyTargetResolver.resolve(
+            intentResult: intent,
+            context: context,
+          );
+          if (target.source == PharmacyTargetSource.ordinal &&
+              target.hasPharmacy) {
+            context.selectPharmacy(target.pharmacy!);
+            return AssistantActionPlan(
+              kind: AssistantActionKind.selectEntity,
+              intentResult: intent,
+              target: target.pharmacy,
+              message: 'تم اختيار ${target.pharmacy!.title}.',
+              canExecute: true,
+            );
+          }
+          if (target.requiresClarification) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showClarification,
+              intentResult: intent.copyWithClarification(true),
+              message: target.message,
+              candidates: resultCtx.items,
+            );
+          }
+          break;
+        case ConversationEntityType.physio:
+          final physioTarget = _physioTargetResolver.resolve(
+            intentResult: intent,
+            context: context,
+          );
+          if (physioTarget.source == PhysioTargetSource.ordinal &&
+              physioTarget.hasPhysio) {
+            context.selectPhysio(physioTarget.physio!);
+            return AssistantActionPlan(
+              kind: AssistantActionKind.selectEntity,
+              intentResult: intent,
+              target: physioTarget.physio,
+              message: 'تم اختيار ${physioTarget.physio!.title}.',
+              canExecute: true,
+            );
+          }
+          if (physioTarget.requiresClarification) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showClarification,
+              intentResult: intent.copyWithClarification(true),
+              message: physioTarget.message,
+              candidates: resultCtx.items,
+            );
+          }
+          break;
+        case ConversationEntityType.supply:
+          final supplyTarget = _supplyTargetResolver.resolve(
+            intentResult: intent,
+            context: context,
+          );
+          if (supplyTarget.source == SupplyTargetSource.ordinal &&
+              supplyTarget.hasSupply) {
+            context.selectSupply(supplyTarget.supply!);
+            return AssistantActionPlan(
+              kind: AssistantActionKind.selectEntity,
+              intentResult: intent,
+              target: supplyTarget.supply,
+              message: 'تم اختيار ${supplyTarget.supply!.title}.',
+              canExecute: true,
+            );
+          }
+          if (supplyTarget.requiresClarification) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showClarification,
+              intentResult: intent.copyWithClarification(true),
+              message: supplyTarget.message,
+              candidates: resultCtx.items,
+            );
+          }
+          break;
         case ConversationEntityType.none:
           break;
       }
@@ -5857,6 +8449,68 @@ class SmartBrainPlanner {
     return _mapContextResolution(intent, resolved);
   }
 
+  /// «عرض المزيد» — لا ترقيم صفحات؛ نعرض/نؤكد نتائج الجلسة الحالية فقط.
+  AssistantActionPlan _planShowMore(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+  ) {
+    final resultCtx = context.currentResultContext;
+    if (resultCtx == null || resultCtx.isEmpty) {
+      const msg = 'ما عندي نتائج إضافية لأعرضها. ابحث أولاً.';
+      context.setAssistantResponse(msg);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: msg,
+        canExecute: false,
+      );
+    }
+    final n = resultCtx.length;
+    final msg = n == 1
+        ? 'نتيجة واحدة حالياً: ${resultCtx.items.first.title}. اختَر أو ابحث من جديد.'
+        : 'هاي كل النتائج الحالية ($n). اختَر رقم أو اسم، أو ابحث من جديد.';
+    context.setAssistantResponse(msg);
+    return AssistantActionPlan(
+      kind: AssistantActionKind.showMessage,
+      intentResult: intent,
+      message: msg,
+      candidates: resultCtx.items,
+      canExecute: true,
+    );
+  }
+
+  /// مشاركة/مفضلة: لا تنفيذ مكرر — البطاقة في التطبيق هي المصدر.
+  AssistantActionPlan _planShareFavoriteClarification(
+    String query,
+    ConversationContext context,
+    IntentResult intent,
+  ) {
+    final selected = context.selectedEntity;
+    if (selected == null) {
+      const msg =
+          'حدد الطبيب أو المختبر أولاً، ثم استخدم المشاركة أو المفضلة من البطاقة داخل التطبيق.';
+      context.setAssistantResponse(msg);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: msg,
+        canExecute: false,
+      );
+    }
+    final msg =
+        'المشاركة والمفضلة من بطاقة ${selected.title} داخل التطبيق حالياً. '
+        'أكدر أفتح الملف إن تحب.';
+    context.setAssistantResponse(msg);
+    return AssistantActionPlan(
+      kind: AssistantActionKind.showMessage,
+      intentResult: intent,
+      target: selected,
+      message: msg,
+      canExecute: false,
+    );
+  }
+
   /// حجز سياقي: يحل الهدف المحدد فقط — بلا حجز تلقائي (سياسة قائمة).
   Future<AssistantActionPlan> _planContextualBooking(
     String query,
@@ -5989,14 +8643,67 @@ class SmartBrainPlanner {
             targetResolution: target,
           );
         }
-        return _planForResolvedTarget(
-          context,
-          intent,
-          target.doctor!,
-          targetResolution: target,
+        // مرجع سياقي: لا تعِد بحثاً بالاسم. تحقّق أن المعرّف ما زال في
+        // ResultContext/المحدد، ثم إعادة تحقق حيّة من المصدر السلطوي.
+        final selected = target.doctor!;
+        final id = (selected.doctorId ?? '').trim();
+        final stillInContext = id.isNotEmpty &&
+            (context.selectedDoctor?.doctorId == id ||
+                context
+                    .authoritativeItemsFor(ConversationEntityType.doctor)
+                    .any((d) => (d.doctorId ?? '') == id));
+        if (!stillInContext) {
+          final message = _entityUnavailableMessage(selected);
+          context.setAssistantResponse(message);
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: message,
+            canExecute: false,
+            targetResolution: target,
+          );
+        }
+        return _withLiveEntity(
+          target: selected,
+          intent: intent,
+          plan: (live) => _planForResolvedTarget(
+            context,
+            intent,
+            live,
+            targetResolution: target,
+          ),
         );
 
       case DoctorTargetSource.unresolved:
+        // Bare «اتصل/واتساب» مع ≥2 نتائج سلطوية: افتح توضيحاً بـ pendingAction.
+        final contactAction = _contactActionForPendingUpgrade(intent);
+        final doctors = context
+            .authoritativeItemsFor(ConversationEntityType.doctor);
+        if (contactAction != null && doctors.length >= 2) {
+          final pending = const AmbiguityGate().fromDoctorResults(
+            doctors: doctors,
+            originalIntent: intent.intent,
+            originalQuery: query,
+            pendingAction: contactAction,
+            reason: ClarificationReason.incompleteReference,
+          );
+          if (pending != null) {
+            context.setPendingClarification(pending);
+            final message = _clarificationResponses.build(
+              pending,
+              customLead: _contactClarificationLead(contactAction),
+            );
+            context.setAssistantResponse(message);
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showClarification,
+              intentResult: intent.copyWithClarification(true),
+              candidates: doctors,
+              message: message,
+              canExecute: false,
+              targetResolution: target,
+            );
+          }
+        }
         return AssistantActionPlan(
           kind: AssistantActionKind.showMessage,
           intentResult: intent,
@@ -6007,6 +8714,29 @@ class SmartBrainPlanner {
           canExecute: false,
           targetResolution: target,
         );
+    }
+  }
+
+  /// فعل اتصال/واتساب يرقّي توضيحاً معلّقاً بلا حلّ مرشّح (Bare اتصل).
+  static AssistantIntent? _contactActionForPendingUpgrade(IntentResult intent) {
+    switch (intent.intent) {
+      case AssistantIntent.callDoctor:
+      case AssistantIntent.messageDoctor:
+      case AssistantIntent.callLab:
+      case AssistantIntent.messageLab:
+        return intent.intent;
+      default:
+        return null;
+    }
+  }
+
+  static String _contactClarificationLead(AssistantIntent action) {
+    switch (action) {
+      case AssistantIntent.messageDoctor:
+      case AssistantIntent.messageLab:
+        return 'أي واحد تريد مراسلته على واتساب؟';
+      default:
+        return 'أي واحد تريد الاتصال به؟';
     }
   }
 
@@ -6034,7 +8764,10 @@ class SmartBrainPlanner {
       return AssistantActionPlan(
         kind: AssistantActionKind.showMessage,
         intentResult: intent,
-        message: 'لم أجد طبيباً مطابقاً لـ «$nameQuery».',
+        message: PlatformGrounding.noMatchFor(
+          entityLabelAr: 'طبيباً مطابقاً',
+          nameQuery: nameQuery,
+        ),
         canExecute: false,
         targetResolution: DoctorTargetResolution(
           source: DoctorTargetSource.explicitName,
@@ -6102,6 +8835,71 @@ class SmartBrainPlanner {
           d.doctorId == bestMatch.doctorId || d.title == bestMatch.doctorName,
       orElse: () => doctors.first,
     );
+
+    // Confidence مركزي: HIGH نفّذ · MEDIUM أكّد · LOW وضّح — بلا عتبات matcher جديدة.
+    // forNameResolution: مطابقة الاسم تقود (نية doctorSearch~75 لا تمنع التنفيذ القوي).
+    // اسم جزئي وحيد بلا لقب يبقى MEDIUM (M2) — التلميح الصريح يُعالَج في المسار الموحّد.
+    final band = SmartBrainConfidencePolicy.forNameResolution(
+      intentScore: intent.confidence,
+      matchScore: bestMatch.score,
+    );
+
+    if (SmartBrainConfidencePolicy.shouldClarify(band)) {
+      final message =
+          'ما وضحت عندي الاسم. تگدر تكتب الاسم أوضح أو الاختصاص؟';
+      context.setAssistantResponse(message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showMessage,
+        intentResult: intent,
+        message: message,
+        canExecute: false,
+        targetResolution: DoctorTargetResolution(
+          source: DoctorTargetSource.explicitName,
+          explicitName: nameQuery,
+          requiresSearch: true,
+          requiresClarification: true,
+          candidates: doctors,
+        ),
+      );
+    }
+
+    if (SmartBrainConfidencePolicy.shouldConfirm(band)) {
+      final id = (resolved.doctorId ?? '').trim();
+      if (id.isNotEmpty) {
+        context.setPendingDoctorSuggestion(
+          PendingDoctorSuggestion(
+            doctorId: id,
+            doctorName: resolved.title,
+          ),
+        );
+        final specialty = (resolved.specialty ?? resolved.subtitle).trim();
+        final message = specialty.isNotEmpty
+            ? 'تقصد ${resolved.title}، اختصاص $specialty؟'
+            : 'تقصد ${resolved.title}؟';
+        context.rememberResults(
+          [resolved],
+          query: query,
+          intent: intent.intent,
+          clearSelection: true,
+          assistantResponse: message,
+        );
+        context.setAssistantResponse(message);
+        return AssistantActionPlan(
+          kind: AssistantActionKind.showMessage,
+          intentResult: intent,
+          candidates: [resolved],
+          message: message,
+          canExecute: false,
+          targetResolution: DoctorTargetResolution(
+            source: DoctorTargetSource.explicitName,
+            explicitName: nameQuery,
+            requiresSearch: true,
+            requiresClarification: true,
+            candidates: [resolved],
+          ),
+        );
+      }
+    }
 
     context.rememberResults(
       [resolved],

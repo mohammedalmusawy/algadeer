@@ -134,7 +134,23 @@ void main() {
     setUp(() {
       ctx = ConversationContext();
       planner = SmartBrainPlanner(
-        doctorLookup: (_) async => const <SmartSearchResult>[],
+        doctorLookup: (q) async {
+          if (q.trim().isEmpty) {
+            final out = <SmartSearchResult>[];
+            final seen = <String>{};
+            for (final r in [
+              ...ctx.lastResults,
+              if (ctx.selectedDoctor != null) ctx.selectedDoctor!,
+            ]) {
+              if (r.type != SmartSearchResultType.doctor) continue;
+              final id = (r.doctorId ?? '').trim();
+              if (id.isEmpty || !seen.add(id)) continue;
+              out.add(r);
+            }
+            return out;
+          }
+          return const <SmartSearchResult>[];
+        },
       );
     });
 

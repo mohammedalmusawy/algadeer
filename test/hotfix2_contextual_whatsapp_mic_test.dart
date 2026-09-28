@@ -107,7 +107,8 @@ void main() {
       expect(ctx.selectedEntity?.doctorId, 'ali');
 
       final planner = SmartBrainPlanner(
-        doctorLookup: (_) async {
+        doctorLookup: (q) async {
+          if (q.trim().isEmpty) return [ali];
           fail('must not search for role word الدكتور');
         },
       );
@@ -125,7 +126,10 @@ void main() {
       final ctx = ConversationContext();
       ctx.rememberResults([_doc('a', 'A')]);
       final plan = await SmartBrainPlanner(
-        doctorLookup: (_) async => const [],
+        doctorLookup: (q) async {
+          if (q.trim().isEmpty) return [_doc('a', 'A')];
+          return const [];
+        },
       ).plan(query: 'دزله واتساب', context: ctx);
       expect(plan.kind, AssistantActionKind.prepareWhatsApp);
       expect(plan.target?.doctorId, 'a');

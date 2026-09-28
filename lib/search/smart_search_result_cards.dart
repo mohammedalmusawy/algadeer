@@ -22,6 +22,14 @@ class SmartSearchResultCard extends StatelessWidget {
         return _DoctorCard(result: result, onTap: onTap);
       case SmartSearchResultType.lab:
         return _LabCard(result: result, onTap: onTap);
+      case SmartSearchResultType.radiology:
+        return _LabCard(result: result, onTap: onTap);
+      case SmartSearchResultType.pharmacy:
+        return _LabCard(result: result, onTap: onTap);
+      case SmartSearchResultType.physio:
+        return _LabCard(result: result, onTap: onTap);
+      case SmartSearchResultType.supply:
+        return _LabCard(result: result, onTap: onTap);
       case SmartSearchResultType.package:
       case SmartSearchResultType.offer:
         return _PackageOfferCard(result: result, onTap: onTap);

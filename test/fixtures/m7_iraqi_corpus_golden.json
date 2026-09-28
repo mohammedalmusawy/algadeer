@@ -1,0 +1,1224 @@
+[
+  {
+    "id": "m7g_iraqi_001",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "اريد صيدلية",
+    "expectNotRefuse": true,
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "m7g_iraqi_002",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "أريد صيدلية",
+    "expectNotRefuse": true,
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "m7g_iraqi_003",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "اريدلي مختبر",
+    "expectNotRefuse": true,
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "m7g_iraqi_004",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "أريدلي علاج طبيعي",
+    "expectNotRefuse": true,
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "m7g_iraqi_005",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "اريد لي مستلزمات طبية",
+    "expectNotRefuse": true,
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "m7g_iraqi_006",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "أريد لي اشعة",
+    "expectNotRefuse": true,
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "m7g_iraqi_007",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "طلعلي صيدليات",
+    "expectNotRefuse": true,
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "m7g_iraqi_008",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "طلع لي مختبرات",
+    "expectNotRefuse": true,
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "m7g_iraqi_009",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "دورلي باقات",
+    "expectNotRefuse": true,
+    "expectedIntent": "findPackage"
+  },
+  {
+    "id": "m7g_iraqi_010",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "دور لي عروض",
+    "expectNotRefuse": true,
+    "expectedIntentAnyOf": [
+      "findOffer",
+      "findPackage"
+    ]
+  },
+  {
+    "id": "m7g_iraqi_011",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "شوفلي تصوير شعاعي",
+    "expectNotRefuse": true,
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "m7g_iraqi_012",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "شوف لي صورة شعاعية",
+    "expectNotRefuse": true,
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "m7g_iraqi_013",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "دلني على صيدلية",
+    "expectNotRefuse": true,
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "m7g_iraqi_014",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "جيبلي علاج طبيعي",
+    "expectNotRefuse": true,
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "m7g_iraqi_015",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "جيب لي اشعة",
+    "expectNotRefuse": true,
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "m7g_iraqi_016",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "وين اكو مختبر",
+    "expectNotRefuse": true,
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "m7g_iraqi_017",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "اكو يمكم صيدلية",
+    "expectNotRefuse": true,
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "m7g_iraqi_018",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "عدكم علاج طبيعي",
+    "expectNotRefuse": true,
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "m7g_iraqi_019",
+    "source": "golden",
+    "category": "golden_iraqi",
+    "input": "عندكم مستلزمات طبية",
+    "expectNotRefuse": true,
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "m7g_fp_001",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "سن",
+    "expectedIntentNot": "specialtySearch"
+  },
+  {
+    "id": "m7g_fp_002",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "على",
+    "expectedIntentNot": "doctorSearch",
+    "expectedIntentAnyOf": [
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "m7g_fp_003",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "دلني على",
+    "expectedIntentNot": "doctorSearch",
+    "expectedIntentAnyOf": [
+      "unknown",
+      "generalSearch",
+      "clarify"
+    ]
+  },
+  {
+    "id": "m7g_fp_004",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "تحليل",
+    "expectedIntentNot": "doctorSearch",
+    "expectedIntentAnyOf": [
+      "findAnalysis",
+      "findLab",
+      "generalSearch",
+      "unknown"
+    ]
+  },
+  {
+    "id": "m7g_fp_005",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "مختبر تحاليل",
+    "expectedIntent": "findLab",
+    "expectedIntentNot": "findAnalysis"
+  },
+  {
+    "id": "m7g_fp_006",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "تحليل الدم",
+    "expectedIntent": "findAnalysis",
+    "expectedIntentNot": "doctorSearch"
+  },
+  {
+    "id": "m7g_fp_007",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "أشعة",
+    "expectedIntent": "findRadiology",
+    "expectedIntentNot": "specialtySearch"
+  },
+  {
+    "id": "m7g_fp_008",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "اشعة",
+    "expectedIntent": "findRadiology",
+    "expectedIntentNot": "specialtySearch"
+  },
+  {
+    "id": "m7g_fp_009",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "أريد علاج طبيعي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "m7g_fp_010",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "نعم",
+    "expectedIntentAnyOf": [
+      "unknown",
+      "confirm",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "m7g_fp_011",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "الثاني",
+    "expectedIntentAnyOf": [
+      "selectOrdinal",
+      "selectResult",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "m7g_fp_012",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "اتصل بيه",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "m7g_phone_wa_01",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "اتصل ب صيدلية الصفا",
+    "expectedIntent": "callPharmacy",
+    "expectedIntentNot": "messagePharmacy"
+  },
+  {
+    "id": "m7g_phone_wa_02",
+    "source": "golden",
+    "category": "golden_fp",
+    "input": "دز واتساب ل صيدلية الصفا",
+    "expectedIntentAnyOf": [
+      "messagePharmacy",
+      "messageDoctor"
+    ],
+    "expectedIntentNot": "callPharmacy"
+  },
+  {
+    "id": "m7g_oos_001",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "منو فاز بالمباراة",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_oos_002",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "سعر النفط اليوم",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_oos_003",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "حالة الطقس بغداد",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_oos_004",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "اخبار السياسة اليوم",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_oos_005",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "حل معادلة 2x+5",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_oos_006",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "شغل اغنية",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_oos_007",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "اطلب بيتزا",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_oos_008",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "برمجة بايثون",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_oos_009",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "نتائج الدوري",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_oos_010",
+    "source": "golden",
+    "category": "golden_oos",
+    "input": "ما هي عاصمة فرنسا",
+    "expectRefuse": true
+  },
+  {
+    "id": "m7g_stt_001",
+    "source": "golden",
+    "category": "golden_stt",
+    "input": "اريد اريد طبيب اطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "m7g_stt_002",
+    "source": "golden",
+    "category": "golden_stt",
+    "input": "دزله وات ساب",
+    "expectedIntentAnyOf": [
+      "messageDoctor",
+      "messagePharmacy",
+      "messagePhysio",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "m7g_stt_003",
+    "source": "golden",
+    "category": "golden_stt",
+    "input": "مركز علاج طبييعي",
+    "expectedIntentAnyOf": [
+      "findPhysio",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "m7g_stt_004",
+    "source": "golden",
+    "category": "golden_stt",
+    "input": "صيدلييه",
+    "expectedIntentAnyOf": [
+      "findPharmacy",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "m7g_stt_005",
+    "source": "golden",
+    "category": "golden_stt",
+    "input": "تصوير شعاعيي",
+    "expectedIntentAnyOf": [
+      "findRadiology",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "m7g_spec_001",
+    "source": "golden",
+    "category": "golden_spec",
+    "input": "أريد طبيب اطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_spec_002",
+    "source": "golden",
+    "category": "golden_spec",
+    "input": "أريد طبيب نسائية",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_spec_003",
+    "source": "golden",
+    "category": "golden_spec",
+    "input": "أريد طبيب باطنية",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_spec_004",
+    "source": "golden",
+    "category": "golden_spec",
+    "input": "أريد طبيب قلبية",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_spec_005",
+    "source": "golden",
+    "category": "golden_spec",
+    "input": "أريد طبيب جلدية",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_spec_006",
+    "source": "golden",
+    "category": "golden_spec",
+    "input": "أريد طبيب عظام",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_spec_007",
+    "source": "golden",
+    "category": "golden_spec",
+    "input": "أريد طبيب اسنان",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_spec_008",
+    "source": "golden",
+    "category": "golden_spec",
+    "input": "أريد طبيب عيون",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_rad_001",
+    "source": "golden",
+    "category": "golden_rad",
+    "input": "أريد اشعة",
+    "expectedIntent": "findRadiology",
+    "expectedIntentNot": "specialtySearch",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_rad_002",
+    "source": "golden",
+    "category": "golden_rad",
+    "input": "أريد أشعة",
+    "expectedIntent": "findRadiology",
+    "expectedIntentNot": "specialtySearch",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_rad_003",
+    "source": "golden",
+    "category": "golden_rad",
+    "input": "أريد اشعه",
+    "expectedIntent": "findRadiology",
+    "expectedIntentNot": "specialtySearch",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_rad_004",
+    "source": "golden",
+    "category": "golden_rad",
+    "input": "أريد تصوير شعاعي",
+    "expectedIntent": "findRadiology",
+    "expectedIntentNot": "specialtySearch",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_rad_005",
+    "source": "golden",
+    "category": "golden_rad",
+    "input": "أريد صورة شعاعية",
+    "expectedIntent": "findRadiology",
+    "expectedIntentNot": "specialtySearch",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_rad_006",
+    "source": "golden",
+    "category": "golden_rad",
+    "input": "أريد أشعة سينية",
+    "expectedIntent": "findRadiology",
+    "expectedIntentNot": "specialtySearch",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_hallu_001",
+    "source": "golden",
+    "category": "golden_hallu",
+    "input": "أريد دكتور زرزور الفوسفوري",
+    "expectNoEntityHallucination": true,
+    "expectedIntentAnyOf": [
+      "doctorSearch",
+      "findPharmacy",
+      "findLab",
+      "generalSearch",
+      "unknown",
+      "specialtySearch"
+    ]
+  },
+  {
+    "id": "m7g_hallu_002",
+    "source": "golden",
+    "category": "golden_hallu",
+    "input": "أريد صيدلية الكويكب البعيد",
+    "expectNoEntityHallucination": true,
+    "expectedIntentAnyOf": [
+      "doctorSearch",
+      "findPharmacy",
+      "findLab",
+      "generalSearch",
+      "unknown",
+      "specialtySearch"
+    ]
+  },
+  {
+    "id": "m7g_hallu_003",
+    "source": "golden",
+    "category": "golden_hallu",
+    "input": "أريد مختبر المريخ الشمالي",
+    "expectNoEntityHallucination": true,
+    "expectedIntentAnyOf": [
+      "doctorSearch",
+      "findPharmacy",
+      "findLab",
+      "generalSearch",
+      "unknown",
+      "specialtySearch"
+    ]
+  },
+  {
+    "id": "m7g_cmp_001",
+    "source": "golden",
+    "category": "golden_compound",
+    "input": "أريد طبيب أطفال قريب",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_cmp_002",
+    "source": "golden",
+    "category": "golden_compound",
+    "input": "طلعلي صيدلية فيها واتساب",
+    "expectedIntentAnyOf": [
+      "findPharmacy",
+      "messagePharmacy",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_cmp_003",
+    "source": "golden",
+    "category": "golden_compound",
+    "input": "دورلي مختبر فتح اليوم",
+    "expectedIntentAnyOf": [
+      "findLab",
+      "generalSearch"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_001",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اريدلي صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_002",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اريدلي مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_003",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اريدلي اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_004",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اريدلي علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_005",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اريدلي مستلزمات طبية",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_006",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اريدلي باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_007",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اريدلي مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_008",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اريدلي صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_009",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "أريدلي صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_010",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "أريدلي مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_011",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "أريدلي اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_012",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "أريدلي علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_013",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "أريدلي مستلزمات طبية",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_014",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "أريدلي باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_015",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "أريدلي مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_016",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "أريدلي صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_017",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "طلع لي صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_018",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "طلع لي مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_019",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "طلع لي اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_020",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "طلع لي علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_021",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "طلع لي مستلزمات طبية",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_022",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "طلع لي باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_023",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "طلع لي مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_024",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "طلع لي صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_025",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دور لي صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_026",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دور لي مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_027",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دور لي اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_028",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دور لي علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_029",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دور لي مستلزمات طبية",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_030",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دور لي باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_031",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دور لي مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_032",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دور لي صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_033",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "شوف لي صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_034",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "شوف لي مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_035",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "شوف لي اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_036",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "شوف لي علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_037",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "شوف لي مستلزمات طبية",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_038",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "شوف لي باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_039",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "شوف لي مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_040",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "شوف لي صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_041",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "جيب لي صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_042",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "جيب لي مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_043",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "جيب لي اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_044",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "جيب لي علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_045",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "جيب لي مستلزمات طبية",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_046",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "جيب لي باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_047",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "جيب لي مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_048",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "جيب لي صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_049",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دلني صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_050",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دلني مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_051",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دلني اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_052",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دلني علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_053",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دلني مستلزمات طبية",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_054",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دلني باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_055",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دلني مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_056",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "دلني صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_057",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "وين صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_058",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "وين مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_059",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "وين اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_060",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "وين علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_061",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "وين مستلزمات طبية",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_062",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "وين باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_063",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "وين مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_064",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "وين صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_065",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اكو يمكم صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_066",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اكو يمكم مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_067",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اكو يمكم اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_068",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اكو يمكم علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_069",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اكو يمكم مستلزمات طبية",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_070",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اكو يمكم باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_071",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اكو يمكم مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "m7g_x_072",
+    "source": "golden",
+    "category": "golden_expand",
+    "input": "اكو يمكم صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  }
+]

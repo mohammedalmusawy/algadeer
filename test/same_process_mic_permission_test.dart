@@ -74,7 +74,7 @@ void main() {
     test('dev-host blocked message never offers second-app launch', () {
       expect(
         DeviceSpeechRecognitionService.macosDevHostBlockedMessage,
-        contains('بيئة التطوير'),
+        contains('.app'),
       );
       expect(
         DeviceSpeechRecognitionService.macosDevHostBlockedMessage,

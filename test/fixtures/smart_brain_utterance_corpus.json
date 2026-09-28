@@ -1,0 +1,74 @@
+[
+  {
+    "id": "alias_jehal_specialty",
+    "query": "اريد طبيب جهال",
+    "expect": "specialty",
+    "tags": ["alias", "iraqi", "pediatrics", "phase_a"]
+  },
+  {
+    "id": "alias_atfal_typo",
+    "query": "ابي دكتور اطفل",
+    "expect": "specialty",
+    "tags": ["alias", "iraqi", "pediatrics", "phase_a"]
+  },
+  {
+    "id": "alias_atfal_standard",
+    "query": "أريد طبيب أطفال",
+    "expect": "specialty",
+    "tags": ["specialty", "pediatrics", "phase_a"]
+  },
+  {
+    "id": "platform_lab",
+    "query": "ابحثلي عن مختبر",
+    "expect": "platform",
+    "tags": ["lab", "phase_a"]
+  },
+  {
+    "id": "platform_call_doctor",
+    "query": "اتصل بالدكتور ناجي",
+    "expect": "platform",
+    "tags": ["call", "phase_a"]
+  },
+  {
+    "id": "platform_whatsapp",
+    "query": "واتساب الدكتور علي",
+    "expect": "platform",
+    "tags": ["whatsapp", "phase_a"]
+  },
+  {
+    "id": "platform_radiology",
+    "query": "وين مركز اشعه",
+    "expect": "platform",
+    "tags": ["radiology", "iraqi", "phase_a"]
+  },
+  {
+    "id": "oos_weather",
+    "query": "شلون الطقس اليوم",
+    "expect": "out_of_scope",
+    "tags": ["scope", "iraqi", "phase_a"]
+  },
+  {
+    "id": "oos_trivia",
+    "query": "من فاز بكأس العالم 2014؟",
+    "expect": "out_of_scope",
+    "tags": ["scope", "phase_a"]
+  },
+  {
+    "id": "oos_dollar",
+    "query": "شنو سعر الدولار",
+    "expect": "out_of_scope",
+    "tags": ["scope", "phase_a"]
+  },
+  {
+    "id": "meaning_jehal_to_atfal",
+    "query": "جهال",
+    "expect": "search_meaning_atfal",
+    "tags": ["alias", "normalize", "phase_a"]
+  },
+  {
+    "id": "meaning_whatsapp_typo",
+    "query": "وتساب الدكتور",
+    "expect": "search_meaning_whatsapp",
+    "tags": ["alias", "whatsapp", "phase_a"]
+  }
+]

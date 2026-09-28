@@ -1,0 +1,2564 @@
+[
+  {
+    "id": "g_pharm_intent_01",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "أريد صيدلية",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_pharm_intent_02",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "اريد صيدليه",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_pharm_intent_03",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "طلعلي صيدليات",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_pharm_intent_04",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "دورلي صيدلية",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_pharm_intent_05",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "شوفلي صيدليات",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_pharm_intent_06",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "وين اكو صيدلية",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_pharm_intent_07",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "عدكم صيدليات",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_pharm_intent_08",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "عندكم صيدلية",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_pharm_intent_09",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "أكو يمكم صيدلية",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_pharm_intent_10",
+    "source": "golden",
+    "category": "intent_pharmacy",
+    "input": "ابحثلي عن صيدلية",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_physio_intent_01",
+    "source": "golden",
+    "category": "intent_physio",
+    "input": "أريد علاج طبيعي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_physio_intent_02",
+    "source": "golden",
+    "category": "intent_physio",
+    "input": "اريد فيزيو",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_physio_intent_03",
+    "source": "golden",
+    "category": "intent_physio",
+    "input": "طلعلي مراكز علاج طبيعي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_physio_intent_04",
+    "source": "golden",
+    "category": "intent_physio",
+    "input": "وين اكو علاج طبيعي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_physio_intent_05",
+    "source": "golden",
+    "category": "intent_physio",
+    "input": "أريد مركز علاج طبيعي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_physio_intent_06",
+    "source": "golden",
+    "category": "intent_physio",
+    "input": "دورلي تأهيل حركي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_physio_intent_07",
+    "source": "golden",
+    "category": "intent_physio",
+    "input": "اريد فيزيوثيرابي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_physio_intent_08",
+    "source": "golden",
+    "category": "intent_physio",
+    "input": "شوفلي علاج طبيعي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_supply_intent_01",
+    "source": "golden",
+    "category": "intent_supply",
+    "input": "أريد مستلزمات طبية",
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "g_supply_intent_02",
+    "source": "golden",
+    "category": "intent_supply",
+    "input": "اريد مستلزمات",
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "g_supply_intent_03",
+    "source": "golden",
+    "category": "intent_supply",
+    "input": "طلعلي تجهيزات طبية",
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "g_supply_intent_04",
+    "source": "golden",
+    "category": "intent_supply",
+    "input": "وين اكو مستلزمات",
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "g_supply_intent_05",
+    "source": "golden",
+    "category": "intent_supply",
+    "input": "أريد معدات طبية",
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "g_supply_intent_06",
+    "source": "golden",
+    "category": "intent_supply",
+    "input": "دورلي مواد طبية",
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "g_supply_intent_07",
+    "source": "golden",
+    "category": "intent_supply",
+    "input": "شوفلي تجهيزات",
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "g_supply_intent_08",
+    "source": "golden",
+    "category": "intent_supply",
+    "input": "عدكم مستلزمات طبيه",
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "g_lab_intent_01",
+    "source": "golden",
+    "category": "intent_lab",
+    "input": "أريد مختبر",
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "g_lab_intent_02",
+    "source": "golden",
+    "category": "intent_lab",
+    "input": "طلعلي مختبرات",
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "g_lab_intent_03",
+    "source": "golden",
+    "category": "intent_lab",
+    "input": "ابحثلي عن مختبر",
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "g_lab_intent_04",
+    "source": "golden",
+    "category": "intent_lab",
+    "input": "وين اكو مختبر",
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "g_lab_intent_05",
+    "source": "golden",
+    "category": "intent_lab",
+    "input": "دورلي مختبر",
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "g_lab_intent_06",
+    "source": "golden",
+    "category": "intent_lab",
+    "input": "عندكم مختبرات",
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "g_rad_intent_01",
+    "source": "golden",
+    "category": "intent_radiology",
+    "input": "أريد أشعة",
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "g_rad_intent_02",
+    "source": "golden",
+    "category": "intent_radiology",
+    "input": "اريد اشعة",
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "g_rad_intent_03",
+    "source": "golden",
+    "category": "intent_radiology",
+    "input": "وين مركز اشعه",
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "g_rad_intent_04",
+    "source": "golden",
+    "category": "intent_radiology",
+    "input": "طلعلي اشعة",
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "g_rad_intent_05",
+    "source": "golden",
+    "category": "intent_radiology",
+    "input": "أريد تصوير شعاعي",
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "g_rad_intent_06",
+    "source": "golden",
+    "category": "intent_radiology",
+    "input": "دورلي صورة شعاعية",
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "g_rad_intent_07",
+    "source": "golden",
+    "category": "intent_radiology",
+    "input": "شوفلي شعاع",
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "g_ped_intent_01",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "أريد طبيب أطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_ped_intent_02",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "اريد دكتور اطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_ped_intent_03",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "طلعلي أطباء أطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_ped_intent_04",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "أريد طبيب جهال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_ped_intent_05",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "ابي دكتور اطفل",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_ped_intent_06",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "أريد طبيب للجهال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_ped_intent_07",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "دورلي طبيب طفل",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_ped_intent_08",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "شوفلي دكتور اطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_pkg_intent_01",
+    "source": "golden",
+    "category": "intent_package",
+    "input": "أريد باقة",
+    "expectedIntent": "findPackage"
+  },
+  {
+    "id": "g_pkg_intent_02",
+    "source": "golden",
+    "category": "intent_package",
+    "input": "طلعلي باقات",
+    "expectedIntent": "findPackage"
+  },
+  {
+    "id": "g_pkg_intent_03",
+    "source": "golden",
+    "category": "intent_package",
+    "input": "شوفلي الباقات",
+    "expectedIntent": "findPackage"
+  },
+  {
+    "id": "g_pkg_intent_04",
+    "source": "golden",
+    "category": "intent_package",
+    "input": "دورلي باقة",
+    "expectedIntent": "findPackage"
+  },
+  {
+    "id": "g_offer_intent_01",
+    "source": "golden",
+    "category": "intent_offer",
+    "input": "أريد عروض",
+    "expectedIntentAnyOf": [
+      "findOffer",
+      "findPackage"
+    ]
+  },
+  {
+    "id": "g_offer_intent_02",
+    "source": "golden",
+    "category": "intent_offer",
+    "input": "طلعلي عروض",
+    "expectedIntentAnyOf": [
+      "findOffer",
+      "findPackage"
+    ]
+  },
+  {
+    "id": "g_offer_intent_03",
+    "source": "golden",
+    "category": "intent_offer",
+    "input": "شوفلي خصومات",
+    "expectedIntentAnyOf": [
+      "findOffer",
+      "findPackage"
+    ]
+  },
+  {
+    "id": "g_offer_intent_04",
+    "source": "golden",
+    "category": "intent_offer",
+    "input": "وين اكو خصم",
+    "expectedIntentAnyOf": [
+      "findOffer",
+      "findPackage"
+    ]
+  },
+  {
+    "id": "g_call_intent_01",
+    "source": "golden",
+    "category": "intent_call",
+    "input": "اتصل بالدكتور",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "callPharmacy",
+      "callPhysio",
+      "callLab",
+      "showLocation",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_call_intent_02",
+    "source": "golden",
+    "category": "intent_call",
+    "input": "اتصال بالطبيب",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "callPharmacy",
+      "callPhysio",
+      "callLab",
+      "showLocation",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_call_intent_03",
+    "source": "golden",
+    "category": "intent_call",
+    "input": "دكله",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "callPharmacy",
+      "callPhysio",
+      "callLab",
+      "showLocation",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_call_intent_04",
+    "source": "golden",
+    "category": "intent_call",
+    "input": "اريد احجي وياه",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "callPharmacy",
+      "callPhysio",
+      "callLab",
+      "showLocation",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_wa_intent_01",
+    "source": "golden",
+    "category": "intent_whatsapp",
+    "input": "دزله واتساب",
+    "expectedIntentAnyOf": [
+      "messageDoctor",
+      "messagePharmacy",
+      "messagePhysio",
+      "messageLab",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_wa_intent_02",
+    "source": "golden",
+    "category": "intent_whatsapp",
+    "input": "دزلها واتس",
+    "expectedIntentAnyOf": [
+      "messageDoctor",
+      "messagePharmacy",
+      "messagePhysio",
+      "messageLab",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_wa_intent_03",
+    "source": "golden",
+    "category": "intent_whatsapp",
+    "input": "راسله واتساب",
+    "expectedIntentAnyOf": [
+      "messageDoctor",
+      "messagePharmacy",
+      "messagePhysio",
+      "messageLab",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_wa_intent_04",
+    "source": "golden",
+    "category": "intent_whatsapp",
+    "input": "دزله رسالة",
+    "expectedIntentAnyOf": [
+      "messageDoctor",
+      "messagePharmacy",
+      "messagePhysio",
+      "messageLab",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_wa_intent_05",
+    "source": "golden",
+    "category": "intent_whatsapp",
+    "input": "وتساب",
+    "expectedIntentAnyOf": [
+      "messageDoctor",
+      "messagePharmacy",
+      "messagePhysio",
+      "messageLab",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_wa_intent_06",
+    "source": "golden",
+    "category": "intent_whatsapp",
+    "input": "واتس اب للدكتور",
+    "expectedIntentAnyOf": [
+      "messageDoctor",
+      "messagePharmacy",
+      "messagePhysio",
+      "messageLab",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_loc_intent_01",
+    "source": "golden",
+    "category": "intent_location",
+    "input": "وينه",
+    "expectedIntentAnyOf": [
+      "showLocation",
+      "unknown",
+      "generalSearch",
+      "selectResult"
+    ]
+  },
+  {
+    "id": "g_loc_intent_02",
+    "source": "golden",
+    "category": "intent_location",
+    "input": "وينها",
+    "expectedIntentAnyOf": [
+      "showLocation",
+      "unknown",
+      "generalSearch",
+      "selectResult"
+    ]
+  },
+  {
+    "id": "g_loc_intent_03",
+    "source": "golden",
+    "category": "intent_location",
+    "input": "الموقع",
+    "expectedIntentAnyOf": [
+      "showLocation",
+      "unknown",
+      "generalSearch",
+      "selectResult"
+    ]
+  },
+  {
+    "id": "g_loc_intent_04",
+    "source": "golden",
+    "category": "intent_location",
+    "input": "العنوان",
+    "expectedIntentAnyOf": [
+      "showLocation",
+      "unknown",
+      "generalSearch",
+      "selectResult"
+    ]
+  },
+  {
+    "id": "g_loc_intent_05",
+    "source": "golden",
+    "category": "intent_location",
+    "input": "دلني عليه",
+    "expectedIntentAnyOf": [
+      "showLocation",
+      "unknown",
+      "generalSearch",
+      "selectResult"
+    ]
+  },
+  {
+    "id": "g_loc_intent_06",
+    "source": "golden",
+    "category": "intent_location",
+    "input": "وين مكانه",
+    "expectedIntentAnyOf": [
+      "showLocation",
+      "unknown",
+      "generalSearch",
+      "selectResult"
+    ]
+  },
+  {
+    "id": "g_open_intent_01",
+    "source": "golden",
+    "category": "intent_open",
+    "input": "افتحه",
+    "expectedIntentAnyOf": [
+      "showProfile",
+      "selectResult",
+      "unknown",
+      "generalSearch",
+      "showMore"
+    ]
+  },
+  {
+    "id": "g_open_intent_02",
+    "source": "golden",
+    "category": "intent_open",
+    "input": "افتحها",
+    "expectedIntentAnyOf": [
+      "showProfile",
+      "selectResult",
+      "unknown",
+      "generalSearch",
+      "showMore"
+    ]
+  },
+  {
+    "id": "g_open_intent_03",
+    "source": "golden",
+    "category": "intent_open",
+    "input": "وريني",
+    "expectedIntentAnyOf": [
+      "showProfile",
+      "selectResult",
+      "unknown",
+      "generalSearch",
+      "showMore"
+    ]
+  },
+  {
+    "id": "g_open_intent_04",
+    "source": "golden",
+    "category": "intent_open",
+    "input": "شوف التفاصيل",
+    "expectedIntentAnyOf": [
+      "showProfile",
+      "selectResult",
+      "unknown",
+      "generalSearch",
+      "showMore"
+    ]
+  },
+  {
+    "id": "g_open_intent_05",
+    "source": "golden",
+    "category": "intent_open",
+    "input": "طلع التفاصيل",
+    "expectedIntentAnyOf": [
+      "showProfile",
+      "selectResult",
+      "unknown",
+      "generalSearch",
+      "showMore"
+    ]
+  },
+  {
+    "id": "g_ord_intent_01",
+    "source": "golden",
+    "category": "intent_ordinal",
+    "input": "الأول",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_ord_intent_02",
+    "source": "golden",
+    "category": "intent_ordinal",
+    "input": "الاول",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_ord_intent_03",
+    "source": "golden",
+    "category": "intent_ordinal",
+    "input": "اول واحد",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_ord_intent_04",
+    "source": "golden",
+    "category": "intent_ordinal",
+    "input": "الثاني",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_ord_intent_05",
+    "source": "golden",
+    "category": "intent_ordinal",
+    "input": "ثاني واحد",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_ord_intent_06",
+    "source": "golden",
+    "category": "intent_ordinal",
+    "input": "الثالث",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_ord_intent_07",
+    "source": "golden",
+    "category": "intent_ordinal",
+    "input": "الرابع",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_ord_intent_08",
+    "source": "golden",
+    "category": "intent_ordinal",
+    "input": "الأخير",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_ord_intent_09",
+    "source": "golden",
+    "category": "intent_ordinal",
+    "input": "الاخير",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_amb_ilaj_alone",
+    "source": "golden",
+    "category": "ambiguity_guard",
+    "input": "اريد علاج",
+    "expectedIntentNot": "findPhysio",
+    "notes": "علاج وحدها ليست فيزيو"
+  },
+  {
+    "id": "g_amb_tahlil_soft",
+    "source": "golden",
+    "category": "ambiguity_guard",
+    "input": "اريد تحليل",
+    "expectedIntentAnyOf": [
+      "findAnalysis",
+      "findLab",
+      "generalSearch",
+      "doctorSearch",
+      "unknown"
+    ]
+  },
+  {
+    "id": "g_amb_san_years",
+    "source": "golden",
+    "category": "ambiguity_guard",
+    "input": "عمره 5 سنوات",
+    "expectedNotPlatformForce": true,
+    "notes": "سن يجب ألا تُربط بأسنان خطأً في هذا السياق"
+  },
+  {
+    "id": "g_oos_01",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "من فاز بكأس العالم 2014؟",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_02",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "شلون الطقس اليوم",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_03",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "شنو سعر الدولار",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_04",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "ترجملي هالجملة",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_05",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "شنو وصفة الكبة",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_06",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "منو رئيس الجمهورية",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_07",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "اعطني دواء للصداع",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_08",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "شنو التشخيص",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_09",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "كم سعر الذهب",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_10",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "افتح يوتيوب",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_11",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "شغل اغنية",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_12",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "احسب لي 15*3",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_noise_01",
+    "source": "golden",
+    "category": "noisy_input",
+    "input": "....",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_noise_02",
+    "source": "golden",
+    "category": "noisy_input",
+    "input": "؟؟",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_noise_03",
+    "source": "golden",
+    "category": "noisy_input",
+    "input": "   ",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_noise_04",
+    "source": "golden",
+    "category": "noisy_input",
+    "input": "اااااا",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_noise_05",
+    "source": "golden",
+    "category": "noisy_input",
+    "input": "؟",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_noise_06",
+    "source": "golden",
+    "category": "noisy_input",
+    "input": "..",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_noise_07",
+    "source": "golden",
+    "category": "noisy_input",
+    "input": "xxx",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_noise_08",
+    "source": "golden",
+    "category": "noisy_input",
+    "input": "!!!",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_yesno_bare_01",
+    "source": "golden",
+    "category": "yes_no_bare",
+    "input": "نعم",
+    "expectNoEntityHallucination": true,
+    "notes": "بلا pending لا بحث عشوائي"
+  },
+  {
+    "id": "g_yesno_bare_02",
+    "source": "golden",
+    "category": "yes_no_bare",
+    "input": "اي",
+    "expectNoEntityHallucination": true,
+    "notes": "بلا pending لا بحث عشوائي"
+  },
+  {
+    "id": "g_yesno_bare_03",
+    "source": "golden",
+    "category": "yes_no_bare",
+    "input": "إي",
+    "expectNoEntityHallucination": true,
+    "notes": "بلا pending لا بحث عشوائي"
+  },
+  {
+    "id": "g_yesno_bare_04",
+    "source": "golden",
+    "category": "yes_no_bare",
+    "input": "ايوه",
+    "expectNoEntityHallucination": true,
+    "notes": "بلا pending لا بحث عشوائي"
+  },
+  {
+    "id": "g_yesno_bare_05",
+    "source": "golden",
+    "category": "yes_no_bare",
+    "input": "تمام",
+    "expectNoEntityHallucination": true,
+    "notes": "بلا pending لا بحث عشوائي"
+  },
+  {
+    "id": "g_yesno_bare_06",
+    "source": "golden",
+    "category": "yes_no_bare",
+    "input": "لا",
+    "expectNoEntityHallucination": true,
+    "notes": "بلا pending لا بحث عشوائي"
+  },
+  {
+    "id": "g_yesno_bare_07",
+    "source": "golden",
+    "category": "yes_no_bare",
+    "input": "مو هو",
+    "expectNoEntityHallucination": true,
+    "notes": "بلا pending لا بحث عشوائي"
+  },
+  {
+    "id": "g_yesno_bare_08",
+    "source": "golden",
+    "category": "yes_no_bare",
+    "input": "غيره",
+    "expectNoEntityHallucination": true,
+    "notes": "بلا pending لا بحث عشوائي"
+  },
+  {
+    "id": "g_stt_01",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "اريد اريد طبيب اطفال",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_02",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "طلعلي صيدليه",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_03",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "مركز علاج طبييعي",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_04",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "مستلزمات طبيه",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_05",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "دزله وات ساب",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_06",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "وين اكو مختبرات",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_07",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "اريد فيزيو ثيرابي",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_08",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "اشعه رنين",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_irq_pref_01",
+    "source": "golden",
+    "category": "iraqi_prefix",
+    "input": "أريدلي صيدلية",
+    "expectedIntentAnyOf": [
+      "findPharmacy",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_irq_pref_02",
+    "source": "golden",
+    "category": "iraqi_prefix",
+    "input": "اريدلي صيدليه",
+    "expectedIntentAnyOf": [
+      "findPharmacy",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_irq_pref_03",
+    "source": "golden",
+    "category": "iraqi_prefix",
+    "input": "دلني على صيدلية",
+    "expectedIntentAnyOf": [
+      "findPharmacy",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_irq_pref_04",
+    "source": "golden",
+    "category": "iraqi_prefix",
+    "input": "أريد واحد صيدلية",
+    "expectedIntentAnyOf": [
+      "findPharmacy",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_irq_pref_05",
+    "source": "golden",
+    "category": "iraqi_prefix",
+    "input": "أريد مكان صيدلية",
+    "expectedIntentAnyOf": [
+      "findPharmacy",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_corr_01",
+    "source": "golden",
+    "category": "correction_phrase",
+    "input": "لا قصدي صيدلية",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_corr_02",
+    "source": "golden",
+    "category": "correction_phrase",
+    "input": "قصدي مختبر",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_corr_03",
+    "source": "golden",
+    "category": "correction_phrase",
+    "input": "أقصد علاج طبيعي",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_corr_04",
+    "source": "golden",
+    "category": "correction_phrase",
+    "input": "مو هذا",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_corr_05",
+    "source": "golden",
+    "category": "correction_phrase",
+    "input": "غيره",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_corr_06",
+    "source": "golden",
+    "category": "correction_phrase",
+    "input": "لا أريد طبيبة",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_gender_01",
+    "source": "golden",
+    "category": "gender_specialty",
+    "input": "أريد طبيبة",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_gender_02",
+    "source": "golden",
+    "category": "gender_specialty",
+    "input": "اريد دكتورة",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_gender_03",
+    "source": "golden",
+    "category": "gender_specialty",
+    "input": "أريد طبيبة نسائية",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_gender_04",
+    "source": "golden",
+    "category": "gender_specialty",
+    "input": "طلعلي طبيبة اطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_gender_05",
+    "source": "golden",
+    "category": "gender_specialty",
+    "input": "أريد دكتورة نساء",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_compound_01",
+    "source": "golden",
+    "category": "compound_request",
+    "input": "طلعلي طبيب أطفال عنده واتساب",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_compound_02",
+    "source": "golden",
+    "category": "compound_request",
+    "input": "أريد طبيبة نسائية",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_compound_03",
+    "source": "golden",
+    "category": "compound_request",
+    "input": "صيدلية عندها عرض",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_compound_04",
+    "source": "golden",
+    "category": "compound_request",
+    "input": "طلعلي مستلزمات وافتح الأول",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_wa_safety_phrase",
+    "source": "golden",
+    "category": "whatsapp_safety",
+    "input": "دزله واتساب",
+    "expectedIntentAnyOf": [
+      "messageDoctor",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_typeword_01",
+    "source": "golden",
+    "category": "entity_type_word",
+    "input": "دكتور",
+    "expectedIntentAnyOf": [
+      "doctorSearch",
+      "generalSearch",
+      "specialtySearch",
+      "doctorSearch",
+      "findLab",
+      "findPharmacy"
+    ]
+  },
+  {
+    "id": "g_typeword_02",
+    "source": "golden",
+    "category": "entity_type_word",
+    "input": "دكتورة",
+    "expectedIntentAnyOf": [
+      "doctorSearch",
+      "generalSearch",
+      "specialtySearch",
+      "doctorSearch",
+      "findLab",
+      "findPharmacy"
+    ]
+  },
+  {
+    "id": "g_typeword_03",
+    "source": "golden",
+    "category": "entity_type_word",
+    "input": "طبيب",
+    "expectedIntentAnyOf": [
+      "doctorSearch",
+      "generalSearch",
+      "specialtySearch",
+      "doctorSearch",
+      "findLab",
+      "findPharmacy"
+    ]
+  },
+  {
+    "id": "g_typeword_04",
+    "source": "golden",
+    "category": "entity_type_word",
+    "input": "طبيبة",
+    "expectedIntentAnyOf": [
+      "doctorSearch",
+      "generalSearch",
+      "specialtySearch",
+      "doctorSearch",
+      "findLab",
+      "findPharmacy"
+    ]
+  },
+  {
+    "id": "g_typeword_05",
+    "source": "golden",
+    "category": "entity_type_word",
+    "input": "صيدليات",
+    "expectedIntentAnyOf": [
+      "findPharmacy",
+      "generalSearch",
+      "specialtySearch",
+      "doctorSearch",
+      "findLab",
+      "findPharmacy"
+    ]
+  },
+  {
+    "id": "g_typeword_06",
+    "source": "golden",
+    "category": "entity_type_word",
+    "input": "مختبرات",
+    "expectedIntentAnyOf": [
+      "findLab",
+      "generalSearch",
+      "specialtySearch",
+      "doctorSearch",
+      "findLab",
+      "findPharmacy"
+    ]
+  },
+  {
+    "id": "g_oos_extra_01",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "وصف لي علاج للضغط",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_extra_02",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "عطني دواء للسكر",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_extra_03",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "هل عندي سرطان",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_extra_04",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "شنو معنى كلمة hello",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_extra_05",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "كم درجة الحرارة باجر",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_oos_extra_06",
+    "source": "golden",
+    "category": "out_of_scope",
+    "input": "فتح انستا",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_ped_extra_01",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "اطباء اطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_ped_extra_02",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "دكاترة جهال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_ped_extra_03",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "طبيب اطفل قريب",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_ped_extra_04",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "ابي دكتور للطفل",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_ped_extra_05",
+    "source": "golden",
+    "category": "intent_specialty_pediatrics",
+    "input": "أريد أطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_aku_01",
+    "source": "golden",
+    "category": "iraqi_aku",
+    "input": "اكو صيدلية",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_aku_02",
+    "source": "golden",
+    "category": "iraqi_aku",
+    "input": "اكو علاج طبيعي",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_aku_03",
+    "source": "golden",
+    "category": "iraqi_aku",
+    "input": "اكو مستلزمات",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_aku_04",
+    "source": "golden",
+    "category": "iraqi_aku",
+    "input": "اكو مختبر",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_aku_05",
+    "source": "golden",
+    "category": "iraqi_aku",
+    "input": "اكو اشعة",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_aku_06",
+    "source": "golden",
+    "category": "iraqi_aku",
+    "input": "اكو باقات",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_aku_07",
+    "source": "golden",
+    "category": "iraqi_aku",
+    "input": "اكو عروض",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_pronoun_01",
+    "source": "golden",
+    "category": "pronoun_bare",
+    "input": "هو",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_pronoun_02",
+    "source": "golden",
+    "category": "pronoun_bare",
+    "input": "هي",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_pronoun_03",
+    "source": "golden",
+    "category": "pronoun_bare",
+    "input": "هذا",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_pronoun_04",
+    "source": "golden",
+    "category": "pronoun_bare",
+    "input": "هاي",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_pronoun_05",
+    "source": "golden",
+    "category": "pronoun_bare",
+    "input": "ذاك",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_pronoun_06",
+    "source": "golden",
+    "category": "pronoun_bare",
+    "input": "هذاك",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_pronoun_07",
+    "source": "golden",
+    "category": "pronoun_bare",
+    "input": "نفسه",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_pronoun_08",
+    "source": "golden",
+    "category": "pronoun_bare",
+    "input": "ماله",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_stt_extra_01",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "اريد صيدلييه",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_extra_02",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "علاج طييعي",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_extra_03",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "مستلزمات طبيةة",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_extra_04",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "مختبرات ات",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_extra_05",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "اشععع",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_stt_extra_06",
+    "source": "golden",
+    "category": "voice_stt",
+    "input": "باققاات",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_noise_empty",
+    "source": "golden",
+    "category": "noisy_input",
+    "input": "",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_rel_01",
+    "source": "golden",
+    "category": "relationship_phrase",
+    "input": "شنو باقاتها",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_rel_02",
+    "source": "golden",
+    "category": "relationship_phrase",
+    "input": "عنده عروض؟",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_rel_03",
+    "source": "golden",
+    "category": "relationship_phrase",
+    "input": "هاي مال منو؟",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_rel_04",
+    "source": "golden",
+    "category": "relationship_phrase",
+    "input": "عليه عرض",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_rel_05",
+    "source": "golden",
+    "category": "relationship_phrase",
+    "input": "عليها عرض",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_call_irq_01",
+    "source": "golden",
+    "category": "intent_call",
+    "input": "دكلهم",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "unknown",
+      "generalSearch",
+      "messageDoctor",
+      "showLocation"
+    ]
+  },
+  {
+    "id": "g_call_irq_02",
+    "source": "golden",
+    "category": "intent_call",
+    "input": "دكلها",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "unknown",
+      "generalSearch",
+      "messageDoctor",
+      "showLocation"
+    ]
+  },
+  {
+    "id": "g_call_irq_03",
+    "source": "golden",
+    "category": "intent_call",
+    "input": "أريد أحجي وياها",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "unknown",
+      "generalSearch",
+      "messageDoctor",
+      "showLocation"
+    ]
+  },
+  {
+    "id": "g_call_irq_04",
+    "source": "golden",
+    "category": "intent_call",
+    "input": "احجي وياه",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "unknown",
+      "generalSearch",
+      "messageDoctor",
+      "showLocation"
+    ]
+  },
+  {
+    "id": "g_v2_corr_01",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "لا قصدي صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_corr_02",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "لا قصدي صيدليه",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_corr_03",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "قصدي مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_corr_04",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "أقصد مختبرات",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_corr_05",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "أقصد علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_corr_06",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "قصدي فيزيو",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_corr_07",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "قصدي مستلزمات",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_corr_08",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "أقصد اشعة",
+    "expectedIntent": "findRadiology",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_corr_09",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "لا قصدي باقات",
+    "expectedIntent": "findPackage",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_corr_10",
+    "source": "golden",
+    "category": "v2_correction",
+    "input": "قصدي عروض",
+    "expectedIntent": null,
+    "expectedIntentAnyOf": [
+      "findOffer",
+      "findPackage"
+    ],
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_reject_01",
+    "source": "golden",
+    "category": "v2_reject_suggestion",
+    "input": "مو هذا",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_reject_02",
+    "source": "golden",
+    "category": "v2_reject_suggestion",
+    "input": "مو هو",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_reject_03",
+    "source": "golden",
+    "category": "v2_reject_suggestion",
+    "input": "غيره",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_reject_04",
+    "source": "golden",
+    "category": "v2_reject_suggestion",
+    "input": "مو هاي",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_reject_05",
+    "source": "golden",
+    "category": "v2_reject_suggestion",
+    "input": "لا مو هذا",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_reject_06",
+    "source": "golden",
+    "category": "v2_reject_suggestion",
+    "input": "مو هذيج",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_pref_01",
+    "source": "golden",
+    "category": "v2_iraqi_prefix",
+    "input": "أريدلي صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_pref_02",
+    "source": "golden",
+    "category": "v2_iraqi_prefix",
+    "input": "اريدلي صيدليات",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_pref_03",
+    "source": "golden",
+    "category": "v2_iraqi_prefix",
+    "input": "أريدلي علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_pref_04",
+    "source": "golden",
+    "category": "v2_iraqi_prefix",
+    "input": "اريدلي مستلزمات",
+    "expectedIntent": "findSupply",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_pref_05",
+    "source": "golden",
+    "category": "v2_iraqi_prefix",
+    "input": "أريدلي مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_pref_06",
+    "source": "golden",
+    "category": "v2_iraqi_prefix",
+    "input": "دلني على صيدلية",
+    "expectedIntent": "findPharmacy",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_pref_07",
+    "source": "golden",
+    "category": "v2_iraqi_prefix",
+    "input": "دلني على مختبر",
+    "expectedIntent": "findLab",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_pref_08",
+    "source": "golden",
+    "category": "v2_iraqi_prefix",
+    "input": "دلني على علاج طبيعي",
+    "expectedIntent": "findPhysio",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_01",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "اريد اريد صيدليه",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_02",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "طلعلي علاج طبييعي",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_03",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "مستلزمات طبيهه",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_04",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "اشععع رنين",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_05",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "دزله واتتساب",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_06",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "وين اكو مختبرات",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_07",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "اريد فيزيو ثيرابي",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_08",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "طلعلي صيدلييه",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_09",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "باااقات",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_10",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "خصموووات",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_11",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "طبيب اطفاال",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_stt_12",
+    "source": "golden",
+    "category": "v2_stt",
+    "input": "دكتور جهاال",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_ord_01",
+    "source": "golden",
+    "category": "v2_ordinal",
+    "input": "اللي قبله",
+    "expectedIntentAnyOf": [
+      "selectResult",
+      "unknown",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_v2_ord_02",
+    "source": "golden",
+    "category": "v2_ordinal",
+    "input": "اللي بعده",
+    "expectedIntentAnyOf": [
+      "selectResult",
+      "unknown",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_v2_ord_03",
+    "source": "golden",
+    "category": "v2_ordinal",
+    "input": "اخر واحد",
+    "expectedIntentAnyOf": [
+      "selectResult",
+      "unknown",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_v2_ord_04",
+    "source": "golden",
+    "category": "v2_ordinal",
+    "input": "آخر واحد",
+    "expectedIntentAnyOf": [
+      "selectResult",
+      "unknown",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_v2_comp_01",
+    "source": "golden",
+    "category": "v2_compound",
+    "input": "طلعلي طبيب أطفال عنده واتساب",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_comp_02",
+    "source": "golden",
+    "category": "v2_compound",
+    "input": "أريد طبيبة نسائية",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_comp_03",
+    "source": "golden",
+    "category": "v2_compound",
+    "input": "صيدلية عندها عرض",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_comp_04",
+    "source": "golden",
+    "category": "v2_compound",
+    "input": "أريد مركز علاج طبيعي",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_comp_05",
+    "source": "golden",
+    "category": "v2_compound",
+    "input": "طلعلي مستلزمات طبية",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_comp_06",
+    "source": "golden",
+    "category": "v2_compound",
+    "input": "وين اكو اشعة",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_oos_01",
+    "source": "golden",
+    "category": "v2_out_of_scope",
+    "input": "منو رئيس الوزراء",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2_oos_02",
+    "source": "golden",
+    "category": "v2_out_of_scope",
+    "input": "شغل اغنية عراقية",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2_oos_03",
+    "source": "golden",
+    "category": "v2_out_of_scope",
+    "input": "احسبلي 100+50",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2_oos_04",
+    "source": "golden",
+    "category": "v2_out_of_scope",
+    "input": "هل عندي سكري",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2_oos_05",
+    "source": "golden",
+    "category": "v2_out_of_scope",
+    "input": "سعر الاسهم",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2_oos_06",
+    "source": "golden",
+    "category": "v2_out_of_scope",
+    "input": "افتح تيك توك",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2_oos_07",
+    "source": "golden",
+    "category": "v2_out_of_scope",
+    "input": "شنو عاصمة فرنسا",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2_oos_08",
+    "source": "golden",
+    "category": "v2_out_of_scope",
+    "input": "ترجم hello",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2_rel_01",
+    "source": "golden",
+    "category": "v2_relationship",
+    "input": "شنو باقاتها",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_rel_02",
+    "source": "golden",
+    "category": "v2_relationship",
+    "input": "عنده عروض؟",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_rel_03",
+    "source": "golden",
+    "category": "v2_relationship",
+    "input": "عليه عرض",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_rel_04",
+    "source": "golden",
+    "category": "v2_relationship",
+    "input": "عليها عرض",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_rel_05",
+    "source": "golden",
+    "category": "v2_relationship",
+    "input": "هاي مال منو؟",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_rel_06",
+    "source": "golden",
+    "category": "v2_relationship",
+    "input": "باقات المختبر",
+    "expectNotRefuse": true
+  },
+  {
+    "id": "g_v2_gender_01",
+    "source": "golden",
+    "category": "v2_gender",
+    "input": "أريد طبيبة",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2_gender_02",
+    "source": "golden",
+    "category": "v2_gender",
+    "input": "طلعلي طبيبة",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2_gender_03",
+    "source": "golden",
+    "category": "v2_gender",
+    "input": "دكتورة اطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2_gender_04",
+    "source": "golden",
+    "category": "v2_gender",
+    "input": "طبيبة نساء",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2_noise_01",
+    "source": "golden",
+    "category": "v2_noisy",
+    "input": "؟؟؟؟",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_noise_02",
+    "source": "golden",
+    "category": "v2_noisy",
+    "input": "........",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_noise_03",
+    "source": "golden",
+    "category": "v2_noisy",
+    "input": "هههههه",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_noise_04",
+    "source": "golden",
+    "category": "v2_noisy",
+    "input": "ااا",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2_noise_05",
+    "source": "golden",
+    "category": "v2_noisy",
+    "input": "   \t  ",
+    "expectNoEntityHallucination": true
+  },
+  {
+    "id": "g_v2c_corr_01",
+    "source": "golden",
+    "category": "v2c_correction",
+    "input": "لا قصدي مختبر قصدي صيدلية",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_v2c_corr_02",
+    "source": "golden",
+    "category": "v2c_correction",
+    "input": "مو مختبر أقصد علاج طبيعي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_v2c_corr_03",
+    "source": "golden",
+    "category": "v2c_correction",
+    "input": "قصدي أشعة مو مختبر",
+    "expectedIntent": "findRadiology"
+  },
+  {
+    "id": "g_v2c_corr_04",
+    "source": "golden",
+    "category": "v2c_correction",
+    "input": "لا قصدي صيدليه قصدي مستلزمات",
+    "expectedIntent": "findSupply"
+  },
+  {
+    "id": "g_v2c_corr_05",
+    "source": "golden",
+    "category": "v2c_correction",
+    "input": "أقصد باقات مو عروض",
+    "expectedIntentAnyOf": [
+      "findPackage",
+      "findOffer"
+    ]
+  },
+  {
+    "id": "g_v2c_corr_06",
+    "source": "golden",
+    "category": "v2c_correction",
+    "input": "مو هذا قصدي طبيب أطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_corr_07",
+    "source": "golden",
+    "category": "v2c_correction",
+    "input": "قصدي فيزيو مو مستشفى",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_v2c_corr_08",
+    "source": "golden",
+    "category": "v2c_correction",
+    "input": "لا مو صيدلية قصدي مختبر",
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "g_v2c_ord_01",
+    "source": "golden",
+    "category": "v2c_ordinal_correction",
+    "input": "لا مو الثاني الأول",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_v2c_ord_02",
+    "source": "golden",
+    "category": "v2c_ordinal_correction",
+    "input": "مو الثاني قصدي الأول",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_v2c_ord_03",
+    "source": "golden",
+    "category": "v2c_ordinal_correction",
+    "input": "لا مو الأول الثاني",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_v2c_ord_04",
+    "source": "golden",
+    "category": "v2c_ordinal_correction",
+    "input": "مو الثالث قصدي الثاني",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_v2c_ord_05",
+    "source": "golden",
+    "category": "v2c_ordinal_correction",
+    "input": "لا مو الثانيه الاولى",
+    "expectedIntent": "selectResult"
+  },
+  {
+    "id": "g_v2c_int_01",
+    "source": "golden",
+    "category": "v2c_interrupt",
+    "input": "لا قصدي طلعلي صيدليات",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_v2c_int_02",
+    "source": "golden",
+    "category": "v2c_interrupt",
+    "input": "وقف دورلي مختبر",
+    "expectedIntentAnyOf": [
+      "findLab",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_int_03",
+    "source": "golden",
+    "category": "v2c_interrupt",
+    "input": "غيره طلعلي علاج طبيعي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_v2c_int_04",
+    "source": "golden",
+    "category": "v2c_interrupt",
+    "input": "خليني أشوف صيدليات",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_v2c_pro_02",
+    "source": "golden",
+    "category": "v2c_pronoun",
+    "input": "اتصل بيه",
+    "expectedIntentAnyOf": [
+      "callDoctor",
+      "unknown",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_stt_01",
+    "source": "golden",
+    "category": "v2c_stt",
+    "input": "اريدلي طبيب اطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_stt_02",
+    "source": "golden",
+    "category": "v2c_stt",
+    "input": "أريدلي طبيب جهال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_stt_04",
+    "source": "golden",
+    "category": "v2c_stt",
+    "input": "وريني صيدل يه قريبه",
+    "expectedIntentAnyOf": [
+      "findPharmacy",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_stt_05",
+    "source": "golden",
+    "category": "v2c_stt",
+    "input": "جيبلي مختب ر",
+    "expectedIntentAnyOf": [
+      "findLab",
+      "generalSearch",
+      "doctorSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_stt_06",
+    "source": "golden",
+    "category": "v2c_stt",
+    "input": "اكو يمكم اشعع",
+    "expectedIntentAnyOf": [
+      "findRadiology",
+      "generalSearch",
+      "doctorSearch",
+      "specialtySearch"
+    ]
+  },
+  {
+    "id": "g_v2c_sw_01",
+    "source": "golden",
+    "category": "v2c_switch",
+    "input": "هسه صيدليات",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_v2c_sw_02",
+    "source": "golden",
+    "category": "v2c_switch",
+    "input": "بعدين مختبرات",
+    "expectedIntent": "findLab"
+  },
+  {
+    "id": "g_v2c_sw_03",
+    "source": "golden",
+    "category": "v2c_switch",
+    "input": "خلينا نشوف علاج طبيعي",
+    "expectedIntent": "findPhysio"
+  },
+  {
+    "id": "g_v2c_sw_04",
+    "source": "golden",
+    "category": "v2c_switch",
+    "input": "بدل الدكتور صيدلية",
+    "expectedIntent": "findPharmacy"
+  },
+  {
+    "id": "g_v2c_act_01",
+    "source": "golden",
+    "category": "v2c_name_action",
+    "input": "اتصل بالصيدلية",
+    "expectedIntentAnyOf": [
+      "callPharmacy",
+      "findPharmacy",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_act_02",
+    "source": "golden",
+    "category": "v2c_name_action",
+    "input": "دز واتساب للمختبر",
+    "expectedIntentAnyOf": [
+      "messageLab",
+      "findLab",
+      "messageDoctor",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_act_03",
+    "source": "golden",
+    "category": "v2c_name_action",
+    "input": "وين مركز التأهيل",
+    "expectedIntentAnyOf": [
+      "showLocation",
+      "findPhysio",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_act_04",
+    "source": "golden",
+    "category": "v2c_name_action",
+    "input": "افتح بروفايل المستلزمات",
+    "expectedIntentAnyOf": [
+      "showProfile",
+      "findSupply",
+      "generalSearch"
+    ]
+  },
+  {
+    "id": "g_v2c_neg_01",
+    "source": "golden",
+    "category": "v2c_negative",
+    "input": "أريد علاج",
+    "expectedIntentNot": "findPhysio"
+  },
+  {
+    "id": "g_v2c_neg_02",
+    "source": "golden",
+    "category": "v2c_negative",
+    "input": "عرض المزيد",
+    "expectedIntentNot": "findOffer"
+  },
+  {
+    "id": "g_v2c_neg_03",
+    "source": "golden",
+    "category": "v2c_negative",
+    "input": "وين كتالوج",
+    "expectedIntentNot": "showLocation",
+    "expectedIntentAnyOf": [
+      "generalSearch",
+      "unknown",
+      "doctorSearch",
+      "findPackage"
+    ]
+  },
+  {
+    "id": "g_v2c_neg_04",
+    "source": "golden",
+    "category": "v2c_negative",
+    "input": "رئييس الوزراء",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2c_neg_05",
+    "source": "golden",
+    "category": "v2c_negative",
+    "input": "احسبلي الضرب",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2c_neg_06",
+    "source": "golden",
+    "category": "v2c_negative",
+    "input": "شغل اغنيه",
+    "expectRefuse": true
+  },
+  {
+    "id": "g_v2c_filt_01",
+    "source": "golden",
+    "category": "v2c_filter",
+    "input": "اللي عنده واتساب",
+    "expectedIntentAnyOf": [
+      "messageDoctor",
+      "doctorSearch",
+      "generalSearch",
+      "unknown",
+      "selectResult"
+    ]
+  },
+  {
+    "id": "g_v2c_filt_03",
+    "source": "golden",
+    "category": "v2c_filter",
+    "input": "قريب علي بالشطره",
+    "expectedIntentAnyOf": [
+      "doctorSearch",
+      "specialtySearch",
+      "generalSearch",
+      "unknown"
+    ]
+  },
+  {
+    "id": "g_v2c_cmp_01",
+    "source": "golden",
+    "category": "v2c_compound",
+    "input": "أريدلي طبيب أطفال",
+    "expectedIntentAnyOf": [
+      "specialtySearch",
+      "doctorSearch",
+      "generalSearch"
+    ]
+  }
+]

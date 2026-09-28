@@ -180,6 +180,34 @@ void main() {
         isNull,
       );
     });
+
+    test('«حيدر حسن الشقاوي» يقترح الشمخاوي (لقب قريب)', () {
+      final s = matcher.suggestCorrection(
+        query: 'حيدر حسن الشقاوي',
+        doctors: _stored,
+      );
+      expect(s, isNotNull);
+      expect(s!.doctorId, 'haider');
+      expect(s.distance, lessThanOrEqualTo(2));
+    });
+
+    test('«حيدر حسن الشخو» يقترح الشمخاوي عبر تطابق اسمين فريد', () {
+      final s = matcher.suggestCorrection(
+        query: 'حيدر حسن الشخو',
+        doctors: _stored,
+      );
+      expect(s, isNotNull);
+      expect(s!.doctorId, 'haider');
+    });
+
+    test('«اتصل … الشقاوي» يقترح الشمخاوي', () {
+      final s = matcher.suggestCorrection(
+        query: 'اتصل الدكتور حيدر حسن الشقاوي',
+        doctors: _stored,
+      );
+      expect(s, isNotNull);
+      expect(s!.doctorId, 'haider');
+    });
   });
 
   group('D — «دكتور علي» غامض بلا اختيار عشوائي', () {
@@ -302,6 +330,7 @@ void main() {
       planner = SmartBrainPlanner(
         doctorLookup: (q) async {
           lookups.add(q);
+          if (q.trim().isEmpty) return [saeedi];
           final n = ArabicTextUtils.normalize(q);
           if (n.contains('علي') && n.contains('ناصر')) return [saeedi];
           return const [];
@@ -316,7 +345,7 @@ void main() {
       final plan = await planner.plan(query: 'ارسل واتساب', context: ctx);
       expect(plan.kind, AssistantActionKind.prepareWhatsApp);
       expect(plan.target?.doctorId, 'saeedi');
-      expect(lookups, isEmpty);
+      expect(lookups.every((q) => q.trim().isEmpty), isTrue);
     });
 
     test('I — «علي ناصر» ثم «اتصل» يبقى على نفس الطبيب', () async {
@@ -326,7 +355,7 @@ void main() {
       final plan = await planner.plan(query: 'اتصل', context: ctx);
       expect(plan.kind, AssistantActionKind.prepareCall);
       expect(plan.target?.doctorId, 'saeedi');
-      expect(lookups, isEmpty);
+      expect(lookups.every((q) => q.trim().isEmpty), isTrue);
     });
 
     test('J — «علي ناصر» ثم «اريد طبيب كسور» = بحث اختصاص جديد', () async {

@@ -201,7 +201,17 @@ class DoctorTargetResolver {
     if (cleaned.isEmpty || cleaned.length <= 1) return null;
 
     // بقايا حرف جر قبل ترتيب: للثاني / على الاول
-    cleaned = cleaned.replaceFirst(RegExp(r'^(?:ل|ب|على)'), '').trim();
+    cleaned = cleaned.replaceFirst(RegExp(r'^(?:ل|ب|على)\s*'), '').trim();
+    // تطبيع على→علي قبل ترتيب/لقب فقط
+    cleaned = cleaned
+        .replaceFirst(
+          RegExp(
+            r'^علي\s+(?=ال?(?:دكتور|دكتورة|طبيب|طبيبة)|'
+            r'ال?(?:اول|أول|ثاني|ثالث|رابع|خامس|اخير|أخير))',
+          ),
+          '',
+        )
+        .trim();
     cleaned = ArabicTextUtils.normalize(cleaned);
 
     if (_isRoleOnly(cleaned)) return null;
@@ -217,6 +227,19 @@ class DoctorTargetResolver {
     if (p.isEmpty || p.length <= 1) return null;
     if (_isRoleOnly(p) || _isOrdinalPhrase(p) || _isActionNoise(p)) {
       return null;
+    }
+    // لا تُبقِ فعل الاتصال داخل مرشّح الاسم («اتصل ناجي»).
+    if (RegExp(r'^(?:اتصل|اتصال)\b').hasMatch(p)) {
+      final stripped = p
+          .replaceFirst(RegExp(r'^(?:اتصل|اتصال)\s*'), '')
+          .trim();
+      if (stripped.isEmpty ||
+          stripped.length <= 1 ||
+          _isRoleOnly(stripped) ||
+          _isActionNoise(stripped)) {
+        return null;
+      }
+      return stripped;
     }
     return prepared.trim();
   }

@@ -758,7 +758,6 @@ enum _PersonResolveStatus {
   ambiguous,
   temporaryOnly,
   notFound,
-  disabled,
 }
 
 class _ResolvedFamilyPerson {

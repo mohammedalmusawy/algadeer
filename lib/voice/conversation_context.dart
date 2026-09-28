@@ -44,6 +44,10 @@ enum ConversationEntityType {
   laboratory,
   analysis,
   package,
+  radiology,
+  pharmacy,
+  physio,
+  supply,
 }
 
 /// مستهلك نعم/لا العاري داخل الجلسة — آخر كاتب حي يفوز، بلا تخمين زمني.
@@ -81,6 +85,10 @@ class ConversationContext with SessionOnlyStateMarker {
   SmartSearchResult? selectedLaboratory;
   SmartSearchResult? selectedAnalysis;
   SmartSearchResult? selectedPackage;
+  SmartSearchResult? selectedRadiology;
+  SmartSearchResult? selectedPharmacy;
+  SmartSearchResult? selectedPhysio;
+  SmartSearchResult? selectedSupply;
 
   ConversationEntityType activeEntityType = ConversationEntityType.none;
 
@@ -92,6 +100,9 @@ class ConversationContext with SessionOnlyStateMarker {
   /// منفصل عن [pendingClarification] و[pendingAction]: «نعم» عليه تختار
   /// الطبيب فقط ولا تنفّذ اتصالاً/واتساب.
   PendingDoctorSuggestion? pendingDoctorSuggestion;
+
+  /// اقتراح كيان معلّق (فيزيو/صيدلية/…) — نفس دلالة اقتراح الطبيب.
+  PendingEntitySuggestion? pendingEntitySuggestion;
 
   String? lastAssistantResponse;
   String? pendingAction;
@@ -468,6 +479,7 @@ class ConversationContext with SessionOnlyStateMarker {
       pendingAction != null && pendingAction!.trim().isNotEmpty;
   bool get hasPendingClarification => pendingClarification != null;
   bool get hasPendingDoctorSuggestion => pendingDoctorSuggestion != null;
+  bool get hasPendingEntitySuggestion => pendingEntitySuggestion != null;
 
   /// المستهلك الحي لـ نعم/لا العاري: آخر توقع سُجّل وما زال صالحاً.
   ConversationYesNoConsumer get activeYesNoConsumer {
@@ -478,7 +490,7 @@ class ConversationContext with SessionOnlyStateMarker {
     if (pendingClarification?.isYesNoConfirmation == true) {
       return ConversationYesNoConsumer.clarification;
     }
-    if (pendingDoctorSuggestion != null) {
+    if (pendingDoctorSuggestion != null || pendingEntitySuggestion != null) {
       return ConversationYesNoConsumer.doctorSuggestion;
     }
     if (_hasConfirmablePendingAction) {
@@ -543,7 +555,8 @@ class ConversationContext with SessionOnlyStateMarker {
       case ConversationYesNoConsumer.clinicalQuestion:
         return currentClinicalYesNoQuestionKey != null;
       case ConversationYesNoConsumer.doctorSuggestion:
-        return pendingDoctorSuggestion != null;
+        return pendingDoctorSuggestion != null ||
+            pendingEntitySuggestion != null;
       case ConversationYesNoConsumer.pendingAction:
         return _hasConfirmablePendingAction;
     }
@@ -590,6 +603,14 @@ class ConversationContext with SessionOnlyStateMarker {
         return selectedAnalysis;
       case ConversationEntityType.package:
         return selectedPackage;
+      case ConversationEntityType.radiology:
+        return selectedRadiology;
+      case ConversationEntityType.pharmacy:
+        return selectedPharmacy;
+      case ConversationEntityType.physio:
+        return selectedPhysio;
+      case ConversationEntityType.supply:
+        return selectedSupply;
       case ConversationEntityType.none:
         return null;
     }
@@ -605,6 +626,14 @@ class ConversationContext with SessionOnlyStateMarker {
         return selectedAnalysis;
       case ConversationEntityType.package:
         return selectedPackage;
+      case ConversationEntityType.radiology:
+        return selectedRadiology;
+      case ConversationEntityType.pharmacy:
+        return selectedPharmacy;
+      case ConversationEntityType.physio:
+        return selectedPhysio;
+      case ConversationEntityType.supply:
+        return selectedSupply;
       case ConversationEntityType.none:
         return null;
     }
@@ -700,6 +729,14 @@ class ConversationContext with SessionOnlyStateMarker {
         return (e.analysisId ?? '').trim();
       case ConversationEntityType.package:
         return (e.packageId ?? '').trim();
+      case ConversationEntityType.radiology:
+        return (e.radiologyId ?? '').trim();
+      case ConversationEntityType.pharmacy:
+        return (e.pharmacyId ?? '').trim();
+      case ConversationEntityType.physio:
+        return (e.physioId ?? '').trim();
+      case ConversationEntityType.supply:
+        return (e.supplyId ?? '').trim();
       case ConversationEntityType.none:
         return '';
     }
@@ -716,6 +753,10 @@ class ConversationContext with SessionOnlyStateMarker {
       'selectedLaboratoryId': selectedLaboratory?.labId,
       'selectedAnalysisId': selectedAnalysis?.analysisId,
       'selectedPackageId': selectedPackage?.packageId,
+      'selectedRadiologyId': selectedRadiology?.radiologyId,
+      'selectedPharmacyId': selectedPharmacy?.pharmacyId,
+      'selectedPhysioId': selectedPhysio?.physioId,
+      'selectedSupplyId': selectedSupply?.supplyId,
       'resultEntityType': currentResultContext?.entityType.name,
       'resultCount': currentResultContext?.length ?? 0,
       'resultTurnId': currentResultContext?.turnId,
@@ -788,6 +829,22 @@ class ConversationContext with SessionOnlyStateMarker {
       .where((r) => r.type == SmartSearchResultType.doctor)
       .toList(growable: false);
 
+  List<SmartSearchResult> get lastRadiologySnapshot => lastResults
+      .where((r) => r.type == SmartSearchResultType.radiology)
+      .toList(growable: false);
+
+  List<SmartSearchResult> get lastPharmacySnapshot => lastResults
+      .where((r) => r.type == SmartSearchResultType.pharmacy)
+      .toList(growable: false);
+
+  List<SmartSearchResult> get lastPhysioSnapshot => lastResults
+      .where((r) => r.type == SmartSearchResultType.physio)
+      .toList(growable: false);
+
+  List<SmartSearchResult> get lastSupplySnapshot => lastResults
+      .where((r) => r.type == SmartSearchResultType.supply)
+      .toList(growable: false);
+
   List<SmartSearchResult> get lastLabSnapshot => lastResults
       .where((r) => r.type == SmartSearchResultType.lab)
       .toList(growable: false);
@@ -806,6 +863,10 @@ class ConversationContext with SessionOnlyStateMarker {
 
   bool get hasDoctorResults => lastDoctorSnapshot.isNotEmpty;
   bool get hasLabResults => lastLabSnapshot.isNotEmpty;
+  bool get hasRadiologyResults => lastRadiologySnapshot.isNotEmpty;
+  bool get hasPharmacyResults => lastPharmacySnapshot.isNotEmpty;
+  bool get hasPhysioResults => lastPhysioSnapshot.isNotEmpty;
+  bool get hasSupplyResults => lastSupplySnapshot.isNotEmpty;
   bool get hasAnalysisResults => lastAnalysisSnapshot.isNotEmpty;
   bool get hasPackageResults => lastPackageSnapshot.isNotEmpty;
 
@@ -847,23 +908,67 @@ class ConversationContext with SessionOnlyStateMarker {
     final labs = lastLabSnapshot;
     final analyses = lastAnalysisSnapshot;
     final packages = lastPackageSnapshot;
+    final radiology = lastRadiologySnapshot;
+    final pharmacy = lastPharmacySnapshot;
+    final physio = lastPhysioSnapshot;
+    final supply = lastSupplySnapshot;
 
     final purePackages = packages.isNotEmpty &&
         doctors.isEmpty &&
         labs.isEmpty &&
-        analyses.isEmpty;
+        analyses.isEmpty &&
+        radiology.isEmpty &&
+        pharmacy.isEmpty &&
+        physio.isEmpty &&
+        supply.isEmpty;
     final pureAnalyses = analyses.isNotEmpty &&
         doctors.isEmpty &&
         labs.isEmpty &&
-        packages.isEmpty;
+        packages.isEmpty &&
+        radiology.isEmpty &&
+        pharmacy.isEmpty &&
+        physio.isEmpty &&
+        supply.isEmpty;
     final pureDoctors = doctors.isNotEmpty &&
         labs.isEmpty &&
         analyses.isEmpty &&
-        packages.isEmpty;
+        packages.isEmpty &&
+        radiology.isEmpty &&
+        pharmacy.isEmpty &&
+        physio.isEmpty &&
+        supply.isEmpty;
     final pureLabs = labs.isNotEmpty &&
         doctors.isEmpty &&
         analyses.isEmpty &&
-        packages.isEmpty;
+        packages.isEmpty &&
+        radiology.isEmpty &&
+        pharmacy.isEmpty &&
+        physio.isEmpty &&
+        supply.isEmpty;
+    final purePharmacy = pharmacy.isNotEmpty &&
+        doctors.isEmpty &&
+        labs.isEmpty &&
+        analyses.isEmpty &&
+        packages.isEmpty &&
+        radiology.isEmpty &&
+        physio.isEmpty &&
+        supply.isEmpty;
+    final purePhysio = physio.isNotEmpty &&
+        doctors.isEmpty &&
+        labs.isEmpty &&
+        analyses.isEmpty &&
+        packages.isEmpty &&
+        radiology.isEmpty &&
+        pharmacy.isEmpty &&
+        supply.isEmpty;
+    final pureSupply = supply.isNotEmpty &&
+        doctors.isEmpty &&
+        labs.isEmpty &&
+        analyses.isEmpty &&
+        packages.isEmpty &&
+        radiology.isEmpty &&
+        pharmacy.isEmpty &&
+        physio.isEmpty;
 
     if (clearSelection) {
       clearPending();
@@ -891,6 +996,24 @@ class ConversationContext with SessionOnlyStateMarker {
           activeEntityType = ConversationEntityType.none;
         }
         clearPendingClarification();
+      } else if (purePharmacy) {
+        selectedPharmacy = null;
+        if (activeEntityType == ConversationEntityType.pharmacy) {
+          activeEntityType = ConversationEntityType.none;
+        }
+        clearPendingClarification();
+      } else if (purePhysio) {
+        selectedPhysio = null;
+        if (activeEntityType == ConversationEntityType.physio) {
+          activeEntityType = ConversationEntityType.none;
+        }
+        clearPendingClarification();
+      } else if (pureSupply) {
+        selectedSupply = null;
+        if (activeEntityType == ConversationEntityType.supply) {
+          activeEntityType = ConversationEntityType.none;
+        }
+        clearPendingClarification();
       } else {
         // نتائج فارغة / مختلطة / عامة مع clearSelection: لا نتيجة نقية تُعيد
         // اختيار هدف، فامسح الأهداف القديمة حتى لا يحل ضمير لاحق («اتصل بيه»)
@@ -899,6 +1022,10 @@ class ConversationContext with SessionOnlyStateMarker {
         selectedLaboratory = null;
         selectedAnalysis = null;
         selectedPackage = null;
+        selectedRadiology = null;
+        selectedPharmacy = null;
+        selectedPhysio = null;
+        selectedSupply = null;
         activeEntityType = ConversationEntityType.none;
         clarificationCandidates = const [];
         clearPendingClarification();
@@ -952,6 +1079,45 @@ class ConversationContext with SessionOnlyStateMarker {
       );
       _applyLabResults(
         labs,
+        intent: intent,
+        query: query,
+        pendingActionForClarification: pendingActionForClarification,
+        clarificationReason: clarificationReason,
+      );
+    } else if (purePharmacy) {
+      setResultContext(
+        entityType: ConversationEntityType.pharmacy,
+        items: pharmacy,
+        intent: intent,
+      );
+      _applyPharmacyResults(
+        pharmacy,
+        intent: intent,
+        query: query,
+        pendingActionForClarification: pendingActionForClarification,
+        clarificationReason: clarificationReason,
+      );
+    } else if (purePhysio) {
+      setResultContext(
+        entityType: ConversationEntityType.physio,
+        items: physio,
+        intent: intent,
+      );
+      _applyPhysioResults(
+        physio,
+        intent: intent,
+        query: query,
+        pendingActionForClarification: pendingActionForClarification,
+        clarificationReason: clarificationReason,
+      );
+    } else if (pureSupply) {
+      setResultContext(
+        entityType: ConversationEntityType.supply,
+        items: supply,
+        intent: intent,
+      );
+      _applySupplyResults(
+        supply,
         intent: intent,
         query: query,
         pendingActionForClarification: pendingActionForClarification,
@@ -1034,6 +1200,70 @@ class ConversationContext with SessionOnlyStateMarker {
         reason: clarificationReason,
       );
       if (gate != null) setPendingClarification(gate);
+    } else {
+      clarificationCandidates = const [];
+      clearPendingClarification();
+    }
+  }
+
+  void _applyPharmacyResults(
+    List<SmartSearchResult> pharmacies, {
+    AssistantIntent? intent,
+    String? query,
+    AssistantIntent? pendingActionForClarification,
+    ClarificationReason clarificationReason =
+        ClarificationReason.multipleMatches,
+  }) {
+    if (pharmacies.length == 1) {
+      selectPharmacy(pharmacies.first);
+      clarificationCandidates = const [];
+      clearPendingClarification();
+    } else if (pharmacies.length > 1) {
+      clarificationCandidates =
+          List<SmartSearchResult>.unmodifiable(pharmacies);
+      clearPendingClarification();
+    } else {
+      clarificationCandidates = const [];
+      clearPendingClarification();
+    }
+  }
+
+  void _applyPhysioResults(
+    List<SmartSearchResult> centers, {
+    AssistantIntent? intent,
+    String? query,
+    AssistantIntent? pendingActionForClarification,
+    ClarificationReason clarificationReason =
+        ClarificationReason.multipleMatches,
+  }) {
+    if (centers.length == 1) {
+      selectPhysio(centers.first);
+      clarificationCandidates = const [];
+      clearPendingClarification();
+    } else if (centers.length > 1) {
+      clarificationCandidates = List<SmartSearchResult>.unmodifiable(centers);
+      clearPendingClarification();
+    } else {
+      clarificationCandidates = const [];
+      clearPendingClarification();
+    }
+  }
+
+  void _applySupplyResults(
+    List<SmartSearchResult> vendors, {
+    AssistantIntent? intent,
+    String? query,
+    AssistantIntent? pendingActionForClarification,
+    ClarificationReason clarificationReason =
+        ClarificationReason.multipleMatches,
+  }) {
+    if (vendors.length == 1) {
+      selectSupply(vendors.first);
+      clarificationCandidates = const [];
+      clearPendingClarification();
+    } else if (vendors.length > 1) {
+      clarificationCandidates = List<SmartSearchResult>.unmodifiable(vendors);
+      clearPendingClarification();
     } else {
       clarificationCandidates = const [];
       clearPendingClarification();
@@ -1144,6 +1374,46 @@ class ConversationContext with SessionOnlyStateMarker {
           lastPackageSnapshot.length != packages.length) {
         lastResults = List<SmartSearchResult>.unmodifiable(packages);
       }
+      return;
+    }
+    final radiology = pending.radiologyResults;
+    if (radiology.isNotEmpty) {
+      clarificationCandidates =
+          List<SmartSearchResult>.unmodifiable(radiology);
+      if (lastRadiologySnapshot.isEmpty ||
+          lastRadiologySnapshot.length != radiology.length) {
+        lastResults = List<SmartSearchResult>.unmodifiable(radiology);
+      }
+      return;
+    }
+    final pharmacies = pending.pharmacyResults;
+    if (pharmacies.isNotEmpty) {
+      clarificationCandidates =
+          List<SmartSearchResult>.unmodifiable(pharmacies);
+      if (lastPharmacySnapshot.isEmpty ||
+          lastPharmacySnapshot.length != pharmacies.length) {
+        lastResults = List<SmartSearchResult>.unmodifiable(pharmacies);
+      }
+      return;
+    }
+    final physioCenters = pending.physioResults;
+    if (physioCenters.isNotEmpty) {
+      clarificationCandidates =
+          List<SmartSearchResult>.unmodifiable(physioCenters);
+      if (lastPhysioSnapshot.isEmpty ||
+          lastPhysioSnapshot.length != physioCenters.length) {
+        lastResults = List<SmartSearchResult>.unmodifiable(physioCenters);
+      }
+      return;
+    }
+    final supplyVendors = pending.supplyResults;
+    if (supplyVendors.isNotEmpty) {
+      clarificationCandidates =
+          List<SmartSearchResult>.unmodifiable(supplyVendors);
+      if (lastSupplySnapshot.isEmpty ||
+          lastSupplySnapshot.length != supplyVendors.length) {
+        lastResults = List<SmartSearchResult>.unmodifiable(supplyVendors);
+      }
     }
   }
 
@@ -1155,6 +1425,7 @@ class ConversationContext with SessionOnlyStateMarker {
   void setPendingDoctorSuggestion(PendingDoctorSuggestion? suggestion) {
     pendingDoctorSuggestion = suggestion;
     if (suggestion != null) {
+      pendingEntitySuggestion = null;
       _noteYesNoExpectation(ConversationYesNoConsumer.doctorSuggestion);
     } else {
       _clearYesNoExpectationIf(ConversationYesNoConsumer.doctorSuggestion);
@@ -1163,7 +1434,26 @@ class ConversationContext with SessionOnlyStateMarker {
 
   void clearPendingDoctorSuggestion() {
     pendingDoctorSuggestion = null;
-    _clearYesNoExpectationIf(ConversationYesNoConsumer.doctorSuggestion);
+    if (pendingEntitySuggestion == null) {
+      _clearYesNoExpectationIf(ConversationYesNoConsumer.doctorSuggestion);
+    }
+  }
+
+  void setPendingEntitySuggestion(PendingEntitySuggestion? suggestion) {
+    pendingEntitySuggestion = suggestion;
+    if (suggestion != null) {
+      pendingDoctorSuggestion = null;
+      _noteYesNoExpectation(ConversationYesNoConsumer.doctorSuggestion);
+    } else {
+      _clearYesNoExpectationIf(ConversationYesNoConsumer.doctorSuggestion);
+    }
+  }
+
+  void clearPendingEntitySuggestion() {
+    pendingEntitySuggestion = null;
+    if (pendingDoctorSuggestion == null) {
+      _clearYesNoExpectationIf(ConversationYesNoConsumer.doctorSuggestion);
+    }
   }
 
   /// بحث أطباء جديد — يُبطل نتائج البحث فقط، ولا يحرّك [conversationGeneration]
@@ -1176,6 +1466,7 @@ class ConversationContext with SessionOnlyStateMarker {
     clarificationCandidates = const [];
     clearPendingClarification();
     clearPendingDoctorSuggestion();
+    clearPendingEntitySuggestion();
     clearPending();
     // يُبطِل ترتيباً على نتائج مختبر/باقة قديمة قبل وصول نتائج الأطباء.
     invalidateAuthoritativeResultContext(reason: 'begin_new_doctor_search');
@@ -1189,8 +1480,67 @@ class ConversationContext with SessionOnlyStateMarker {
     clarificationCandidates = const [];
     clearPendingClarification();
     clearPendingDoctorSuggestion();
+    clearPendingEntitySuggestion();
     clearPending();
     invalidateAuthoritativeResultContext(reason: 'begin_new_lab_search');
+  }
+
+  void beginNewRadiologySearch({String? query, AssistantIntent? intent}) {
+    if (query != null && query.trim().isNotEmpty) lastQuery = query.trim();
+    if (intent != null) lastIntent = intent;
+    selectedRadiology = null;
+    activeEntityType = ConversationEntityType.none;
+    clarificationCandidates = const [];
+    clearPendingClarification();
+    clearPendingDoctorSuggestion();
+    clearPendingEntitySuggestion();
+    clearPending();
+    invalidateAuthoritativeResultContext(reason: 'begin_new_radiology_search');
+  }
+
+  void beginNewPharmacySearch({String? query, AssistantIntent? intent}) {
+    if (query != null && query.trim().isNotEmpty) lastQuery = query.trim();
+    if (intent != null) lastIntent = intent;
+    // تبديل نوع → امسح أهدافاً غير متوافقة (طبيب سابق لا يبقى لضمائر لاحقة).
+    selectedDoctor = null;
+    selectedLaboratory = null;
+    selectedRadiology = null;
+    selectedPhysio = null;
+    selectedSupply = null;
+    selectedPharmacy = null;
+    activeEntityType = ConversationEntityType.none;
+    clarificationCandidates = const [];
+    clearPendingClarification();
+    clearPendingDoctorSuggestion();
+    clearPendingEntitySuggestion();
+    clearPending();
+    invalidateAuthoritativeResultContext(reason: 'begin_new_pharmacy_search');
+  }
+
+  void beginNewPhysioSearch({String? query, AssistantIntent? intent}) {
+    if (query != null && query.trim().isNotEmpty) lastQuery = query.trim();
+    if (intent != null) lastIntent = intent;
+    selectedPhysio = null;
+    activeEntityType = ConversationEntityType.none;
+    clarificationCandidates = const [];
+    clearPendingClarification();
+    clearPendingDoctorSuggestion();
+    clearPendingEntitySuggestion();
+    clearPending();
+    invalidateAuthoritativeResultContext(reason: 'begin_new_physio_search');
+  }
+
+  void beginNewSupplySearch({String? query, AssistantIntent? intent}) {
+    if (query != null && query.trim().isNotEmpty) lastQuery = query.trim();
+    if (intent != null) lastIntent = intent;
+    selectedSupply = null;
+    activeEntityType = ConversationEntityType.none;
+    clarificationCandidates = const [];
+    clearPendingClarification();
+    clearPendingDoctorSuggestion();
+    clearPendingEntitySuggestion();
+    clearPending();
+    invalidateAuthoritativeResultContext(reason: 'begin_new_supply_search');
   }
 
   void beginNewAnalysisSearch({String? query, AssistantIntent? intent}) {
@@ -1202,6 +1552,7 @@ class ConversationContext with SessionOnlyStateMarker {
     clarificationCandidates = const [];
     clearPendingClarification();
     clearPendingDoctorSuggestion();
+    clearPendingEntitySuggestion();
     clearPending();
     invalidateAuthoritativeResultContext(reason: 'begin_new_analysis_search');
   }
@@ -1214,6 +1565,7 @@ class ConversationContext with SessionOnlyStateMarker {
     clarificationCandidates = const [];
     clearPendingClarification();
     clearPendingDoctorSuggestion();
+    clearPendingEntitySuggestion();
     clearPending();
     invalidateAuthoritativeResultContext(reason: 'begin_new_package_search');
   }
@@ -1228,6 +1580,14 @@ class ConversationContext with SessionOnlyStateMarker {
         selectedAnalysis = null;
       } else if (activeEntityType == ConversationEntityType.package) {
         selectedPackage = null;
+      } else if (activeEntityType == ConversationEntityType.radiology) {
+        selectedRadiology = null;
+      } else if (activeEntityType == ConversationEntityType.pharmacy) {
+        selectedPharmacy = null;
+      } else if (activeEntityType == ConversationEntityType.physio) {
+        selectedPhysio = null;
+      } else if (activeEntityType == ConversationEntityType.supply) {
+        selectedSupply = null;
       }
       activeEntityType = ConversationEntityType.none;
       return;
@@ -1236,6 +1596,14 @@ class ConversationContext with SessionOnlyStateMarker {
       selectDoctor(entity);
     } else if (entity.type == SmartSearchResultType.lab) {
       selectLaboratory(entity);
+    } else if (entity.type == SmartSearchResultType.radiology) {
+      selectRadiology(entity);
+    } else if (entity.type == SmartSearchResultType.pharmacy) {
+      selectPharmacy(entity);
+    } else if (entity.type == SmartSearchResultType.physio) {
+      selectPhysio(entity);
+    } else if (entity.type == SmartSearchResultType.supply) {
+      selectSupply(entity);
     } else if (entity.type == SmartSearchResultType.analysis) {
       selectAnalysis(entity);
     } else if (entity.type == SmartSearchResultType.package ||
@@ -1267,6 +1635,38 @@ class ConversationContext with SessionOnlyStateMarker {
     clarificationCandidates = const [];
     clearPendingClarification();
     pushRecentReference(lab);
+  }
+
+  void selectRadiology(SmartSearchResult center) {
+    selectedRadiology = center;
+    activeEntityType = ConversationEntityType.radiology;
+    clarificationCandidates = const [];
+    clearPendingClarification();
+    pushRecentReference(center);
+  }
+
+  void selectPharmacy(SmartSearchResult pharmacy) {
+    selectedPharmacy = pharmacy;
+    activeEntityType = ConversationEntityType.pharmacy;
+    clarificationCandidates = const [];
+    clearPendingClarification();
+    pushRecentReference(pharmacy);
+  }
+
+  void selectPhysio(SmartSearchResult center) {
+    selectedPhysio = center;
+    activeEntityType = ConversationEntityType.physio;
+    clarificationCandidates = const [];
+    clearPendingClarification();
+    pushRecentReference(center);
+  }
+
+  void selectSupply(SmartSearchResult vendor) {
+    selectedSupply = vendor;
+    activeEntityType = ConversationEntityType.supply;
+    clarificationCandidates = const [];
+    clearPendingClarification();
+    pushRecentReference(vendor);
   }
 
   void selectAnalysis(SmartSearchResult analysis) {
@@ -1352,6 +1752,10 @@ class ConversationContext with SessionOnlyStateMarker {
         ConversationEntityType.laboratory => pending.labResults,
         ConversationEntityType.analysis => pending.analysisResults,
         ConversationEntityType.package => pending.packageResults,
+        ConversationEntityType.radiology => pending.radiologyResults,
+        ConversationEntityType.pharmacy => pending.pharmacyResults,
+        ConversationEntityType.physio => pending.physioResults,
+        ConversationEntityType.supply => pending.supplyResults,
         ConversationEntityType.none => const <SmartSearchResult>[],
       };
       if (fromPending.isNotEmpty) return fromPending;
@@ -1398,10 +1802,15 @@ class ConversationContext with SessionOnlyStateMarker {
     selectedLaboratory = null;
     selectedAnalysis = null;
     selectedPackage = null;
+    selectedRadiology = null;
+    selectedPharmacy = null;
+    selectedPhysio = null;
+    selectedSupply = null;
     activeEntityType = ConversationEntityType.none;
     clarificationCandidates = const [];
     pendingClarification = null;
     pendingDoctorSuggestion = null;
+    pendingEntitySuggestion = null;
     lastAssistantResponse = null;
     pendingAction = null;
     pendingDate = null;

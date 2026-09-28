@@ -4,7 +4,6 @@ import '../../follow_up/follow_up_service.dart';
 import '../../health/subject/health_subject_detector.dart';
 import '../../health/subject/health_subject_models.dart';
 import '../../search/arabic_text_utils.dart';
-import '../sensitive_profile/sensitive_health_profile_models.dart';
 import '../sensitive_profile/sensitive_health_profile_service.dart';
 import 'chronic_care_answer_interpreter.dart';
 import 'chronic_care_condition_registry.dart';

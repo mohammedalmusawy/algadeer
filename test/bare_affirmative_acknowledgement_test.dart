@@ -67,6 +67,8 @@ void main() {
     planner = SmartBrainPlanner(
       doctorLookup: (q) async {
         lookupQueries.add(q);
+        // M7.1: empty = authoritative catalog for live revalidation.
+        if (q.trim().isEmpty) return [_saeedi];
         final n = ArabicTextUtils.normalize(q);
         if (n.contains('السعيدي') || n.contains('اطفال')) return [_saeedi];
         if (n.contains('كسور') || n.contains('عظام')) {
@@ -309,7 +311,7 @@ void main() {
       final call = await planner.plan(query: 'اتصل', context: ctx);
       expect(call.kind, AssistantActionKind.prepareCall);
       expect(call.target?.doctorId, 'saeedi');
-      expect(lookupQueries, isEmpty);
+      expect(lookupQueries.every((q) => q.trim().isEmpty), isTrue);
     });
   });
 }

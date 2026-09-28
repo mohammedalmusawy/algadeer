@@ -76,8 +76,18 @@ class EntityTargetResolver {
         case AssistantIntent.findAnalysis:
         case AssistantIntent.callDoctor:
         case AssistantIntent.messageDoctor:
+          // اسم طبيب صريح يقطع سياق الباقة — لا يُبقى على المختبر/الباقة السابقة.
+          if ((intent.entities.doctorName ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
         case AssistantIntent.callLab:
         case AssistantIntent.messageLab:
+          // اسم مختبر صريح يقطع سياق الباقة.
+          if ((intent.entities.laboratory ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
         case AssistantIntent.showLocation:
         case AssistantIntent.showProfile:
           return true;
@@ -121,13 +131,229 @@ class EntityTargetResolver {
       switch (intent.intent) {
         case AssistantIntent.findAnalysis:
         case AssistantIntent.findPackage:
+          return true;
         case AssistantIntent.callDoctor:
         case AssistantIntent.messageDoctor:
+          if ((intent.entities.doctorName ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
         case AssistantIntent.showLocation:
         case AssistantIntent.showProfile:
           return true;
         case AssistantIntent.findLab:
           return (intent.entities.laboratory ?? '').trim().isEmpty;
+        default:
+          break;
+      }
+    }
+    return false;
+  }
+
+  /// هل النية/السياق يميلان للعلاج الطبيعي؟
+  static bool prefersPhysio({
+    required IntentResult intent,
+    required ConversationContext context,
+  }) {
+    if (prefersPackage(intent: intent, context: context)) return false;
+    if (prefersAnalysis(intent: intent, context: context)) return false;
+
+    switch (intent.intent) {
+      case AssistantIntent.findPhysio:
+      case AssistantIntent.callPhysio:
+      case AssistantIntent.messagePhysio:
+        return true;
+      default:
+        break;
+    }
+    if ((intent.entities.physio ?? '').trim().isNotEmpty) return true;
+    if (context.activeEntityType == ConversationEntityType.physio) {
+      switch (intent.intent) {
+        case AssistantIntent.callDoctor:
+        case AssistantIntent.messageDoctor:
+          if ((intent.entities.doctorName ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callLab:
+        case AssistantIntent.messageLab:
+          if ((intent.entities.laboratory ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callPharmacy:
+        case AssistantIntent.messagePharmacy:
+          if ((intent.entities.pharmacy ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callRadiology:
+        case AssistantIntent.messageRadiology:
+          if ((intent.entities.radiology ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callSupply:
+        case AssistantIntent.messageSupply:
+          if ((intent.entities.supply ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.showLocation:
+        case AssistantIntent.showProfile:
+          return true;
+        default:
+          break;
+      }
+    }
+    return false;
+  }
+
+  /// هل النية/السياق يميلان للمستلزمات؟
+  static bool prefersSupply({
+    required IntentResult intent,
+    required ConversationContext context,
+  }) {
+    if (prefersPackage(intent: intent, context: context)) return false;
+    if (prefersAnalysis(intent: intent, context: context)) return false;
+
+    switch (intent.intent) {
+      case AssistantIntent.findSupply:
+      case AssistantIntent.callSupply:
+      case AssistantIntent.messageSupply:
+        return true;
+      default:
+        break;
+    }
+    if ((intent.entities.supply ?? '').trim().isNotEmpty) return true;
+    if (context.activeEntityType == ConversationEntityType.supply) {
+      switch (intent.intent) {
+        case AssistantIntent.callDoctor:
+        case AssistantIntent.messageDoctor:
+          if ((intent.entities.doctorName ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callLab:
+        case AssistantIntent.messageLab:
+          if ((intent.entities.laboratory ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callPharmacy:
+        case AssistantIntent.messagePharmacy:
+          if ((intent.entities.pharmacy ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callRadiology:
+        case AssistantIntent.messageRadiology:
+          if ((intent.entities.radiology ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callPhysio:
+        case AssistantIntent.messagePhysio:
+          if ((intent.entities.physio ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.showLocation:
+        case AssistantIntent.showProfile:
+          return true;
+        default:
+          break;
+      }
+    }
+    return false;
+  }
+
+  /// هل النية/السياق يميلان للصيدلية؟
+  static bool prefersPharmacy({
+    required IntentResult intent,
+    required ConversationContext context,
+  }) {
+    if (prefersPackage(intent: intent, context: context)) return false;
+    if (prefersAnalysis(intent: intent, context: context)) return false;
+    if (prefersPhysio(intent: intent, context: context)) return false;
+    if (prefersSupply(intent: intent, context: context)) return false;
+
+    switch (intent.intent) {
+      case AssistantIntent.findPharmacy:
+      case AssistantIntent.callPharmacy:
+      case AssistantIntent.messagePharmacy:
+        return true;
+      default:
+        break;
+    }
+    if ((intent.entities.pharmacy ?? '').trim().isNotEmpty) return true;
+    if (context.activeEntityType == ConversationEntityType.pharmacy) {
+      switch (intent.intent) {
+        case AssistantIntent.callDoctor:
+        case AssistantIntent.messageDoctor:
+          if ((intent.entities.doctorName ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callLab:
+        case AssistantIntent.messageLab:
+          if ((intent.entities.laboratory ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callRadiology:
+        case AssistantIntent.messageRadiology:
+          if ((intent.entities.radiology ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.showLocation:
+        case AssistantIntent.showProfile:
+          return true;
+        default:
+          break;
+      }
+    }
+    return false;
+  }
+
+  /// هل النية/السياق يميلان للأشعة؟
+  static bool prefersRadiology({
+    required IntentResult intent,
+    required ConversationContext context,
+  }) {
+    if (prefersPackage(intent: intent, context: context)) return false;
+    if (prefersAnalysis(intent: intent, context: context)) return false;
+    if (prefersPharmacy(intent: intent, context: context)) return false;
+    if (prefersPhysio(intent: intent, context: context)) return false;
+    if (prefersSupply(intent: intent, context: context)) return false;
+
+    switch (intent.intent) {
+      case AssistantIntent.findRadiology:
+      case AssistantIntent.callRadiology:
+      case AssistantIntent.messageRadiology:
+        return true;
+      default:
+        break;
+    }
+    if ((intent.entities.radiology ?? '').trim().isNotEmpty) return true;
+    if (context.activeEntityType == ConversationEntityType.radiology) {
+      switch (intent.intent) {
+        case AssistantIntent.callDoctor:
+        case AssistantIntent.messageDoctor:
+          if ((intent.entities.doctorName ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.callLab:
+        case AssistantIntent.messageLab:
+          if ((intent.entities.laboratory ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
+        case AssistantIntent.showLocation:
+        case AssistantIntent.showProfile:
+          return true;
         default:
           break;
       }
@@ -142,6 +368,10 @@ class EntityTargetResolver {
   }) {
     if (prefersPackage(intent: intent, context: context)) return false;
     if (prefersAnalysis(intent: intent, context: context)) return false;
+    if (prefersPharmacy(intent: intent, context: context)) return false;
+    if (prefersRadiology(intent: intent, context: context)) return false;
+    if (prefersPhysio(intent: intent, context: context)) return false;
+    if (prefersSupply(intent: intent, context: context)) return false;
 
     if (intent.intent == AssistantIntent.selectResult) {
       return false;
@@ -167,6 +397,11 @@ class EntityTargetResolver {
       switch (intent.intent) {
         case AssistantIntent.callDoctor:
         case AssistantIntent.messageDoctor:
+          // اسم طبيب صريح يقطع المختبر النشط (لا يبقى على سحب المنزلي…).
+          if ((intent.entities.doctorName ?? '').trim().isNotEmpty) {
+            return false;
+          }
+          return true;
         case AssistantIntent.showLocation:
         case AssistantIntent.showProfile:
           return true;

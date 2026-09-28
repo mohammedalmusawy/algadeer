@@ -1,6 +1,5 @@
 import 'memory_candidate.dart';
 import 'memory_category.dart';
-import 'memory_consent.dart';
 
 /// جدار ناري للتحليلات — يمنع تسريب محتوى حسّاس.
 ///

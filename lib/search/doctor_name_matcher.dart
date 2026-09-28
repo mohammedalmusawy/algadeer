@@ -279,6 +279,25 @@ class DoctorNameMatcher {
       );
     }
 
+    // 6) خطأ إملائي بسيط لتوكن واحد (ناجي ↔ ناجى، …) — محافظة.
+    if (token.length >= 4) {
+      for (final p in nameTokens) {
+        if (p.length < 4) continue;
+        if (token.substring(0, 2) != p.substring(0, 2)) continue;
+        final longer = token.length >= p.length ? token : p;
+        final d = _editDistance(token, p);
+        if (d > 0 && d <= maxTypoDistanceForToken(longer)) {
+          return DoctorNameMatch(
+            score: 80,
+            matchType: DoctorNameMatchType.partialSingle,
+            matchedTokens: [token],
+            doctorName: doctorName,
+            doctorId: doctorId,
+          );
+        }
+      }
+    }
+
     return DoctorNameMatch(
       score: 0,
       matchType: DoctorNameMatchType.none,
@@ -334,6 +353,8 @@ class DoctorNameMatcher {
   /// 4) التوكن المختلف قريب: مسافة تحرير ≤ 1 (أو ≤ 2 لطول ≥ 6)
   ///    ويشترك في أول حرفين مع توكن الاسم المخزَّن.
   /// 5) مرشّح وحيد — أي تعدد يعني غموضاً فلا اقتراح.
+  /// 6) إن فشل (3–4): اسمان أولان فريدان بقوة (≥90) مع لقب زائد في الاستعلام
+  ///    → اقتراح وحيد للتأكيد («هل تقصد») — بلا فتح/اتصال تلقائي.
   DoctorNameSuggestion? suggestCorrection({
     required String query,
     required List<({String id, String name})> doctors,
@@ -367,8 +388,47 @@ class DoctorNameMatcher {
       }
     }
 
-    if (candidates.length != 1) return null;
-    return candidates.first;
+    if (candidates.length == 1) return candidates.first;
+    if (candidates.isNotEmpty) return null;
+
+    // تطابق اسمين فريد: «حيدر حسن …» يميّز طبيباً واحداً رغم لقب خاطئ/ناقص.
+    return _uniqueTwoNamePrefixSuggestion(
+      queryTokens: queryTokens,
+      doctors: doctors,
+    );
+  }
+
+  /// اقتراح عند فشل اللقب وبقاء الاسم الأول+الثاني وحيدين بقوة على المنصة.
+  DoctorNameSuggestion? _uniqueTwoNamePrefixSuggestion({
+    required List<String> queryTokens,
+    required List<({String id, String name})> doctors,
+  }) {
+    if (queryTokens.length < 3) return null;
+    final prefix = '${queryTokens[0]} ${queryTokens[1]}';
+    final strong = <({String id, String name})>[];
+    for (final d in doctors) {
+      final m = score(doctorName: d.name, query: prefix, doctorId: d.id);
+      if (m.score >= minConfidentUniqueScore) {
+        strong.add(d);
+      }
+    }
+    if (strong.length != 1) return null;
+
+    final only = strong.first;
+    final nameTokens = prepareDoctorName(only.name)
+        .split(RegExp(r'\s+'))
+        .where((t) => t.length >= 2)
+        .toList();
+    final lastQuery = queryTokens.last;
+    final lastName = nameTokens.isEmpty ? '' : nameTokens.last;
+    final distance = (lastQuery.isNotEmpty && lastName.isNotEmpty)
+        ? _editDistance(lastQuery, lastName)
+        : 99;
+    return DoctorNameSuggestion(
+      doctorName: only.name,
+      doctorId: only.id,
+      distance: distance > 20 ? 99 : distance,
+    );
   }
 
   /// مسافة التوكن المختلف الوحيد، أو `null` إن لم يكن «قريباً جداً».

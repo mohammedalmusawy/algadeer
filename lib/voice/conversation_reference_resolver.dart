@@ -563,6 +563,10 @@ class ConversationReferenceResolver {
       ConversationEntityType.laboratory => (selected.labId ?? '').trim(),
       ConversationEntityType.analysis => (selected.analysisId ?? '').trim(),
       ConversationEntityType.package => (selected.packageId ?? '').trim(),
+      ConversationEntityType.radiology => (selected.radiologyId ?? '').trim(),
+      ConversationEntityType.pharmacy => (selected.pharmacyId ?? '').trim(),
+      ConversationEntityType.physio => (selected.physioId ?? '').trim(),
+      ConversationEntityType.supply => (selected.supplyId ?? '').trim(),
       ConversationEntityType.none => '',
     };
     if (id.isEmpty || id != selectedId) return null;
@@ -583,6 +587,14 @@ class ConversationReferenceResolver {
         return 'ما عندي تحليل محفوظ بالسياق.';
       case ConversationEntityType.package:
         return 'ما عندي باقة محفوظة بالسياق.';
+      case ConversationEntityType.radiology:
+        return 'ما عندي مركز أشعة محفوظ بالسياق. ابحث عن الأشعة أولاً.';
+      case ConversationEntityType.pharmacy:
+        return 'ما عندي صيدلية محفوظة بالسياق. ابحث عن صيدلية أولاً.';
+      case ConversationEntityType.physio:
+        return 'ما عندي مركز علاج طبيعي محفوظ بالسياق. ابحث عن العلاج الطبيعي أولاً.';
+      case ConversationEntityType.supply:
+        return 'ما عندي محل مستلزمات محفوظ بالسياق. ابحث عن المستلزمات أولاً.';
       case ConversationEntityType.none:
         return 'ما عندي كيان محفوظ للعودة إليه.';
     }

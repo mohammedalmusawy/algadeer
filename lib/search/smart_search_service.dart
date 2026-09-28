@@ -53,6 +53,72 @@ class SmartSearchService {
     return out;
   }
 
+  /// كتالوج الأطباء النشطين من الكاش — لإعادة التحقق بالـ ID قبل الاتصال/واتساب.
+  ///
+  /// الاستعلام الفارغ في [search] لا يُرجع نتائج؛ هذا المسار هو المصدر السلطوي.
+  Future<List<SmartSearchResult>> activeDoctorsCatalog() async {
+    final rows = await _cachedDoctors();
+    final out = <SmartSearchResult>[];
+    for (final row in rows) {
+      try {
+        final map = Map<String, dynamic>.from(row);
+        if ((map['doctor_name']?.toString() ?? '').trim().isEmpty) {
+          final alt = map['name']?.toString().trim() ?? '';
+          if (alt.isNotEmpty) map['doctor_name'] = alt;
+        }
+        final doctor = DoctorItem.fromMap(map);
+        if (doctor.name.isEmpty || doctor.id.isEmpty) continue;
+        final leave = DoctorLeaveDisplay.fromDoctor(doctor);
+        String? availabilityLabel;
+        if (leave.isOnLeave) {
+          availabilityLabel = leave.badgeLabel;
+        } else if (doctor.bookingStatus == 'available') {
+          availabilityLabel = DoctorGender.availableShort(doctor.gender);
+        } else if (doctor.bookingStatus == 'full') {
+          availabilityLabel = 'مكتمل اليوم';
+        } else if (doctor.bookingStatus == 'walk_in_only') {
+          availabilityLabel = 'حضور مباشر فقط';
+        } else if (doctor.bookingStatus == 'unavailable') {
+          availabilityLabel = DoctorGender.notAvailable(doctor.gender);
+        }
+        out.add(
+          SmartSearchResult(
+            type: SmartSearchResultType.doctor,
+            title: doctor.name,
+            subtitle: doctor.specialty.isNotEmpty ? doctor.specialty : 'طبيب',
+            doctorId: doctor.id,
+            score: 80,
+            imageUrl: doctor.imageUrl.isNotEmpty ? doctor.imageUrl : null,
+            specialty: doctor.specialty,
+            absenceBadge: leave.isOnLeave ? leave.badgeLabel : null,
+            availabilityLabel: availabilityLabel,
+            bioSnippet: doctor.shortDescription.isNotEmpty
+                ? doctor.shortDescription
+                : (doctor.bio.isNotEmpty ? doctor.bio : null),
+            isOnLeave: leave.isOnLeave,
+            phone: doctor.phone.trim().isNotEmpty ? doctor.phone.trim() : null,
+            whatsapp: doctor.whatsapp.trim().isNotEmpty
+                ? doctor.whatsapp.trim()
+                : null,
+            clinicLocation: doctor.location.trim().isNotEmpty
+                ? doctor.location.trim()
+                : null,
+            bookingStatus: doctor.bookingStatus,
+            workingDays: doctor.workingDays,
+            workingHours: doctor.workingHours,
+            absenceFrom: doctor.absenceFrom,
+            absenceTo: doctor.absenceTo,
+            gender: doctor.gender,
+            demandScore: _demandFromRow(map),
+          ),
+        );
+      } catch (e, st) {
+        debugPrint('SmartSearch activeDoctorsCatalog row failed: $e\n$st');
+      }
+    }
+    return out;
+  }
+
   Future<List<Map<String, dynamic>>> _cachedDoctors() {
     final cached = _doctorsCache;
     final at = _doctorsCacheAt;
@@ -115,6 +181,7 @@ class SmartSearchService {
 
     await Future.wait<void>([
       _searchLabs(rawQuery, pattern, results),
+      _searchRadiology(rawQuery, pattern, results),
       _searchPackages(
         rawQuery,
         pattern,
@@ -143,7 +210,7 @@ class SmartSearchService {
     final byKey = <String, SmartSearchResult>{};
     for (final r in results) {
       final key =
-          '${r.type}:${r.doctorId ?? ''}:${r.labId ?? ''}:${r.packageId ?? ''}:${r.analysisId ?? ''}:${r.title}';
+          '${r.type}:${r.doctorId ?? ''}:${r.labId ?? ''}:${r.packageId ?? ''}:${r.analysisId ?? ''}:${r.radiologyId ?? ''}:${r.title}';
       final existing = byKey[key];
       if (existing == null || r.score > existing.score) {
         byKey[key] = r;
@@ -546,6 +613,66 @@ class SmartSearchService {
             demandScore: _demandFromRow(
               Map<String, dynamic>.from(row),
             ),
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _searchRadiology(
+    String rawQuery,
+    String pattern,
+    List<SmartSearchResult> out,
+  ) async {
+    final q = ArabicTextUtils.normalize(rawQuery.trim());
+    try {
+      final isGeneric = q == 'اشعه' ||
+          q == 'اشعة' ||
+          q == 'الأشعة' ||
+          q == 'الاشعه' ||
+          (RegExp(r'(?:اشعه|اشعة|أشعة)').hasMatch(q) &&
+              ArabicTextUtils.prepareRadiologyNameQuery(q).isEmpty);
+
+      List rows;
+      if (isGeneric) {
+        rows = await _client
+            .from('radiology_centers')
+            .select()
+            .eq('is_active', true)
+            .order('display_order', ascending: true)
+            .limit(8) as List;
+      } else {
+        rows = await _client
+            .from('radiology_centers')
+            .select()
+            .eq('is_active', true)
+            .or('name.ilike.$pattern,address.ilike.$pattern')
+            .limit(8) as List;
+      }
+
+      final needle = pattern.replaceAll('%', '');
+      for (final row in rows) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final id = (map['id']?.toString() ?? '').trim();
+        final name = (map['name'] ?? map['center_name'])?.toString().trim() ?? '';
+        if (id.isEmpty || name.isEmpty) continue;
+        final phone = (map['phone']?.toString() ?? '').trim();
+        final wa = (map['whatsapp']?.toString() ?? '').trim();
+        final address = (map['address']?.toString() ?? '').trim();
+        out.add(
+          SmartSearchResult(
+            type: SmartSearchResultType.radiology,
+            title: name,
+            subtitle: address.isNotEmpty ? address : 'مركز أشعة',
+            radiologyId: id,
+            score: isGeneric ? 25 : _scoreMatch(name, needle),
+            imageUrl: (map['image_url']?.toString() ?? '').trim().isNotEmpty
+                ? map['image_url']?.toString()
+                : null,
+            phone: phone.isNotEmpty ? phone : null,
+            whatsapp: wa.isNotEmpty ? wa : null,
+            clinicLocation: address.isNotEmpty ? address : null,
+            demandScore: _demandFromRow(map),
           ),
         );
       }

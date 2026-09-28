@@ -19,7 +19,7 @@ class PersonalMemoryService {
     if (existing != null) return existing;
     String owner = 'local';
     if (_repo is LocalPersonalMemoryRepository) {
-      owner = await (_repo as LocalPersonalMemoryRepository).ownerKey();
+      owner = await _repo.ownerKey();
     }
     return _repo.saveStore(CompanionPersonalMemoryStore(ownerKey: owner));
   }

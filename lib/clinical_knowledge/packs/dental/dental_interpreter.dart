@@ -197,7 +197,11 @@ class DentalInterpreter {
 
     final isTurn = dentalCue ||
         (education && RegExp(r'(?:تسوس|لثه|اسنان|حساسيه\s*اسنان)').hasMatch(n)) ||
-        asksAbx && RegExp(r'(?:سن|ضرس|اسنان)').hasMatch(n);
+        asksAbx && RegExp(r'(?:سن|ضرس|اسنان)').hasMatch(n) ||
+        // ورم الوجه (إثبات أو نفي) مسار أسنان حتى بلا كلمة «سن/لثة».
+        facialMatch ||
+        gumMatch ||
+        (negSwell && RegExp(r'(?:وجه|وجهي|بالوجه)').hasMatch(n));
 
     return DentalInterpretation(
       isDentalTurn: isTurn,

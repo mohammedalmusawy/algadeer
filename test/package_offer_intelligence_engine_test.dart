@@ -258,6 +258,41 @@ void main() {
       ), isTrue);
     });
 
+    test('A2 — أريد باقة (مفرد) → قائمة لا «لم أجد»', () async {
+      final intent = resolver.resolve('أريد باقة');
+      expect(intent.intent, AssistantIntent.findPackage);
+      expect(intent.entities.packageName, isNull);
+      final plan = await planner.plan(query: 'أريد باقة', context: ctx);
+      expect(plan.message, isNot(contains('لم أجد')));
+      expect(
+        plan.kind == AssistantActionKind.runPackageSearch ||
+            plan.kind == AssistantActionKind.selectEntity ||
+            plan.candidates.isNotEmpty,
+        isTrue,
+      );
+    });
+
+    test('A3 — باقة تحليلات / بحثلي عن باقة تحليلات → قائمة عامة', () async {
+      for (final q in [
+        'باقة تحليلات',
+        'أريد باقة تحليلات',
+        'بحثلي عن باقة تحليلات',
+      ]) {
+        final intent = resolver.resolve(q);
+        expect(intent.intent, AssistantIntent.findPackage, reason: q);
+        expect(intent.entities.packageName, isNull, reason: q);
+        final plan = await planner.plan(query: q, context: ctx);
+        expect(plan.message, isNot(contains('لم أجد')), reason: q);
+        expect(
+          plan.kind == AssistantActionKind.runPackageSearch ||
+              plan.kind == AssistantActionKind.selectEntity ||
+              plan.candidates.isNotEmpty,
+          isTrue,
+          reason: q,
+        );
+      }
+    });
+
     test('B — أريد باقة الفحص الشامل → clean package entity', () {
       final intent = resolver.resolve('أريد باقة الفحص الشامل');
       expect(intent.intent, AssistantIntent.findPackage);

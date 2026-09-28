@@ -1,3 +1,5 @@
+import 'arabic_text_utils.dart';
+
 /// أوامر صوتية/نصية للاتصال وواتساب من البحث الذكي.
 enum VoiceContactKind { call, whatsapp }
 
@@ -16,33 +18,69 @@ class VoiceContactCommand {
 
   bool get hasTarget => targetQuery.trim().isNotEmpty;
 
+  /// أخطاء إملائية شائعة + إنجليزي: وتساب، مارسل، whatsapp…
+  /// عام لأي طبيب/مختبر — بلا أسماء ثابتة.
+  static String canonicalizeAliases(String raw) {
+    var s = raw;
+    s = s.replaceAll(
+      RegExp(r'وتساب|ووتساب|واتسب|واتس\s*اب', caseSensitive: false),
+      'واتساب',
+    );
+    s = s.replaceAll(
+      RegExp(r'\bwatsapp\b|\bwhatsap\b|\bwhats\s*app\b', caseSensitive: false),
+      'whatsapp',
+    );
+    // «مارسل» شائعة بدل «راسل» بالصوت/الكتابة السريعة.
+    s = s.replaceAll(RegExp(r'مارسل', caseSensitive: false), 'راسل');
+    return s;
+  }
+
   /// يحاول استخراج أمر اتصال/واتساب من النص. null = بحث عادي.
   static VoiceContactCommand? tryParse(String raw) {
     final original = raw.trim();
     if (original.isEmpty) return null;
 
-    final whatsapp = _tryParseWhatsApp(original);
-    if (whatsapp != null) return whatsapp;
+    final canonical = canonicalizeAliases(original);
+    final whatsapp = _tryParseWhatsApp(canonical);
+    if (whatsapp != null) {
+      return VoiceContactCommand(
+        kind: whatsapp.kind,
+        targetQuery: whatsapp.targetQuery,
+        message: whatsapp.message,
+        rawQuery: original,
+      );
+    }
 
-    return _tryParseCall(original);
+    final call = _tryParseCall(canonical);
+    if (call == null) return null;
+    return VoiceContactCommand(
+      kind: call.kind,
+      targetQuery: call.targetQuery,
+      message: call.message,
+      rawQuery: original,
+    );
   }
 
   static VoiceContactCommand? _tryParseCall(String original) {
     if (!_looksLikeCallVerb(original)) return null;
 
+    // طبّع الهمزات حتى يطابق ^(?:اتصل) صيغ STT «أتصل/إتصل».
+    // بعد normalize: «على» → «علي»، فيجب قبول «علي» كحرف جر قبل اللقب
+    // وإلا يبقى «علي دكتور علي …» ويُفسَّر كاسم مزدوج.
+    final forMatch = ArabicTextUtils.normalize(original);
     final re = RegExp(
       r'^(?:أريد|اريد|ابي|أبغى|من\s+فضلك|لو\s+سمحت)?\s*'
-      r'(?:اتصل|اتصال|كلّم|كلم|رن|رنّ|dial|call)\s*'
-      r'(?:ب|على|ل|في|مع)?\s*(?:ال)?(?:دكتور|طبيب|مختبر)?\s*',
+      r'(?:اتصل|اتصال|كل[مّ]|كلم|رن|رنّ|dial|call)\s*'
+      r'(?:ب|على|علي|ل|في|مع)?\s*(?:ال)?(?:دكتور|طبيب|مختبر|اشعه|اشعة|أشعة)?\s*',
       caseSensitive: false,
     );
-    final m = re.firstMatch(original);
+    final m = re.firstMatch(forMatch);
     var target = m != null
-        ? original.substring(m.end).trim()
-        : original
+        ? forMatch.substring(m.end).trim()
+        : forMatch
             .replaceAll(
               RegExp(
-                r'(?:أريد|اريد|ابي|اتصل|اتصال|كلّم|كلم|رن|رنّ|dial|call|ب|على|ل)',
+                r'(?:أريد|اريد|ابي|اتصل|اتصال|كل[مّ]|كلم|رن|رنّ|dial|call|ب|على|علي|ل)',
                 caseSensitive: false,
               ),
               ' ',
@@ -61,21 +99,23 @@ class VoiceContactCommand {
   }
 
   static bool _looksLikeCallVerb(String original) {
-    final q = original.toLowerCase();
+    final q = ArabicTextUtils.normalize(original);
     return q.contains('اتصل') ||
         q.contains('اتصال') ||
         RegExp(r'(^|\s)كلم(ني|ه|ها)?(\s|$)').hasMatch(q) ||
-        q.contains('كلّم') ||
+        q.contains('كلم') ||
         RegExp(r'(^|\s)رنّ?(\s|$)').hasMatch(q) ||
         q.contains('call') ||
         q.contains('dial');
   }
 
   static VoiceContactCommand? _tryParseWhatsApp(String original) {
+    final qNorm = ArabicTextUtils.normalize(original);
     final qLower = original.toLowerCase();
-    final hasWa = qLower.contains('واتس') ||
+    final hasWa = qNorm.contains('واتس') ||
+        qNorm.contains('واتساب') ||
         qLower.contains('whatsapp') ||
-        qLower.contains('واتساب');
+        qNorm.contains('وتساب');
     if (!hasWa) return null;
 
     String target = original;
@@ -130,20 +170,35 @@ class VoiceContactCommand {
     // لقب مهني وحده = إشارة سياقية وليست اسماً.
     if (_isRoleOnlyToken(s)) return '';
 
-    // أولاً: بقايا «ل» من «للدكتور» بعد مطابقة حرف الجر في النمط.
-    s = s.replaceFirst(RegExp(r'^ل(?=دكتور|طبيب|دكتورة|طبيبة)'), '').trim();
+    // أولاً: بقايا «ل/لل» من «للدكتور/لمختبر/للأشعة».
+    s = s.replaceFirst(
+      RegExp(r'^ل{1,2}(?=دكتور|طبيب|دكتورة|طبيبة|مختبر|اشعه|اشعة|أشعة)'),
+      '',
+    ).trim();
     if (_isRoleOnlyToken(s)) return '';
 
-    // ترتيب فقط: للثاني / على الاول → هدف سياقي فارغ.
-    final withoutParticle = s.replaceFirst(RegExp(r'^(?:ل|ب|على)'), '').trim();
+    // ترتيب فقط: للثاني / على الاول / علي الاول (بعد تطبيع) → هدف سياقي فارغ.
+    final withoutParticle =
+        s.replaceFirst(RegExp(r'^(?:ل|ب|على|علي)'), '').trim();
     if (_isOrdinalOnlyToken(withoutParticle) || _isOrdinalOnlyToken(s)) {
       return '';
     }
 
+    // «علي دكتور …» من تطبيع «على دكتور …» — أزل حرف الجر قبل اللقب.
     s = s
         .replaceFirst(
           RegExp(
-            r'^(?:ال)?(?:دكتور|الدكتور|دكتورة|الدكتورة|طبيب|الطبيب|طبيبة|الطبيبة|مختبر|المختبر)\s+',
+            r'^(?:ب|ل|على|علي)\s+(?=ال?(?:دكتور|دكتورة|طبيب|طبيبة|مختبر|اشعه|اشعة|أشعة))',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
+
+    s = s
+        .replaceFirst(
+          RegExp(
+            r'^(?:ال)?(?:دكتور|الدكتور|دكتورة|الدكتورة|طبيب|الطبيب|طبيبة|الطبيبة|مختبر|المختبر|اشعه|اشعة|أشعة|الاشعه|الأشعة)\s+',
             caseSensitive: false,
           ),
           '',
@@ -160,7 +215,7 @@ class VoiceContactCommand {
     final t = raw.trim();
     if (t.isEmpty) return true;
     return RegExp(
-      r'^(?:ال)?(?:دكتور|دكتورة|طبيب|طبيبة|مختبر)$',
+      r'^(?:ال)?(?:دكتور|دكتورة|طبيب|طبيبة|مختبر|اشعه|اشعة|أشعة)$',
       caseSensitive: false,
     ).hasMatch(t);
   }

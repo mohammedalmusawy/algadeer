@@ -20,7 +20,7 @@ class FamilySensitiveHealthService {
     if (existing != null) return existing;
     String owner = 'local';
     if (_repo is LocalFamilySensitiveHealthRepository) {
-      owner = await (_repo as LocalFamilySensitiveHealthRepository).ownerKey();
+      owner = await _repo.ownerKey();
     }
     final store = FamilySensitiveHealthStore(ownerKey: owner);
     return _repo.saveStore(store);

@@ -11,6 +11,14 @@ import '../doctors/specialty_catalog.dart';
 import '../labs/lab_package_detail_page.dart';
 import '../labs/lab_profile_page.dart';
 import '../labs/labs_service.dart';
+import '../pharmacies/pharmacies_store.dart';
+import '../pharmacies/pharmacy_profile_page.dart';
+import '../physio/physio_profile_page.dart';
+import '../physio/physio_store.dart';
+import '../supplies/supplies_store.dart';
+import '../supplies/supply_profile_page.dart';
+import '../radiology/radiology_profile_page.dart';
+import '../radiology/radiology_service.dart';
 import '../medical/medical_navigation_service.dart';
 import '../models/doctor_item.dart';
 import '../utils/contact_launch.dart';
@@ -32,6 +40,7 @@ import '../voice/voice_settings.dart';
 import 'arabic_text_utils.dart';
 import 'conversation/smart_brain_chat_models.dart';
 import 'conversation/smart_brain_chat_widgets.dart';
+import 'conversation/smart_brain_suggested_actions.dart';
 import 'conversation/smart_brain_turn_results.dart';
 import 'doctor_name_matcher.dart';
 import 'query_input_source.dart';
@@ -42,7 +51,7 @@ import 'voice_contact_command.dart';
 import 'voice_specialty_search_command.dart';
 import '../widgets/clinic_app_bar.dart';
 
-/// مساعد الغدير الذكي — واجهة محادثة فوق مسار Unified Brain الموحّد (نص + صوت).
+/// بحث الغدير — واجهة بحث ومقترحات فوق مسار Unified Brain الموحّد (نص + صوت).
 class SmartSearchPage extends StatefulWidget {
   const SmartSearchPage({
     super.key,
@@ -212,9 +221,9 @@ class _SmartSearchPageState extends State<SmartSearchPage>
   String _welcomeTextFor(String? preferredName) {
     final name = preferredName?.trim();
     if (name != null && name.isNotEmpty) {
-      return 'هلا $name 👋\nآني الغدير. شلون أگدر أساعدك اليوم؟';
+      return 'هلا $name\nدور على طبيب أو اختصاص — النتائج حسب الأكثر طلباً داخل الاختصاص.';
     }
-    return 'هلا 👋\nآني الغدير. شلون أگدر أساعدك اليوم؟';
+    return 'دور على طبيب أو اختصاص.\nاكتب أو احكي، أو اختَر مقترحاً من تحت.';
   }
 
   Future<void> _loadWelcomeName() async {
@@ -295,6 +304,9 @@ class _SmartSearchPageState extends State<SmartSearchPage>
 
     final attached = List<SmartSearchResult>.from(presented);
     final urgent = _assistantReply?.source == AssistantReplySource.urgentCare;
+    final suggestions = attached.isEmpty
+        ? const <SmartBrainSuggestedAction>[]
+        : SmartBrainSuggestedActionsBuilder.forResults(attached);
 
     setState(() {
       _chatTurns.removeWhere((t) => t.isThinking);
@@ -303,6 +315,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
           id: _nextTurnId('assistant'),
           text: text,
           results: attached,
+          suggestedActions: suggestions,
           isUrgent: urgent,
         ),
       );
@@ -560,7 +573,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       final counted = SmartSearchResult.semanticPrimary(local);
 
       DoctorNameSuggestion? typoSuggestion;
-      if (local.isEmpty && plan.message.trim().isEmpty) {
+      if (local.isEmpty) {
         typoSuggestion = await _suggestDoctorNameCorrection(query);
         if (!mounted || epoch != _searchEpoch) return;
       }
@@ -568,15 +581,19 @@ class _SmartSearchPageState extends State<SmartSearchPage>
           ? null
           : ArabicTextUtils.stripHonorifics(typoSuggestion.doctorName).trim();
 
-      final baseMsg = plan.message.trim().isNotEmpty
-          ? plan.message.trim()
-          : (local.isEmpty
-              ? (typoLabel != null
-                  ? 'ما لقيت مطابقة دقيقة. هل تقصد د. $typoLabel؟'
-                  : 'ما لقيت نتيجة مطابقة حالياً.')
-              : (counted.length == 1
-                  ? 'وجدت ${counted.first.title}.'
-                  : 'وجدت ${counted.length} نتائج.'));
+      // اقتراح التصحيح يسبق رسالة المخطّط عند الفراغ (اتصال/واتساب/بحث).
+      final String baseMsg;
+      if (local.isEmpty && typoLabel != null && typoLabel.isNotEmpty) {
+        baseMsg = 'ما لقيت مطابقة دقيقة. هل تقصد د. $typoLabel؟';
+      } else if (plan.message.trim().isNotEmpty) {
+        baseMsg = plan.message.trim();
+      } else if (local.isEmpty) {
+        baseMsg = 'ما لقيت نتيجة مطابقة حالياً.';
+      } else if (counted.length == 1) {
+        baseMsg = 'وجدت ${counted.first.title}.';
+      } else {
+        baseMsg = 'وجدت ${counted.length} نتائج.';
+      }
       final modsNote = local.isEmpty || plan.message.trim().isNotEmpty
           ? null
           : SearchRefiner.summary(local, plan.modifiers);
@@ -670,6 +687,44 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         return false;
 
       case AssistantActionKind.runGeneralSearch:
+        // نتائج جاهزة من المنصة (صيدليات/أشعة…) — لا تعِد البحث عبر
+        // SmartSearchService الذي لا يعرف الصيدليات.
+        if (plan.candidates.isNotEmpty) {
+          if (!mounted || epoch != _searchEpoch) return true;
+          if (showLoading) {
+            _voiceInput.setProcessing();
+          }
+          final shown = SearchRefiner.apply(plan.candidates, plan.modifiers);
+          _conversation.rememberResults(
+            shown,
+            query: query,
+            intent: plan.intentResult.intent,
+            assistantResponse: plan.message,
+          );
+          setState(() {
+            _results = shown;
+            _loading = false;
+            _searchError = null;
+            _assistantReply = AssistantReply(
+              query: query,
+              text: plan.message.isNotEmpty
+                  ? plan.message
+                  : (shown.length == 1
+                      ? 'وجدت ${shown.first.title}.'
+                      : 'وجدت ${shown.length} نتائج.'),
+              spoken: false,
+              source: AssistantReplySource.localSearch,
+              searchResults: shown,
+            );
+          });
+          if (showLoading) _voiceInput.setResult();
+          if (announce && plan.message.isNotEmpty) {
+            await _voice.speak(plan.message);
+          }
+          return true;
+        }
+        return false; // يكمل مسار البحث أدناه
+
       case AssistantActionKind.runDoctorSearch:
       case AssistantActionKind.runAnalysisSearch:
         return false; // يكمل مسار البحث أدناه
@@ -878,6 +933,48 @@ class _SmartSearchPageState extends State<SmartSearchPage>
           await _openLab(target.labId!);
           return true;
         }
+        if (target.type == SmartSearchResultType.radiology &&
+            target.radiologyId != null &&
+            target.radiologyId!.isNotEmpty) {
+          if (!mounted || epoch != _searchEpoch) return true;
+          setState(() {
+            _results = [target];
+            _loading = false;
+            _assistantReply = AssistantReply(
+              query: query,
+              text: plan.message,
+              spoken: false,
+              source: AssistantReplySource.localSearch,
+              searchResults: [target],
+            );
+          });
+          if (announce && plan.message.isNotEmpty) {
+            await _voice.speak(plan.message);
+          }
+          await _openRadiology(target.radiologyId!);
+          return true;
+        }
+        if (target.type == SmartSearchResultType.pharmacy &&
+            target.pharmacyId != null &&
+            target.pharmacyId!.isNotEmpty) {
+          if (!mounted || epoch != _searchEpoch) return true;
+          setState(() {
+            _results = [target];
+            _loading = false;
+            _assistantReply = AssistantReply(
+              query: query,
+              text: plan.message,
+              spoken: false,
+              source: AssistantReplySource.localSearch,
+              searchResults: [target],
+            );
+          });
+          if (announce && plan.message.isNotEmpty) {
+            await _voice.speak(plan.message);
+          }
+          await _openPharmacy(target.pharmacyId!);
+          return true;
+        }
         if (target.doctorId == null) {
           await _showPlanMessage(
             plan,
@@ -953,6 +1050,36 @@ class _SmartSearchPageState extends State<SmartSearchPage>
           showLoading: showLoading,
         );
         return true;
+
+      case AssistantActionKind.stopSpeaking:
+        // الصوت أُوقف عند بداية الدور إن كان يعمل؛ لا نطق جديد.
+        if (!mounted || epoch != _searchEpoch) return true;
+        if (_voice.isSpeaking) {
+          await _silenceVoice();
+        }
+        if (showLoading) _voiceInput.setResult();
+        setState(() {
+          _loading = false;
+          _searchError = null;
+          _assistantReply = AssistantReply(
+            query: query,
+            text: plan.message.isNotEmpty ? plan.message : 'تمام، أوقفت الصوت.',
+            spoken: false,
+            source: AssistantReplySource.localSearch,
+            searchResults: _results,
+          );
+        });
+        return true;
+
+      case AssistantActionKind.repeatResponse:
+        await _showPlanMessage(
+          plan,
+          query: query,
+          epoch: epoch,
+          announce: announce,
+          showLoading: showLoading,
+        );
+        return true;
     }
   }
 
@@ -964,6 +1091,28 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     bool showLoading = true,
   }) async {
     if (!mounted || epoch != _searchEpoch) return;
+
+    // موحّد لكل المسارات (بحث/اتصال/واتساب): عند فراغ النتائج اقترح تصحيحاً
+    // إن وُجد مرشّح وحيد واثق — بلا فتح ملف ولا اتصال تلقائي.
+    var displayMessage = plan.message;
+    if (_shouldOfferDoctorNameTypo(plan, query)) {
+      final typo = await _suggestDoctorNameCorrection(query);
+      if (!mounted || epoch != _searchEpoch) return;
+      final id = (typo?.doctorId ?? '').trim();
+      final label = typo == null
+          ? ''
+          : ArabicTextUtils.stripHonorifics(typo.doctorName).trim();
+      if (id.isNotEmpty && label.isNotEmpty) {
+        displayMessage = 'ما لقيت مطابقة دقيقة. هل تقصد د. $label؟';
+        _conversation.setPendingDoctorSuggestion(
+          PendingDoctorSuggestion(
+            doctorId: id,
+            doctorName: typo!.doctorName,
+          ),
+        );
+      }
+    }
+
     if (showLoading) _voiceInput.setResult();
     setState(() {
       if (plan.candidates.isNotEmpty) _results = plan.candidates;
@@ -972,18 +1121,33 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       }
       _loading = false;
       _searchError =
-          plan.kind == AssistantActionKind.showMessage ? plan.message : null;
+          plan.kind == AssistantActionKind.showMessage ? displayMessage : null;
       _assistantReply = AssistantReply(
         query: query,
-        text: plan.message,
+        text: displayMessage,
         spoken: false,
         source: AssistantReplySource.localSearch,
         searchResults: _results,
       );
     });
-    if (announce && !plan.textFirstOnly && plan.message.isNotEmpty) {
-      await _voice.speak(plan.message);
+    if (announce && !plan.textFirstOnly && displayMessage.isNotEmpty) {
+      await _voice.speak(displayMessage);
     }
+  }
+
+  /// متى نعرض «هل تقصد…؟» بدل رسالة الفراغ — ضيّق وآمن.
+  bool _shouldOfferDoctorNameTypo(AssistantActionPlan plan, String query) {
+    if (plan.target != null || plan.candidates.isNotEmpty) return false;
+    if (query.trim().isEmpty) return false;
+    final msg = plan.message;
+    if (msg.contains('لم أجد طبيب') ||
+        msg.contains('طبيباً مطابقاً') ||
+        msg.contains('ما لقيت نتيجة') ||
+        msg.contains('ما لقيت مطابقة')) {
+      return true;
+    }
+    final explicit = plan.targetResolution?.explicitName?.trim() ?? '';
+    return explicit.isNotEmpty;
   }
 
   Future<void> _handleContextualResolution(
@@ -1546,9 +1710,14 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         );
         return;
       }
-      if (announce) await _voice.speak('جاري الاتصال بـ ${result.title}');
+      // الاتصال أولاً — لا ننتظر TTS. بالصوت كان await speak يمنع التنفيذ
+      // على الماك بينما الكتابة (announce=false) تنجح لنفس الأمر.
       _externalContactLaunches++;
-      await launchClinicCall(result.effectivePhone);
+      final launch = launchClinicCall(result.effectivePhone);
+      if (announce) {
+        unawaited(_voice.speak('جاري الاتصال بـ ${result.title}'));
+      }
+      await launch;
       return;
     }
 
@@ -1559,10 +1728,9 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       );
       return;
     }
-    if (announce) await _voice.speak('جاري فتح واتساب ${result.title}');
     _externalContactLaunches++;
     final isDoctor = result.type == SmartSearchResultType.doctor;
-    await launchClinicWhatsApp(
+    final launch = launchClinicWhatsApp(
       result.effectiveWhatsApp,
       message: whatsappMessage.isNotEmpty
           ? whatsappMessage
@@ -1572,6 +1740,10 @@ class _SmartSearchPageState extends State<SmartSearchPage>
               profileService: _profileService,
             ),
     );
+    if (announce) {
+      unawaited(_voice.speak('جاري فتح واتساب ${result.title}'));
+    }
+    await launch;
   }
 
   List<SmartSearchResult> _contactableResults(
@@ -1591,6 +1763,10 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         case SmartSearchResultType.doctor:
           return 0;
         case SmartSearchResultType.lab:
+          return 1;
+        case SmartSearchResultType.radiology:
+          return 1;
+        case SmartSearchResultType.pharmacy:
           return 1;
         case SmartSearchResultType.package:
         case SmartSearchResultType.offer:
@@ -1806,6 +1982,34 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       }
 
       if (!ready.isFullyAuthorized && ready.isNotDetermined) {
+        // autoStart تحت flutter run: لا تطلب Speech مباشرة (SIGABRT).
+        // افتح الإعدادات وانتظر ضغط المايك يدويًا بعد التفعيل.
+        if (source == 'autoStart') {
+          debugPrint(
+            '[MIC] PID=$pidLabel autoStart skipped — speech/mic notDetermined '
+            '(open Settings, no requestAuthorization)',
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                DeviceSpeechRecognitionService.enablePermissionMessage,
+              ),
+              action: SnackBarAction(
+                label: 'الإعدادات',
+                onPressed: () {
+                  unawaited(
+                    DeviceSpeechRecognitionService.openSystemPrivacySettings(),
+                  );
+                },
+              ),
+            ),
+          );
+          unawaited(
+            DeviceSpeechRecognitionService.openSystemPrivacySettings(),
+          );
+          return;
+        }
         debugPrint(
           '[MIC] PID=$pidLabel notDetermined — in-process permission request',
         );
@@ -1932,8 +2136,11 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       return;
     }
 
-    // لا تبدأ استماعًا جديدًا أثناء المعالجة أو النطق.
-    if (_loading) return;
+    // أثناء «الغدير يفكر»: الزر يوقف الطلب الجاري (بدل تعطيله).
+    if (_loading) {
+      _cancelInFlightTurn();
+      return;
+    }
     if (_voiceInput.state == VoiceAssistantState.processing ||
         _voiceInput.state == VoiceAssistantState.speaking) {
       return;
@@ -1941,16 +2148,46 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     await _startVoiceSession(clearQuery: true, source: source);
   }
 
+  /// يبطل الدورة الجارية فوراً — زر إيقاف على «يفكر» أو المايك أثناء التحميل.
+  void _cancelInFlightTurn() {
+    _searchEpoch++;
+    unawaited(_silenceVoice());
+    _voiceInput.setIdle();
+    _cancelThinkingIfStale();
+    if (!mounted) return;
+    setState(() {
+      _assistantReply = AssistantReply(
+        query: '',
+        text: 'تمام، أوقفت الطلب.',
+        spoken: false,
+        source: AssistantReplySource.localSearch,
+        searchResults: _results,
+      );
+    });
+    _commitAssistantTurn();
+  }
+
   Future<void> _submitManual() async {
     if (_voice.isSpeaking) {
       await _silenceVoice();
     }
-    if (_loading) return;
+    final text = _controller.text.trim();
+    if (_loading) {
+      final n = ArabicTextUtils.normalize(text);
+      if (n == 'وقف' ||
+          n == 'اوقف' ||
+          n == 'أوقف' ||
+          n == 'كافي' ||
+          n == 'stop') {
+        _setFieldText('');
+        _cancelInFlightTurn();
+      }
+      return;
+    }
     if (_listening || _voiceSessionActive) {
       await _manualStopAndSearch();
       return;
     }
-    final text = _controller.text.trim();
     if (text.isEmpty) return;
     _debounce?.cancel();
     final launchesBefore = _externalContactLaunches;
@@ -2005,6 +2242,53 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     await _openResult(result);
   }
 
+  Future<void> _onSuggestedAction(SmartBrainSuggestedAction action) async {
+    final result = action.result;
+    switch (action.kind) {
+      case SmartBrainSuggestedActionKind.openDetails:
+      case SmartBrainSuggestedActionKind.showPackages:
+      case SmartBrainSuggestedActionKind.showOffers:
+        if (result == null) return;
+        await _openResultFromList(result);
+        return;
+      case SmartBrainSuggestedActionKind.call:
+        if (result == null) return;
+        await _launchContactForResult(
+          result,
+          VoiceContactKind.call,
+          announce: false,
+        );
+        return;
+      case SmartBrainSuggestedActionKind.whatsapp:
+        if (result == null) return;
+        await _launchContactForResult(
+          result,
+          VoiceContactKind.whatsapp,
+          announce: false,
+        );
+        return;
+      case SmartBrainSuggestedActionKind.showLocation:
+        if (result == null || !mounted) return;
+        final loc = (result.clinicLocation ?? result.subtitle).trim();
+        if (loc.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ماكو موقع محفوظ لهذه النتيجة.')),
+          );
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc)),
+        );
+        return;
+      case SmartBrainSuggestedActionKind.showMoreResults:
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('النتائج معروضة أعلاه.')),
+        );
+        return;
+    }
+  }
+
   Future<void> _openResult(SmartSearchResult result) async {
     await _silenceVoice();
     if (_navigating) return;
@@ -2028,6 +2312,22 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         case SmartSearchResultType.lab:
           if (result.labId != null) {
             await _openLab(result.labId!);
+          }
+        case SmartSearchResultType.radiology:
+          if (result.radiologyId != null) {
+            await _openRadiology(result.radiologyId!);
+          }
+        case SmartSearchResultType.pharmacy:
+          if (result.pharmacyId != null) {
+            await _openPharmacy(result.pharmacyId!);
+          }
+        case SmartSearchResultType.physio:
+          if (result.physioId != null) {
+            await _openPhysio(result.physioId!);
+          }
+        case SmartSearchResultType.supply:
+          if (result.supplyId != null) {
+            await _openSupply(result.supplyId!);
           }
         case SmartSearchResultType.package:
         case SmartSearchResultType.offer:
@@ -2082,6 +2382,47 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     );
   }
 
+  Future<void> _openRadiology(String centerId) async {
+    final center = await RadiologyService().fetchCenterById(centerId);
+    if (!mounted || center == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RadiologyProfilePage(center: center)),
+    );
+  }
+
+  Future<void> _openPharmacy(String pharmacyId) async {
+    await PharmaciesStore.instance.load();
+    final pharmacy = PharmaciesStore.instance.byId(pharmacyId);
+    if (!mounted || pharmacy == null || !pharmacy.isActive) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PharmacyProfilePage(pharmacy: pharmacy),
+      ),
+    );
+  }
+
+  Future<void> _openPhysio(String physioId) async {
+    await PhysioStore.instance.load();
+    final center = PhysioStore.instance.byId(physioId);
+    if (!mounted || center == null || !center.isActive) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PhysioProfilePage(center: center)),
+    );
+  }
+
+  Future<void> _openSupply(String supplyId) async {
+    await SuppliesStore.instance.load();
+    final vendor = SuppliesStore.instance.byId(supplyId);
+    if (!mounted || vendor == null || !vendor.isActive) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SupplyProfilePage(vendor: vendor)),
+    );
+  }
+
   Future<void> _openPackage(String labId, String packageId) async {
     final lab = await LabsService().fetchLabById(labId);
     if (!mounted) return;
@@ -2091,6 +2432,8 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         builder: (_) => LabPackageDetailPage(
           packageId: packageId,
           labName: lab?.name ?? '',
+          labWhatsapp: lab?.whatsapp ?? '',
+          labPhone: lab?.phone ?? '',
         ),
       ),
     );
@@ -2192,7 +2535,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'الغدير',
+                  'بحث الغدير',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 18,
@@ -2200,7 +2543,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
                 ),
                 SizedBox(height: 2),
                 Text(
-                  'مساعدك الصحي الذكي',
+                  'أطباء · اختصاص · مختبرات',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 11,
@@ -2236,11 +2579,17 @@ class _SmartSearchPageState extends State<SmartSearchPage>
                             if (_loading) return;
                             unawaited(_openResultFromList(item));
                           },
+                          onSuggestedAction: (action) {
+                            if (_loading) return;
+                            unawaited(_onSuggestedAction(action));
+                          },
                           isSpeaking: _voice.isSpeaking,
                           onSpeak: turn.isThinking || turn.text.isEmpty
                               ? null
                               : () => _voice.speak(turn.text),
                           onStopSpeak: () => _voice.stop(),
+                          onCancelThinking:
+                              turn.isThinking ? _cancelInFlightTurn : null,
                         );
                       },
                     );

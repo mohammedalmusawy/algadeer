@@ -54,8 +54,9 @@ void main() {
       expect(page.contains('اعتماد النتيجة'), isFalse);
       expect(page.contains('جاري البحث...'), isFalse);
       expect(page.contains("title: const Text('بحث ذكي')"), isFalse);
-      expect(page.contains("'الغدير'"), isTrue);
-      expect(page.contains('مساعدك الصحي الذكي'), isTrue);
+      expect(page.contains("'بحث الغدير'"), isTrue);
+      expect(page.contains('أطباء · اختصاص · مختبرات'), isTrue);
+      expect(page.contains('مساعدك الصحي الذكي'), isFalse);
       expect(page.contains('SmartBrainChatTurn.thinking'), isTrue);
       expect(
         File('lib/search/conversation/smart_brain_chat_widgets.dart')

@@ -15,7 +15,15 @@ import 'package:ghadeer_clinic/voice/intent/smart_brain_planner.dart';
 void main() {
   const matcher = DoctorNameMatcher();
   final resolver = RuleBasedIntentResolver();
-  final planner = SmartBrainPlanner(intentResolver: resolver);
+  final planner = SmartBrainPlanner(
+    intentResolver: resolver,
+    clinicalEnabled: false,
+    // لا نضرب Supabase هنا — الاختبار يحرس استخراج الاسم وdoctorQuery فقط.
+    doctorLookup: (_) async => const [],
+    labLookup: (_) async => const [],
+    radiologyLookup: (_) async => const [],
+    pharmacyLookup: (_) async => const [],
+  );
 
   const saeedi = 'الدكتور علي ناصر السعيدي';
   const other = 'ناجي عبد الله الركابي';

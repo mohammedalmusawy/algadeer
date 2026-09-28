@@ -170,6 +170,18 @@ class SearchModifiers {
 class DoctorPresenceQuestion {
   DoctorPresenceQuestion._();
 
+  /// قائمة مغلقة للمتابعة كي لا نبتلع اسمًا جديدًا أو نفيًا أو طلب تنفيذ.
+  static bool isContextual(String query) {
+    final normalized = ArabicTextUtils.normalize(query);
+    return RegExp(
+      r'^(?:و\s*)?(?:هل\s+)?'
+      r'(?:(?:هو|هي|هذا|هاي|الدكتور|الدكتوره|الطبيب|الطبيبه|'
+      r'الاول|الاولي|الثاني|الثانيه|الثالث|الثالثه|الاخير|الاخيره)\s+)?'
+      r'(?:موجود|موجوده|متواجد|متواجده|متوفر|متوفره|متاح|متاحه|يداوم|تداوم)'
+      r'(?:\s+(?:اليوم|هسه|هسع|هاليوم|الان))?$',
+    ).hasMatch(normalized);
+  }
+
   static const Set<String> _presenceTokens = {
     'متواجد', 'متواجده', 'متواجدين', 'موجود', 'موجوده',
     'متوفر', 'متوفره', 'متاح', 'متاحه',
@@ -198,6 +210,7 @@ class DoctorPresenceQuestion {
   };
 
   static String? tryParseName(String query) {
+    if (isContextual(query)) return null;
     final tokens = ArabicTextUtils.normalize(query)
         .split(' ')
         .where((t) => t.isNotEmpty)

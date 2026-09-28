@@ -60,6 +60,10 @@ void main() {
     planner = SmartBrainPlanner(
       doctorLookup: (q) async {
         lookupQueries.add(q);
+        // M7.1: empty = authoritative fixture catalog.
+        if (q.trim().isEmpty) {
+          return [ali, aliA, aliB, docC, naji];
+        }
         final n = ArabicTextUtils.normalize(q);
         if (n.contains('ناجي')) return [naji];
         if (n.contains('علي') && n.contains('ناصر')) return [ali];
@@ -90,7 +94,7 @@ void main() {
       for (final q in ['اتصل', 'واتساب', 'وين عيادته', 'نبذته']) {
         final plan = await planner.plan(query: q, context: ctx);
         expect(plan.target?.doctorId, 'ali', reason: q);
-        expect(lookupQueries, isEmpty, reason: 'no search for $q');
+        expect(lookupQueries.every((q) => q.trim().isEmpty), isTrue, reason: 'no name search for $q');
       }
 
       expect(
@@ -131,7 +135,7 @@ void main() {
       );
       expect(wa.kind, AssistantActionKind.prepareWhatsApp);
       expect(wa.target?.doctorId, 'ali');
-      expect(lookupQueries, isEmpty);
+      expect(lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(ctx.selectedDoctor?.doctorId, 'ali');
     });
   });
@@ -189,7 +193,7 @@ void main() {
       final call = await planner.plan(query: 'اتصل', context: ctx);
       expect(call.kind, AssistantActionKind.prepareCall);
       expect(call.target?.doctorId, 'b');
-      expect(lookupQueries, isEmpty);
+      expect(lookupQueries.every((q) => q.trim().isEmpty), isTrue);
     });
   });
 
@@ -211,7 +215,7 @@ void main() {
       expect(loc.kind, AssistantActionKind.showLocation);
       expect(loc.target?.doctorId, 'c');
 
-      expect(lookupQueries, isEmpty);
+      expect(lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(planner.lastMatcherQueryForTest, isNull);
     });
 
@@ -223,7 +227,7 @@ void main() {
         context: ctx,
       );
       expect(plan.target?.doctorId, 'a');
-      expect(lookupQueries, isEmpty);
+      expect(lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(planner.lastMatcherQueryForTest, isNull);
     });
   });
@@ -261,7 +265,7 @@ void main() {
       );
       expect(wa.kind, AssistantActionKind.showMessage);
       expect(wa.message, contains('أي طبيب'));
-      expect(lookupQueries, isEmpty);
+      expect(lookupQueries.every((q) => q.trim().isEmpty), isTrue);
     });
   });
 

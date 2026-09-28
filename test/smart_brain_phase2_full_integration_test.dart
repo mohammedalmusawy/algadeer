@@ -65,7 +65,7 @@ void main() {
       final callPed = await h.turn('اتصل بيه');
       expect(callPed.kind, AssistantActionKind.prepareCall);
       expect(callPed.target?.doctorId, 'ped_b');
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(h.context.pendingAction, 'call');
       expect(h.context.conversationGeneration, genAfterPedSearch);
 
@@ -95,7 +95,7 @@ void main() {
       final callNeuro = await h.turn('اتصل بيه');
       expect(callNeuro.target?.doctorId, 'neuro_a');
       expect(callNeuro.target?.doctorId, isNot('ped_b'));
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(h.context.conversationGeneration, genAfterNeuroSearch);
 
       // —— 3. طبيب → مختبر ——
@@ -258,7 +258,7 @@ void main() {
       final callOrtho = await h.turn('اتصل بيه');
       expect(callOrtho.kind, AssistantActionKind.prepareCall);
       expect(callOrtho.target?.doctorId, 'ortho_b');
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(h.context.healthSubject.ageYears, isNull);
 
       expect(identical(h.context, h.context), isTrue);
@@ -311,7 +311,7 @@ void main() {
         expect(h.context.selectedLaboratory, isNull, reason: q);
         expect(h.context.selectedPackage, isNull, reason: q);
         expect(h.context.healthSubject.ageYears, isNull, reason: q);
-        expect(h.lookupQueries, isEmpty, reason: q);
+        expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue, reason: q);
         expect(plan.kind, isNot(AssistantActionKind.selectEntity), reason: q);
       }
     });
@@ -413,6 +413,7 @@ class _Harness {
       nluClient: nluClient ?? NluClient.disabled,
       doctorLookup: (q) async {
         lookupQueries.add(q);
+        if (q.trim().isEmpty) return _sessionDoctors(context);
         final n = ArabicTextUtils.normalize(q);
         if (n.contains('علي') && n.contains('ناصر')) return [_ali];
         return const [];
@@ -479,4 +480,25 @@ class _Harness {
     context.rememberResults(results, query: query, intent: intent);
     return plan;
   }
+}
+
+List<SmartSearchResult> _sessionDoctors(ConversationContext ctx) {
+  final out = <SmartSearchResult>[];
+  final seen = <String>{};
+  void add(SmartSearchResult? r) {
+    if (r == null || r.type != SmartSearchResultType.doctor) return;
+    final id = (r.doctorId ?? '').trim();
+    if (id.isEmpty || !seen.add(id)) return;
+    out.add(r);
+  }
+
+  final items = ctx.currentResultContext?.items;
+  if (items != null) {
+    for (final r in items) {
+      add(r);
+    }
+  }
+  add(ctx.selectedDoctor);
+  add(ctx.selectedEntity);
+  return out;
 }

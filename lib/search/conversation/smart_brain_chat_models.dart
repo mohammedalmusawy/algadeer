@@ -1,4 +1,5 @@
 import '../smart_search_models.dart';
+import 'smart_brain_suggested_actions.dart';
 
 /// دور رسالة جلسة المحادثة (عرض فقط — ليست سلطة سياق الدماغ).
 enum SmartBrainChatRole {
@@ -13,6 +14,7 @@ class SmartBrainChatTurn {
     required this.role,
     required this.text,
     this.results = const [],
+    this.suggestedActions = const [],
     this.isUrgent = false,
     this.isThinking = false,
     this.isWelcome = false,
@@ -22,6 +24,9 @@ class SmartBrainChatTurn {
   final SmartBrainChatRole role;
   final String text;
   final List<SmartSearchResult> results;
+
+  /// اقتراحات ديناميكية أسفل الرد — من بيانات النتيجة فقط.
+  final List<SmartBrainSuggestedAction> suggestedActions;
   final bool isUrgent;
   final bool isThinking;
   final bool isWelcome;
@@ -38,6 +43,7 @@ class SmartBrainChatTurn {
     required String id,
     required String text,
     List<SmartSearchResult> results = const [],
+    List<SmartBrainSuggestedAction> suggestedActions = const [],
     bool isUrgent = false,
     bool isWelcome = false,
   }) {
@@ -46,6 +52,8 @@ class SmartBrainChatTurn {
       role: SmartBrainChatRole.assistant,
       text: text.trim(),
       results: List<SmartSearchResult>.unmodifiable(results),
+      suggestedActions:
+          List<SmartBrainSuggestedAction>.unmodifiable(suggestedActions),
       isUrgent: isUrgent,
       isWelcome: isWelcome,
     );
@@ -63,6 +71,7 @@ class SmartBrainChatTurn {
   SmartBrainChatTurn copyWith({
     String? text,
     List<SmartSearchResult>? results,
+    List<SmartBrainSuggestedAction>? suggestedActions,
     bool? isUrgent,
     bool? isThinking,
     bool? isWelcome,
@@ -72,6 +81,7 @@ class SmartBrainChatTurn {
       role: role,
       text: text ?? this.text,
       results: results ?? this.results,
+      suggestedActions: suggestedActions ?? this.suggestedActions,
       isUrgent: isUrgent ?? this.isUrgent,
       isThinking: isThinking ?? this.isThinking,
       isWelcome: isWelcome ?? this.isWelcome,

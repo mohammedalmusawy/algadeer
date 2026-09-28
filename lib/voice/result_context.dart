@@ -73,15 +73,27 @@ class EntityActionCompatibility {
 
   static bool supportsCall(ConversationEntityType t) =>
       t == ConversationEntityType.doctor ||
-      t == ConversationEntityType.laboratory;
+      t == ConversationEntityType.laboratory ||
+      t == ConversationEntityType.radiology ||
+      t == ConversationEntityType.pharmacy ||
+      t == ConversationEntityType.physio ||
+      t == ConversationEntityType.supply;
 
   static bool supportsWhatsApp(ConversationEntityType t) =>
       t == ConversationEntityType.doctor ||
-      t == ConversationEntityType.laboratory;
+      t == ConversationEntityType.laboratory ||
+      t == ConversationEntityType.radiology ||
+      t == ConversationEntityType.pharmacy ||
+      t == ConversationEntityType.physio ||
+      t == ConversationEntityType.supply;
 
   static bool supportsLocation(ConversationEntityType t) =>
       t == ConversationEntityType.doctor ||
       t == ConversationEntityType.laboratory ||
+      t == ConversationEntityType.radiology ||
+      t == ConversationEntityType.pharmacy ||
+      t == ConversationEntityType.physio ||
+      t == ConversationEntityType.supply ||
       t == ConversationEntityType.package; // → مختبر أب
 
   static bool supportsPrice(ConversationEntityType t) =>
@@ -106,6 +118,14 @@ class EntityActionCompatibility {
       case SmartSearchResultType.package:
       case SmartSearchResultType.offer:
         return ConversationEntityType.package;
+      case SmartSearchResultType.radiology:
+        return ConversationEntityType.radiology;
+      case SmartSearchResultType.pharmacy:
+        return ConversationEntityType.pharmacy;
+      case SmartSearchResultType.physio:
+        return ConversationEntityType.physio;
+      case SmartSearchResultType.supply:
+        return ConversationEntityType.supply;
       case SmartSearchResultType.specialty:
         return null;
     }

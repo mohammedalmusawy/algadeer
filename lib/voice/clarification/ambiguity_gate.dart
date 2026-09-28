@@ -119,6 +119,100 @@ class AmbiguityGate {
     );
   }
 
+  /// توضيح لمرشّحين من أنواع مختلفة (اكتشاف موحّد).
+  PendingClarification? fromUnifiedResults({
+    required List<SmartSearchResult> results,
+    AssistantIntent? originalIntent,
+    String? originalQuery,
+    AssistantIntent? pendingAction,
+    ClarificationReason reason = ClarificationReason.ambiguousName,
+  }) {
+    if (results.length < 2) return null;
+
+    ClarificationEntityType mapType(SmartSearchResult r) {
+      switch (r.type) {
+        case SmartSearchResultType.doctor:
+          return ClarificationEntityType.doctor;
+        case SmartSearchResultType.lab:
+          return ClarificationEntityType.laboratory;
+        case SmartSearchResultType.pharmacy:
+          return ClarificationEntityType.pharmacy;
+        case SmartSearchResultType.physio:
+          return ClarificationEntityType.physio;
+        case SmartSearchResultType.supply:
+          return ClarificationEntityType.supply;
+        case SmartSearchResultType.radiology:
+          return ClarificationEntityType.radiology;
+        default:
+          return ClarificationEntityType.unknown;
+      }
+    }
+
+    String typeLabel(SmartSearchResult r) {
+      switch (r.type) {
+        case SmartSearchResultType.doctor:
+          return 'طبيب';
+        case SmartSearchResultType.lab:
+          return 'مختبر';
+        case SmartSearchResultType.pharmacy:
+          return 'صيدلية';
+        case SmartSearchResultType.physio:
+          return 'علاج طبيعي';
+        case SmartSearchResultType.supply:
+          return 'مستلزمات';
+        case SmartSearchResultType.radiology:
+          return 'أشعة';
+        default:
+          return '';
+      }
+    }
+
+    String? idOf(SmartSearchResult r) {
+      switch (r.type) {
+        case SmartSearchResultType.doctor:
+          return r.doctorId ?? r.title;
+        case SmartSearchResultType.lab:
+          return r.labId ?? r.title;
+        case SmartSearchResultType.pharmacy:
+          return r.pharmacyId ?? r.title;
+        case SmartSearchResultType.physio:
+          return r.physioId ?? r.title;
+        case SmartSearchResultType.supply:
+          return r.supplyId ?? r.title;
+        case SmartSearchResultType.radiology:
+          return r.radiologyId ?? r.title;
+        default:
+          return r.title;
+      }
+    }
+
+    final candidates = [
+      for (final r in results)
+        ClarificationCandidate(
+          id: idOf(r) ?? r.title,
+          entityType: mapType(r),
+          primaryLabel: r.title,
+          secondaryLabel: () {
+            final t = typeLabel(r);
+            final sub = (r.specialty ?? r.subtitle).trim();
+            if (t.isEmpty) return sub.isEmpty ? null : sub;
+            if (sub.isEmpty || sub == t) return t;
+            return '$t — $sub';
+          }(),
+          payload: r,
+        ),
+    ];
+
+    return PendingClarification(
+      entityType: ClarificationEntityType.unknown,
+      reason: reason,
+      candidates: candidates,
+      originalIntent: originalIntent,
+      originalQuery: originalQuery,
+      pendingAction: pendingAction,
+    );
+  }
+
   static bool _isContinuableDoctorAction(AssistantIntent? intent) {
     switch (intent) {
       case AssistantIntent.callDoctor:

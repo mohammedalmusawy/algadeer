@@ -159,20 +159,13 @@ class LaboratoryTargetResolver {
     return null;
   }
 
-  /// يستخرج اسم مختبر حقيقي — بدون كلمة «مختبر» وأفعال الإجراء.
+  /// يستخرج اسم مختبر حقيقي — بدون كلمة «مختبر» وأفعال/ضجيج الاتصال.
   static String? _explicitLabName(String? raw, String normalizedFull) {
-    var cleaned = ArabicTextUtils.normalize((raw ?? '').trim());
+    var cleaned = ArabicTextUtils.prepareLabNameQuery(raw ?? '');
     if (cleaned.isEmpty) {
       final m = RegExp(r'(?:ال)?مختبر\s+(.+)$').firstMatch(normalizedFull);
-      cleaned = ArabicTextUtils.normalize((m?.group(1) ?? '').trim());
+      cleaned = ArabicTextUtils.prepareLabNameQuery(m?.group(1) ?? '');
     }
-    cleaned = cleaned
-        .replaceAll(
-          RegExp(r'(?:^|\s)(?:ال)?(?:مختبر|مختبرات)(?=\s|$)'),
-          ' ',
-        )
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
     if (cleaned.isEmpty || cleaned.length <= 1) return null;
     if (RegExp(
       r'^(?:بيه|به|وياه|هذا|هاي|الاول|الأول|الثاني|الثالث|الرابع|الخامس)$',

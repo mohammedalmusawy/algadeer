@@ -29,7 +29,7 @@ class FollowUpService {
     if (existing != null) return existing;
     String owner = 'local';
     if (_repo is LocalFollowUpRepository) {
-      owner = await (_repo as LocalFollowUpRepository).ownerKey();
+      owner = await _repo.ownerKey();
     }
     return _repo.saveStore(FollowUpStore(ownerKey: owner));
   }

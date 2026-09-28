@@ -22,12 +22,13 @@ enum VoiceTurnFinalizeReason {
 class VoiceInputService extends ChangeNotifier {
   VoiceInputService({
     SpeechRecognitionService? stt,
-    this.silenceAfterSpeech = const Duration(milliseconds: 2800),
+    this.silenceAfterSpeech = const Duration(milliseconds: 3800),
   }) : _stt = stt ?? DeviceSpeechRecognitionService();
 
   final SpeechRecognitionService _stt;
 
-  /// صمت بعد بدء الكلام الفعلي — حوالي 2.5–3 ثوانٍ.
+  /// صمت بعد بدء الكلام الفعلي — أطول قليلاً لجمل الاتصال العراقية
+  /// («اتصل دكتور ناجي») حتى لا يُقطع الاسم قبل اكتماله.
   final Duration silenceAfterSpeech;
 
   VoiceAssistantState _state = VoiceAssistantState.idle;

@@ -285,7 +285,7 @@ void main() {
       final call = await h.turn('اتصل بيه');
       expect(call.kind, AssistantActionKind.prepareCall);
       expect(call.target?.doctorId, 'ortho_b');
-      expect(h.lookupQueries, isEmpty);
+      expect(h.lookupQueries.every((q) => q.trim().isEmpty), isTrue);
       expect(h.context.pendingAction, 'call');
 
       final yes = await h.turn('نعم');
@@ -330,6 +330,7 @@ class _Harness {
       nluClient: NluClient.disabled,
       doctorLookup: (q) async {
         lookupQueries.add(q);
+        if (q.trim().isEmpty) return _sessionDoctors(context);
         final n = ArabicTextUtils.normalize(q);
         if (n.contains('عظام')) return [_orthoA, _orthoB, _orthoC];
         if (n.contains('اطفال')) {
@@ -352,4 +353,25 @@ class _Harness {
 
   Future<AssistantActionPlan> turn(String query) =>
       planner.plan(query: query, context: context);
+}
+
+List<SmartSearchResult> _sessionDoctors(ConversationContext ctx) {
+  final out = <SmartSearchResult>[];
+  final seen = <String>{};
+  void add(SmartSearchResult? r) {
+    if (r == null || r.type != SmartSearchResultType.doctor) return;
+    final id = (r.doctorId ?? '').trim();
+    if (id.isEmpty || !seen.add(id)) return;
+    out.add(r);
+  }
+
+  final items = ctx.currentResultContext?.items;
+  if (items != null) {
+    for (final r in items) {
+      add(r);
+    }
+  }
+  add(ctx.selectedDoctor);
+  add(ctx.selectedEntity);
+  return out;
 }

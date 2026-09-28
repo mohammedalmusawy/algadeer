@@ -122,8 +122,56 @@ class RuleBasedEntityExtractor implements EntityExtractor {
             originalText,
             normalizedText,
           );
+    final radiology = (analysis != null ||
+            analysisTerms.isNotEmpty ||
+            packageName != null ||
+            laboratory != null)
+        ? null
+        : _extractRadiologyNameCandidate(
+            originalText,
+            normalizedText,
+          );
+    final pharmacy = (analysis != null ||
+            analysisTerms.isNotEmpty ||
+            packageName != null ||
+            laboratory != null ||
+            radiology != null)
+        ? null
+        : _extractPharmacyNameCandidate(
+            originalText,
+            normalizedText,
+          );
+    final physio = (analysis != null ||
+            analysisTerms.isNotEmpty ||
+            packageName != null ||
+            laboratory != null ||
+            radiology != null ||
+            pharmacy != null)
+        ? null
+        : _extractPhysioNameCandidate(
+            originalText,
+            normalizedText,
+          );
+    final supply = (analysis != null ||
+            analysisTerms.isNotEmpty ||
+            packageName != null ||
+            laboratory != null ||
+            radiology != null ||
+            pharmacy != null ||
+            physio != null)
+        ? null
+        : _extractSupplyNameCandidate(
+            originalText,
+            normalizedText,
+          );
     final doctorName =
-        (laboratory != null || analysis != null || packageName != null)
+        (laboratory != null ||
+                radiology != null ||
+                pharmacy != null ||
+                physio != null ||
+                supply != null ||
+                analysis != null ||
+                packageName != null)
             ? null
             : _extractDoctorNameCandidate(
                 originalText,
@@ -135,6 +183,10 @@ class RuleBasedEntityExtractor implements EntityExtractor {
       doctorName: doctorName,
       specialty: specialty,
       laboratory: laboratory,
+      radiology: radiology,
+      pharmacy: pharmacy,
+      physio: physio,
+      supply: supply,
       packageName: packageName,
       analysis: analysis,
       analysisTerms: analysisTerms,
@@ -161,7 +213,19 @@ class RuleBasedEntityExtractor implements EntityExtractor {
       return null;
     }
 
-    // قائمة عامة بدون اسم: «أريد باقات» / «شنو الباقات»
+    // قائمة عامة بدون اسم باقة حقيقي:
+    // «أريد باقة» / «باقة تحليل» / «باقة تحليلات» / «بحثلي عن باقة تحاليل».
+    final catalogOnly = RegExp(
+      r'^(?:أريد|اريد|ابي|أبغى|عرض|وريني|ورّيني|جيب(?:لي)?|اختار(?:لي)?|'
+      r'شنو|اكو|أكو|ابحث(?:لي)?|بحث(?:لي)?|دور(?:لي)?)?\s*'
+      r'(?:عن\s+)?'
+      r'(?:ال)?(?:باقه|باقة|باقات|باقاته)'
+      r'(?:\s+(?:تحليل|تحاليل|تحليلات|فحوصات|فحوص))?'
+      r'\s*$',
+    ).hasMatch(normalized.trim());
+    if (catalogOnly) return null;
+
+    // قائمة جمع قديمة متوافقة: «شنو الباقات»
     if (RegExp(
       r'(?:ال)?(?:باقات|باقاته)\s*$|^(?:أريد|اريد|ابي|عرض|شنو|اكو|أكو).{0,12}(?:ال)?باقات',
     ).hasMatch(normalized.trim()) &&
@@ -179,7 +243,7 @@ class RuleBasedEntityExtractor implements EntityExtractor {
     );
     s = s.replaceFirst(
       RegExp(
-        r'^(?:ابحث(?:لي)?|دور(?:لي)?|عرض(?:لي)?|وريني|افتح|اعرض)\s*',
+        r'^(?:ابحث(?:لي)?|بحث(?:لي)?|دور(?:لي)?|عرض(?:لي)?|وريني|ورّيني|جيب(?:لي)?|اختار(?:لي)?|افتح|اعرض)\s*(?:عن\s+)?',
         caseSensitive: false,
       ),
       '',
@@ -228,13 +292,15 @@ class RuleBasedEntityExtractor implements EntityExtractor {
         .trim();
 
     if (s.isEmpty || s.length <= 1) return null;
+    final norm = ArabicTextUtils.normalize(s);
     if (RegExp(
-      r'^(?:ال)?(?:باقات|باقاته|عروض|عرض|موجود|موجوده|موجودة)$',
-    ).hasMatch(ArabicTextUtils.normalize(s))) {
+      r'^(?:ال)?(?:باقات|باقاته|باقه|باقة|عروض|عرض|موجود|موجوده|موجودة|'
+      r'تحليل|تحاليل|تحليلات|فحوصات|فحوص)$',
+    ).hasMatch(norm)) {
       return null;
     }
     // لا تسرق «باقة بيها CBC» أو أسئلة سياقية كاسم باقة.
-    if (RegExp(r'^(?:بيها|بيه|فيها)\b').hasMatch(ArabicTextUtils.normalize(s))) {
+    if (RegExp(r'^(?:بيها|بيه|فيها)\b').hasMatch(norm)) {
       return null;
     }
     return s;
@@ -246,9 +312,14 @@ class RuleBasedEntityExtractor implements EntityExtractor {
     String normalized,
   ) {
     // فقط عندما يطلب المستخدم باقة تحتوي تحاليل مسمّاة.
+    // لا تفعّل «فيها واتساب» على صيدلية/كيان آخر كتحليل.
     if (!RegExp(
-      r'(?:باق(?:ه|ة|ات).{0,24}(?:بيها|فيها|تحتوي))|(?:بيها|فيها)\s+\S+',
-    ).hasMatch(normalized)) {
+      r'(?:باق(?:ه|ة|ات).{0,24}(?:بيها|فيها|تحتوي))',
+    ).hasMatch(normalized) &&
+        !RegExp(
+          r'(?:بيها|فيها)\s+(?:ال)?(?:تحليل|تحاليل|[A-Za-z]{2,}|فيتامين)',
+          caseSensitive: false,
+        ).hasMatch(normalized)) {
       // أيضاً: «CBC وفيتامين D» كزوج صريح بدون جملة كاملة إن وُجدت و.
       if (!RegExp(
         r'[A-Za-z]{2,}.{0,20}(?:و|and|&).{0,20}(?:فيتامين|[A-Za-z]{2,})',
@@ -308,7 +379,9 @@ class RuleBasedEntityExtractor implements EntityExtractor {
         .where((e) => e.isNotEmpty)
         .where(
           (e) => !RegExp(
-            r'^(?:باقه|باقة|باقات|بيها|فيها|عنده|موجود)$',
+            r'^(?:باقه|باقة|باقات|بيها|فيها|عنده|موجود|'
+            r'واتساب|واتس|وتساب|اتصال|اتصل|هاتف|رقم|'
+            r'صيدليه|صيدلية|مختبر|اشعه|اشعة)$',
           ).hasMatch(ArabicTextUtils.normalize(e)),
         )
         .toList();
@@ -329,8 +402,20 @@ class RuleBasedEntityExtractor implements EntityExtractor {
     String original,
     String normalized,
   ) {
+    // لا تسرق جمل المستلزمات/التجهيزات/الصيدلية/المختبر/الأشعة كتحليل.
+    if (RegExp(
+      r'(?:مستلزمات|تجهيزات|مواد\s*طبيه|معدات\s*طبيه|'
+      r'علاج\s*طبيعي|فيزيو|تاهيل|تأهيل|'
+      r'صيدليه|صيدلية|صيدليات|'
+      r'مختبر|مختبرات|'
+      r'اشعه|اشعة|أشعة|شعاع|'
+      r'خصم|خصومات|عروض)',
+    ).hasMatch(normalized)) {
+      return null;
+    }
     final hasAnalysisCue = RegExp(
-          r'(?:ال)?تحليل(?:ات)?|(?:عندكم|عندك|اكو|أكو)\s+\S+|'
+          r'(?:ال)?تحليل(?:ات)?|'
+          r'(?:عندكم|عندك|اكو|أكو)\s+(?:ال)?تحليل|'
           r'(?:فيتامين|cbc|hba1c|tsh|vit\s*d)',
           caseSensitive: false,
         ).hasMatch(normalized) ||
@@ -345,6 +430,17 @@ class RuleBasedEntityExtractor implements EntityExtractor {
     ).hasMatch(original.trim());
 
     if (!hasAnalysisCue && !latinOnly) return null;
+
+    // لا تسرق جمل كتالوج باقات: «باقة تحليل» / «باقة تحليلات».
+    if (RegExp(
+      r'^(?:أريد|اريد|ابي|أبغى|ابحث(?:لي)?|بحث(?:لي)?|دور(?:لي)?)?\s*'
+      r'(?:عن\s+)?'
+      r'(?:ال)?(?:باقه|باقة|باقات)'
+      r'(?:\s+(?:تحليل|تحاليل|تحليلات|فحوصات|فحوص))?'
+      r'\s*$',
+    ).hasMatch(normalized.trim())) {
+      return null;
+    }
 
     // لا تسرق جمل كتالوج مختبر بدون اسم تحليل: «شنو التحاليل الموجودة»
     if (RegExp(
@@ -370,7 +466,7 @@ class RuleBasedEntityExtractor implements EntityExtractor {
     );
     s = s.replaceFirst(
       RegExp(
-        r'^(?:ابحث(?:لي)?|دور(?:لي)?|عندكم|عندك|اكو|أكو)\s*',
+        r'^(?:ابحث(?:لي)?|بحث(?:لي)?|دور(?:لي)?|عندكم|عندك|اكو|أكو)\s*(?:عن\s+)?',
         caseSensitive: false,
       ),
       '',
@@ -463,6 +559,14 @@ class RuleBasedEntityExtractor implements EntityExtractor {
       ),
       '',
     );
+    // بعد التطبيع: «على الأول/الدكتور» → «علي …». لا تُزل «علي» من اسم «علي ناصر».
+    s = s.replaceFirst(
+      RegExp(
+        r'^علي\s+(?=ال?(?:دكتور|دكتورة|طبيب|طبيبة)|'
+        r'ال?(?:اول|أول|ثاني|ثالث|رابع|خامس|اخير|أخير))',
+      ),
+      '',
+    );
     s = s.replaceFirst(
       RegExp(
         r'^(?:وين|اين|أين)\s*(?:موقع|موقعه|مكان|مكانه|عنوان|عنوانه)?\s*',
@@ -503,21 +607,205 @@ class RuleBasedEntityExtractor implements EntityExtractor {
         .trim();
 
     if (s.isEmpty) return null;
-    final norm = ArabicTextUtils.normalize(s);
-    if (norm.length <= 1) return null;
+    final cleaned = ArabicTextUtils.prepareLabNameQuery(s);
+    if (cleaned.isEmpty || cleaned.length <= 1) return null;
     if (RegExp(
       r'^(?:بيه|به|بيها|بها|وياه|هذا|هاي|هذي|هذه|هذاك|ذاك|مالته|مالتها|الاول|الأول|الثاني|الثالث|الرابع|الخامس)$',
-    ).hasMatch(norm)) {
+    ).hasMatch(cleaned)) {
       return null;
     }
-    if (RegExp(r'^(?:ال)?(?:مختبر|مختبرات)$').hasMatch(norm)) return null;
+    if (RegExp(r'^(?:ال)?(?:مختبر|مختبرات)$').hasMatch(cleaned)) return null;
     // بقايا جمل سياقية — ليست اسم مختبر.
     if (RegExp(
       r'^(?:الموجوده|الموجودة|موجوده|موجودة|بهذا|هذه|بيها|فيه|فيها|عنده|عندها)$',
-    ).hasMatch(norm)) {
+    ).hasMatch(cleaned)) {
       return null;
     }
-    return norm;
+    return cleaned;
+  }
+
+  /// يستخرج اسم مركز أشعة: «أشعة الغدير» → «الغدير».
+  static String? _extractRadiologyNameCandidate(
+    String original,
+    String normalized,
+  ) {
+    final hasRad = RegExp(r'(?:ال)?(?:اشعه|اشعة|أشعة)').hasMatch(normalized);
+    if (!hasRad) return null;
+
+    var s = original.trim();
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:أريد|اريد|ابي|أبغى|من\s+فضلك|لو\s+سمحت)?\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:اتصل|اتصال|كلّم|كلم|راسل|أرسل|ارسل|دزله|دزّله|دزوله|دز\s+|افتح|اعرض|ابحث(?:لي)?|دور(?:لي)?|عرض(?:لي)?|وريني)\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:رسالة\s+)?(?:واتساب|واتس\s*اب|واتس|whatsapp)\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(RegExp(r'^ل(?=اشعه|اشعة|أشعة)'), '').trim();
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:ب)?(?:ال)?(?:اشعه|اشعة|أشعة|مركز\s*(?:ال)?(?:اشعه|اشعة|أشعة))\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    final cleaned = ArabicTextUtils.prepareRadiologyNameQuery(s);
+    if (cleaned.isEmpty || cleaned.length <= 1) return null;
+    if (RegExp(
+      r'^(?:بيه|به|وياه|هذا|هاي|الاول|الأول|الثاني|الثالث)$',
+    ).hasMatch(cleaned)) {
+      return null;
+    }
+    return cleaned;
+  }
+
+  /// يستخرج اسم صيدلية: «صيدلية رحاب» → «رحاب».
+  static String? _extractPharmacyNameCandidate(
+    String original,
+    String normalized,
+  ) {
+    final hasPharm =
+        RegExp(r'(?:ال)?(?:صيدليه|صيدلية|صيدليات)').hasMatch(normalized);
+    if (!hasPharm) return null;
+
+    var s = original.trim();
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:أريد|اريد|ابي|أبغى|من\s+فضلك|لو\s+سمحت)?\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:اتصل|اتصال|كلّم|كلم|راسل|أرسل|ارسل|دزله|دزّله|دزوله|دز\s+|افتح|اعرض|ابحث(?:لي)?|دور(?:لي)?|عرض(?:لي)?|وريني)\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:رسالة\s+)?(?:واتساب|واتس\s*اب|واتس|whatsapp)\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(RegExp(r'^ل(?=صيدل)'), '').trim();
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:ب)?(?:ال)?(?:صيدليه|صيدلية|صيدليات)\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    final cleaned = ArabicTextUtils.preparePharmacyNameQuery(s);
+    if (cleaned.isEmpty || cleaned.length <= 1) return null;
+    if (RegExp(
+      r'^(?:بيه|به|وياه|هذا|هاي|الاول|الأول|الثاني|الثالث|عن|في|من|الى|إلى)$',
+    ).hasMatch(cleaned)) {
+      return null;
+    }
+    return cleaned;
+  }
+
+  /// يستخرج اسم مركز علاج طبيعي بعد إزالة ألقاب القسم.
+  static String? _extractPhysioNameCandidate(
+    String original,
+    String normalized,
+  ) {
+    final hasPhysio = RegExp(
+      r'(?:علاج\s*طبيعي|العلاج\s*الطبيعي|معالج\s*طبيعي|'
+      r'فيزيو(?:ثيرابي)?|تاهيل(?:\s*حركي)?|تأهيل(?:\s*حركي)?|'
+      r'مراكز?\s*علاج\s*طبيعي)',
+    ).hasMatch(normalized);
+    if (!hasPhysio) return null;
+
+    var s = original.trim();
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:أريد|اريد|ابي|أبغى|من\s+فضلك|لو\s+سمحت)?\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:اتصل|اتصال|كلّم|كلم|راسل|أرسل|ارسل|دزله|دزّله|دزوله|دز\s+|افتح|اعرض|ابحث(?:لي)?|دور(?:لي)?|طل[عّ](?:لي)?|عرض(?:لي)?|وريني)\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:رسالة\s+)?(?:واتساب|واتس\s*اب|واتس|whatsapp)\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    final cleaned = ArabicTextUtils.preparePhysioNameQuery(s);
+    if (cleaned.isEmpty || cleaned.length <= 1) return null;
+    if (RegExp(
+      r'^(?:بيه|به|وياه|هذا|هاي|الاول|الأول|الثاني|الثالث|عن|في|من|الى|إلى)$',
+    ).hasMatch(cleaned)) {
+      return null;
+    }
+    return cleaned;
+  }
+
+  /// يستخرج اسم محل مستلزمات بعد إزالة ألقاب القسم.
+  static String? _extractSupplyNameCandidate(
+    String original,
+    String normalized,
+  ) {
+    final hasSupply = RegExp(
+      r'(?:مستلزمات(?:\s*طبيه)?|تجهيزات(?:\s*طبيه)?|'
+      r'مواد\s*طبيه|معدات\s*طبيه)',
+    ).hasMatch(normalized);
+    if (!hasSupply) return null;
+
+    var s = original.trim();
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:أريد|اريد|ابي|أبغى|من\s+فضلك|لو\s+سمحت)?\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:اتصل|اتصال|كلّم|كلم|راسل|أرسل|ارسل|دزله|دزّله|دزوله|دز\s+|افتح|اعرض|ابحث(?:لي)?|دور(?:لي)?|طل[عّ](?:لي)?|عرض(?:لي)?|وريني)\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:رسالة\s+)?(?:واتساب|واتس\s*اب|واتس|whatsapp)\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    final cleaned = ArabicTextUtils.prepareSupplyNameQuery(s);
+    if (cleaned.isEmpty || cleaned.length <= 1) return null;
+    if (RegExp(
+      r'^(?:بيه|به|وياه|هذا|هاي|الاول|الأول|الثاني|الثالث|عن|في|من|الى|إلى)$',
+    ).hasMatch(cleaned)) {
+      return null;
+    }
+    return cleaned;
   }
 
   /// مرشّحات ترتيب من توكن قد يحمل حرف جر ملتصق: للثاني / بالاول.
@@ -619,7 +907,11 @@ class RuleBasedEntityExtractor implements EntityExtractor {
     String normalized, {
     String? actionHint,
   }) {
-    var s = original.trim();
+    // اعمل على النص المطبع — STT غالباً يُخرج «أتصل/إتصل» بهمزة.
+    var s = normalized.trim();
+    if (s.isEmpty) {
+      s = ArabicTextUtils.normalize(original.trim());
+    }
     if (s.isEmpty) return null;
 
     // انزع أفعال الإجراء والمفردات المحيطة ثم الألقاب.
@@ -633,7 +925,7 @@ class RuleBasedEntityExtractor implements EntityExtractor {
     s = s.replaceFirst(
       RegExp(
         // «دك/دق» كلمة كاملة فقط — لا تقطع بادئة «دكتور».
-        r'^(?:اتصل|اتصال|كلّم|كلم|(?:دق|دك)(?=\s|$)|راسل|أرسل|ارسل|دزله|دزّله|دزوله|دز\s+|افتح|اعرض|ابحث(?:لي)?|دور(?:لي)?)\s*',
+        r'^(?:اتصل|اتصال|كل[مّ]|كلم|(?:دق|دك)(?=\s|$)|راسل|أرسل|ارسل|دزله|دزّله|دزوله|دز\s+|افتح|اعرض|ابحث(?:لي)?|دور(?:لي)?)\s*',
         caseSensitive: false,
       ),
       '',
@@ -653,11 +945,19 @@ class RuleBasedEntityExtractor implements EntityExtractor {
       ),
       '',
     );
+    // بعد التطبيع: «على الأول/الدكتور» → «علي …». لا تُزل «علي» من اسم «علي ناصر».
+    s = s.replaceFirst(
+      RegExp(
+        r'^علي\s+(?=ال?(?:دكتور|دكتورة|طبيب|طبيبة)|'
+        r'ال?(?:اول|أول|ثاني|ثالث|رابع|خامس|اخير|أخير))',
+      ),
+      '',
+    );
     // بقايا «ل» من «للدكتور».
     s = s.replaceFirst(RegExp(r'^ل(?=دكتور|طبيب|دكتورة|طبيبة)'), '').trim();
     s = s.replaceFirst(
       RegExp(
-        r'^(?:وين|اين|أين)\s*(?:عيادة|عيادته|مكان|مكانه|موقع|موقعه|عنوان|عنوانه)?\s*',
+        r'^(?:وين|اين|أين)\s*(?:عياده|عيادته|عيادة|عيادتها|مكان|مكانه|موقع|موقعه|عنوان|عنوانه)?\s*',
         caseSensitive: false,
       ),
       '',
@@ -679,6 +979,13 @@ class RuleBasedEntityExtractor implements EntityExtractor {
     );
 
     s = ArabicTextUtils.stripHonorifics(s).trim();
+    // حرف جر مطبَّع متبقٍ قبل ترتيب: «علي الاول» من «على الأول».
+    s = s.replaceFirst(
+      RegExp(
+        r'^علي\s+(?=ال?(?:اول|أول|ثاني|ثالث|رابع|خامس|اخير|أخير))',
+      ),
+      '',
+    );
     s = s
         .replaceAll(
           RegExp(
@@ -694,6 +1001,8 @@ class RuleBasedEntityExtractor implements EntityExtractor {
         )
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
+
+    // لا ترفض «علي» كاسم — فقط بقايا «على→علي» قبل ترتيب تُفرَّغ أعلاه.
 
     if (s.isEmpty) return null;
     // إشارات سياقية / ألقاب مهنية فقط / ترتيب / بقايا أفعال — ليست اسماً.
@@ -738,10 +1047,40 @@ class RuleBasedEntityExtractor implements EntityExtractor {
       'الطبيب',
       'الطبيبه',
       'الطبيبة',
+      // تأكيد/نفي/حروف جر — ليست اسم طبيب.
+      'نعم',
+      'اي',
+      'أي',
+      'اجل',
+      'أجل',
+      'لا',
+      'على',
+      'دلني',
+      'وريني',
+      'شوفلي',
+      'طلعلي',
+      'دورلي',
+      'جيبلي',
+      'هو',
+      'هي',
+      'غيره',
+      'غير',
+      'مو',
     };
     if (refs.contains(norm) || norm.length <= 1) return null;
+    // إذا بقي الفعل الإرشادي فقط أو مع «على» — ليست اسم طبيب.
+    if (RegExp(
+      r'^(?:دلني|وريني|شوفلي|طلعلي|دورلي|جيبلي)(?:\s+على)?$',
+    ).hasMatch(norm)) {
+      return null;
+    }
+    if (RegExp(r'^دلني\s+على$').hasMatch(norm)) return null;
     if (RegExp(r'^(?:ال)?(?:دكتور|دكتوره|دكتورة|طبيب|طبيبه|طبيبة)$')
         .hasMatch(norm)) {
+      return null;
+    }
+    // كلمة «تحليل» وحدها تلميح قسم تحاليل — ليست اسم طبيب.
+    if (RegExp(r'^(?:ال)?(?:تحليل|تحاليل|تحليلات)$').hasMatch(norm)) {
       return null;
     }
     if (RegExp(

@@ -6,6 +6,10 @@ enum SmartSearchResultType {
   package,
   offer,
   analysis,
+  radiology,
+  pharmacy,
+  physio,
+  supply,
 }
 
 /// نتيجة بحث غنية بما يكفي لعرض Card حقيقية والتنقل المباشر.
@@ -18,6 +22,10 @@ class SmartSearchResult {
     this.labId,
     this.packageId,
     this.analysisId,
+    this.radiologyId,
+    this.pharmacyId,
+    this.physioId,
+    this.supplyId,
     this.score = 0,
     this.imageUrl,
     this.specialty,
@@ -50,6 +58,10 @@ class SmartSearchResult {
   final String? labId;
   final String? packageId;
   final String? analysisId;
+  final String? radiologyId;
+  final String? pharmacyId;
+  final String? physioId;
+  final String? supplyId;
   final int score;
 
   /// حقول اختيارية لبطاقات البحث الغنية.
@@ -87,11 +99,9 @@ class SmartSearchResult {
   final int demandScore;
 
   String get effectivePhone => phone?.trim() ?? '';
-  String get effectiveWhatsApp {
-    final w = whatsapp?.trim() ?? '';
-    if (w.isNotEmpty) return w;
-    return effectivePhone;
-  }
+
+  /// رقم واتساب الصريح فقط — لا إسقاط من الهاتف (M3/M4).
+  String get effectiveWhatsApp => whatsapp?.trim() ?? '';
 
   bool get canCall => effectivePhone.isNotEmpty;
   bool get canWhatsApp => effectiveWhatsApp.isNotEmpty;
@@ -114,6 +124,14 @@ class SmartSearchResult {
             labId!.isNotEmpty;
       case SmartSearchResultType.analysis:
         return analysisId != null && analysisId!.isNotEmpty;
+      case SmartSearchResultType.radiology:
+        return radiologyId != null && radiologyId!.isNotEmpty;
+      case SmartSearchResultType.pharmacy:
+        return pharmacyId != null && pharmacyId!.isNotEmpty;
+      case SmartSearchResultType.physio:
+        return physioId != null && physioId!.isNotEmpty;
+      case SmartSearchResultType.supply:
+        return supplyId != null && supplyId!.isNotEmpty;
       case SmartSearchResultType.specialty:
         return title.trim().isNotEmpty;
     }
@@ -140,6 +158,10 @@ class SmartSearchResult {
         if (labId != null) 'lab_id': labId,
         if (packageId != null) 'package_id': packageId,
         if (analysisId != null) 'analysis_id': analysisId,
+        if (radiologyId != null) 'radiology_id': radiologyId,
+        if (pharmacyId != null) 'pharmacy_id': pharmacyId,
+        if (physioId != null) 'physio_id': physioId,
+        if (supplyId != null) 'supply_id': supplyId,
         if (discountPercent != null) 'discount_percent': discountPercent,
         if (newPrice != null) 'price': newPrice,
       };

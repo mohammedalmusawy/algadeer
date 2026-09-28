@@ -7,7 +7,6 @@ import 'personal_memory_command_interpreter.dart';
 import 'personal_memory_command_models.dart';
 import 'personal_memory_consent_coordinator.dart';
 import 'personal_memory_models.dart';
-import 'personal_memory_qualifier.dart';
 import 'personal_memory_retrieval_policy.dart';
 import 'personal_memory_service.dart';
 
@@ -91,7 +90,7 @@ class PersonalMemoryCoordinator {
           );
         }
         try {
-          final saved = await _service.upsertCandidate(c);
+          await _service.upsertCandidate(c);
           return PersonalMemoryCommandTurnResult(
             handled: true,
             success: true,

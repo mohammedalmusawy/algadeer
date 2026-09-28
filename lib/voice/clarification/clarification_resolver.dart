@@ -484,6 +484,10 @@ class ClarificationResolver {
     switch (intent.intent) {
       case AssistantIntent.specialtySearch:
       case AssistantIntent.findLab:
+      case AssistantIntent.findRadiology:
+      case AssistantIntent.findPharmacy:
+      case AssistantIntent.findPhysio:
+      case AssistantIntent.findSupply:
         return true;
       case AssistantIntent.findAnalysis:
         return (intent.entities.analysis ?? '').trim().isNotEmpty ||
@@ -499,6 +503,12 @@ class ClarificationResolver {
             ).hasMatch(n) ||
             RegExp(
               r'(?:أريد|اريد|ابي).{0,12}(?:مختبر|مختبرات)',
+            ).hasMatch(n) ||
+            RegExp(
+              r'(?:أريد|اريد|ابي|ابحث|دور).{0,16}(?:صيدليه|صيدلية|صيدليات)',
+            ).hasMatch(n) ||
+            RegExp(
+              r'(?:أريد|اريد|ابي|ابحث|دور).{0,16}(?:اشعه|اشعة|أشعة)',
             ).hasMatch(n) ||
             RegExp(
               r'(?:أريد|اريد|ابي).{0,12}(?:تحليل|تحاليل)',

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// شريط علوي موحّد للتطبيق:
-/// - زر الرجوع على **يسار** الشاشة
+/// - زر الرجوع على **يسار** الشاشة (نفس جهة هوية الطبيب)
 /// - الإجراءات (تفضيل / مشاركة / غيره) على **اليمين**
 /// مع الإبقاء على عنوان عربي باتجاه RTL.
 class ClinicAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -55,7 +55,7 @@ class ClinicAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ? IconButton(
                     tooltip:
                         MaterialLocalizations.of(context).backButtonTooltip,
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                    icon: const Icon(Icons.chevron_right_rounded, size: 26),
                     onPressed: () => Navigator.maybePop(context),
                   )
                 : null),

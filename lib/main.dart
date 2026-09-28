@@ -3,19 +3,21 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:app_links/app_links.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'branding/ghadeer_brand_mark.dart';
+import 'branding/app_icons_admin_page.dart';
 import 'ads/admin/ads_admin_page.dart';
-import 'ads/widgets/home_ad_slot.dart';
 import 'core/app_config.dart';
 import 'doctors/all_specialties_page.dart';
 import 'doctors/app_stats_admin_page.dart';
 import 'doctors/clinic_doctor_list_card.dart';
 import 'doctors/doctor_absences_admin_page.dart';
+import 'doctors/doctor_admin_persist.dart';
 import 'doctors/doctor_availability_service.dart';
 import 'doctors/doctor_card_links.dart';
 import 'doctors/doctor_gender.dart';
@@ -24,18 +26,23 @@ import 'doctors/doctor_profile_page.dart';
 import 'doctors/notifications_admin_page.dart';
 import 'doctors/notifications_inbox_page.dart';
 import 'doctors/specialty_catalog.dart';
-import 'home/home_trending_section.dart';
-import 'home/home_welcome_banner.dart';
-import 'home/trending_entity.dart';
+import 'doctors/specialty_doctors_page.dart';
+import 'home/home_phase1_sections.dart';
+import 'home/ghadeer_home_colors.dart';
+import 'home/service_coming_soon_page.dart';
+import 'pharmacies/pharmacies_page.dart';
+import 'pharmacies/pharmacies_admin_page.dart';
+import 'supplies/supplies_admin_page.dart';
+import 'supplies/supplies_page.dart';
+import 'physio/physio_admin_page.dart';
+import 'physio/physio_page.dart';
 import 'labs/admin/labs_admin_hub.dart';
-import 'labs/lab_package_detail_page.dart';
-import 'labs/lab_profile_page.dart';
 import 'labs/labs_page.dart';
-import 'labs/labs_service.dart';
 import 'models/doctor_item.dart';
 import 'radiology/admin/radiology_admin_page.dart';
 import 'radiology/radiology_page.dart';
 import 'services/app_stats_service.dart';
+import 'services/app_icons_service.dart';
 import 'services/admin_launch_session.dart';
 import 'services/admin_password_change_page.dart';
 import 'services/dynamic_message_admin_page.dart';
@@ -43,8 +50,8 @@ import 'services/dynamic_message_service.dart';
 import 'utils/responsive.dart';
 import 'utils/dom_input_value.dart'
     if (dart.library.html) 'utils/dom_input_value_web.dart' as dom_input;
+import 'widgets/app_slot_icon.dart';
 import 'widgets/clinic_app_bar.dart';
-import 'widgets/dynamic_highlight_card.dart';
 import 'search/smart_search_page.dart';
 import 'voice/assistant_integration_page.dart';
 import 'voice/speech_recognition_service.dart';
@@ -111,10 +118,30 @@ class _GhadeerClinicAppState extends State<GhadeerClinicApp> {
       title: 'عيادة الغدير',
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF7FAFA),
+        scaffoldBackgroundColor: Colors.white,
+        // بدون surfaceTint: Material 3 يصبغ أعلى/أسفل الصفحة بلون التركواز.
         colorScheme: ColorScheme.fromSeed(
           seedColor: primaryColor,
           primary: primaryColor,
+          brightness: Brightness.light,
+        ).copyWith(
+          surface: Colors.white,
+          surfaceTint: Colors.transparent,
+          surfaceContainerLowest: Colors.white,
+          surfaceContainerLow: Colors.white,
+          surfaceContainer: Colors.white,
+          surfaceContainerHigh: const Color(0xFFF3F4F6),
+          surfaceContainerHighest: const Color(0xFFE5E7EB),
+          primaryContainer: Colors.white,
+          secondaryContainer: const Color(0xFFF3F4F6),
+        ),
+        canvasColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF123B42),
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
         ),
       ),
       home: const AppEntryGate(
@@ -151,14 +178,8 @@ class _HomePageState extends State<HomePage> {
   bool _todayMessageLoading = true;
   Timer? _doctorsReloadDebounce;
   String? _specialtyFilter; // null = الكل
-  int _bottomNavIndex = 0;
-  String _mainCategory = '';
-
-  final _stats = AppStatsService();
-  List<TrendingEntity> _topDoctors = [];
-  List<TrendingEntity> _topLabs = [];
-  List<TrendingEntity> _topPackages = [];
-  bool _trendingLoading = true;
+  int _bottomNavIndex = 0; // 0 رئيسية · 1 بحث · 2 مواعيدي · 3 المفضلة · 4 حسابي
+  int _shellIndex = 0; // 0 رئيسية · 1 مواعيدي · 2 المفضلة · 3 حسابي
 
   @override
   void initState() {
@@ -168,7 +189,7 @@ class _HomePageState extends State<HomePage> {
 
     loadDoctors();
     _loadTodayMessage();
-    _loadTrending();
+    unawaited(AppIconsService.instance.load());
     _initDeepLinks();
     // تسجيل مستخدم التطبيق للإحصائية العامة (صامت عند غياب الجدول).
     AppStatsService().touchCurrentUser();
@@ -259,83 +280,42 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _loadTrending() async {
-    setState(() => _trendingLoading = true);
-    try {
-      final doctorsFuture = _stats.fetchTopDoctors(limit: 8);
-      final labsFuture = _stats.fetchTopLabs(limit: 8);
-      final packagesFuture = _stats.fetchTopPackages(limit: 8);
-      final topDoctors = await doctorsFuture;
-      final topLabs = await labsFuture;
-      final topPackages = await packagesFuture;
-      if (!mounted) return;
-      setState(() {
-        _topDoctors = topDoctors;
-        _topLabs = topLabs;
-        _topPackages = topPackages;
-        _trendingLoading = false;
-      });
-    } catch (e) {
-      debugPrint('load trending failed: $e');
-      if (!mounted) return;
-      setState(() => _trendingLoading = false);
-    }
-  }
-
-  Future<void> _openTrendingDoctor(TrendingEntity item) async {
-    try {
-      final row = await supabase
-          .from('doctors')
-          .select()
-          .eq('id', item.id)
-          .maybeSingle();
-      if (!mounted || row == null) return;
-      final doctor = DoctorItem.fromMap(Map<String, dynamic>.from(row));
-      _showDoctorProfile(doctor);
-    } catch (e) {
-      debugPrint('open trending doctor failed: $e');
-    }
-  }
-
-  Future<void> _openTrendingLab(TrendingEntity item) async {
-    try {
-      final lab = await LabsService().fetchLabById(item.id);
-      if (!mounted || lab == null) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => LabProfilePage(lab: lab)),
-      );
-    } catch (e) {
-      debugPrint('open trending lab failed: $e');
-    }
-  }
-
-  Future<void> _openTrendingPackage(TrendingEntity item) async {
-    try {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => LabPackageDetailPage(
-            packageId: item.id,
-            labName: item.subtitle,
-          ),
-        ),
-      );
-      // بعد العودة حدّث الترتيب بهدوء.
-      unawaited(_loadTrending());
-    } catch (e) {
-      debugPrint('open trending package failed: $e');
-    }
-  }
-
   void _openSmartSearch({bool voice = false}) {
     debugPrint('[NAV] push SmartSearchPage voice=$voice');
+    final previousNav = _bottomNavIndex == 1 ? 0 : _bottomNavIndex;
+    setState(() => _bottomNavIndex = 1);
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => SmartSearchPage(autoStartVoice: voice),
       ),
-    );
+    ).then((_) {
+      if (!mounted) return;
+      if (_bottomNavIndex == 1) {
+        setState(() => _bottomNavIndex = previousNav.clamp(0, 4));
+      }
+    });
+  }
+
+  void _selectShellNav(int navIndex) {
+    setState(() {
+      _bottomNavIndex = navIndex;
+      switch (navIndex) {
+        case 0:
+          _shellIndex = 0;
+          _specialtyFilter = null;
+          break;
+        case 2:
+          _shellIndex = 1;
+          break;
+        case 3:
+          _shellIndex = 2;
+          break;
+        case 4:
+          _shellIndex = 3;
+          break;
+      }
+    });
   }
 
   Future<void> _initDeepLinks() async {
@@ -520,7 +500,7 @@ class _HomePageState extends State<HomePage> {
         );
       }
       if (mounted) {
-        await Future.wait([loadDoctors(), _loadTodayMessage(), _loadTrending()]);
+        await Future.wait([loadDoctors(), _loadTodayMessage()]);
       }
     }
   }
@@ -530,23 +510,41 @@ class _HomePageState extends State<HomePage> {
     // لا نغلّف IndexedStack بـ Align/ConstrainedBox للعرض —
     // ذلك كان ينهار الارتفاع إلى صفر على macOS/الديسكتوب (شاشة بيضاء).
     // التجاوب يتم عبر الأعمدة وpagePadding داخل المحتوى فقط.
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: IndexedStack(
-          index: _bottomNavIndex.clamp(0, 1),
-          children: [
-            _buildDoctorsBrowse(),
-            _buildFavoritesTab(),
-          ],
-        ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: ColoredBox(
+          color: Colors.white,
+          child: SafeArea(
+            child: ColoredBox(
+              color: Colors.white,
+              child: IndexedStack(
+                index: _shellIndex.clamp(0, 3),
+                children: [
+                  _buildHomeShell(),
+                  _buildAppointmentsTab(),
+                  _buildFavoritesTab(),
+                  const SettingsPage(),
+                ],
+              ),
+            ),
+          ),
+        ),
+        bottomNavigationBar: _buildBottomNav(),
+      ),
     );
   }
 
   Widget _buildBottomNav() {
-    const teal = Color(0xFF0FAFA3);
+    const teal = GhadeerHomeColors.primary;
     const muted = Color(0xFF8A9A9E);
 
     Widget item({
@@ -554,27 +552,41 @@ class _HomePageState extends State<HomePage> {
       required IconData icon,
       required IconData activeIcon,
       required String label,
+      required String navSlot,
       VoidCallback? onTapOverride,
     }) {
       final active = _bottomNavIndex == index;
       return Expanded(
         child: InkWell(
-          onTap: onTapOverride ?? () => setState(() => _bottomNavIndex = index),
+          onTap: onTapOverride ?? () => _selectShellNav(index),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  active ? activeIcon : icon,
-                  color: active ? teal : muted,
-                  size: 24,
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? teal.withValues(alpha: 0.12)
+                        : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: AppSlotIcon(
+                    slotId: 'nav.$navSlot',
+                    fallback: active ? activeIcon : icon,
+                    size: 22,
+                    color: active ? teal : muted,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: active ? FontWeight.w800 : FontWeight.w600,
                     color: active ? teal : muted,
                   ),
@@ -592,13 +604,6 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
       ),
       child: SafeArea(
         top: false,
@@ -609,99 +614,40 @@ class _HomePageState extends State<HomePage> {
               icon: Icons.home_outlined,
               activeIcon: Icons.home_rounded,
               label: 'الرئيسية',
-              onTapOverride: () {
-                setState(() {
-                  _bottomNavIndex = 0;
-                  _specialtyFilter = null;
-                  _mainCategory = '';
-                });
-              },
+              navSlot: 'home',
             ),
             item(
               index: 1,
-              icon: Icons.favorite_border_rounded,
-              activeIcon: Icons.favorite_rounded,
-              label: 'أطبائي',
+              icon: Icons.search_rounded,
+              activeIcon: Icons.search_rounded,
+              label: 'البحث',
+              navSlot: 'search',
+              onTapOverride: () => _openSmartSearch(voice: false),
             ),
             item(
               index: 2,
-              icon: Icons.more_horiz_rounded,
-              activeIcon: Icons.more_horiz_rounded,
-              label: 'المزيد',
-              onTapOverride: _openMoreSheet,
+              icon: Icons.calendar_month_outlined,
+              activeIcon: Icons.calendar_month_rounded,
+              label: 'مواعيدي',
+              navSlot: 'appointments',
+            ),
+            item(
+              index: 3,
+              icon: Icons.favorite_border_rounded,
+              activeIcon: Icons.favorite_rounded,
+              label: 'المفضلة',
+              navSlot: 'favorites',
+            ),
+            item(
+              index: 4,
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+              label: 'حسابي',
+              navSlot: 'account',
             ),
           ],
         ),
       ),
-    );
-  }
-
-  void _openMoreSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (ctx) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD9E4E6),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ListTile(
-                    leading: const Icon(Icons.notifications_none_rounded),
-                    title: const Text('الإشعارات'),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const NotificationsInboxPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.biotech_outlined),
-                    title: const Text('المختبرات والباقات'),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LabsPage()),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.settings_rounded),
-                    title: const Text('الإعدادات'),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SettingsPage()),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -717,7 +663,7 @@ class _HomePageState extends State<HomePage> {
           color: Colors.white,
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
           child: const Text(
-            'أطبائي',
+            'المفضلة',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w900,
@@ -747,335 +693,71 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildDoctorsBrowse() {
+  Widget _buildAppointmentsTab() {
+    return const ServiceComingSoonPage(
+      title: 'مواعيدي',
+      subtitle: 'متابعة مواعيدك القادمة من مكان واحد',
+      accent: GhadeerHomeColors.primary,
+      icon: Icons.calendar_month_rounded,
+    );
+  }
+
+  Widget _buildHomeShell() {
     return RefreshIndicator(
-      color: const Color(0xFF0FAFA3),
+      color: GhadeerHomeColors.primary,
       onRefresh: () async {
         await Future.wait([
           loadDoctors(),
           _loadTodayMessage(),
-          _loadTrending(),
         ]);
       },
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          SliverToBoxAdapter(child: _buildHeader()),
           SliverToBoxAdapter(
-            child: HomeWelcomeBanner(
-              onAskHelp: () => _openSmartSearch(voice: false),
-            ),
-          ),
-          SliverToBoxAdapter(child: _buildSearchBar()),
-          // العبارة الديناميكية مباشرة تحت البحث حتى تظهر بدون تمرير.
-          SliverToBoxAdapter(child: _buildPromoBanner()),
-          SliverToBoxAdapter(child: _buildMainCategories()),
-          const SliverToBoxAdapter(child: HomeAdSlot(placement: 'home')),
-          SliverToBoxAdapter(
-            child: HomeTrendingSection(
-              title: 'الأطباء الأكثر طلبًا',
-              items: _topDoctors,
-              loading: _trendingLoading,
-              onOpen: (item) => unawaited(_openTrendingDoctor(item)),
+            child: HomePhase1Header(
+              onLogoTap: _handleLogoTap,
+              onNotifications: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationsInboxPage(),
+                  ),
+                );
+              },
             ),
           ),
           SliverToBoxAdapter(
-            child: HomeTrendingSection(
-              title: 'المختبرات الأكثر طلبًا',
-              items: _topLabs,
-              loading: _trendingLoading,
-              onOpen: (item) => unawaited(_openTrendingLab(item)),
+            child: HomePhase1SearchRow(
+              onSearchTap: () => _openSmartSearch(voice: false),
+              onMicTap: () => _openSmartSearch(voice: true),
             ),
           ),
           SliverToBoxAdapter(
-            child: HomeTrendingSection(
-              title: 'الباقات الأكثر طلبًا',
-              items: _topPackages,
-              loading: _trendingLoading,
-              onOpen: (item) => unawaited(_openTrendingPackage(item)),
+            child: HomePhase1AskBanner(
+              onTalk: () => _openSmartSearch(voice: true),
             ),
           ),
-          SliverToBoxAdapter(child: _buildDoctorsSectionHeader()),
-          SliverToBoxAdapter(child: _buildSpecialtyFilters()),
-          SliverToBoxAdapter(child: _buildDoctors()),
+          SliverToBoxAdapter(
+            child: HomePhase1ServicesGrid(onOpen: _onHomeServiceTap),
+          ),
+          SliverToBoxAdapter(
+            child: HomePhase1HealthTip(
+              loading: _todayMessageLoading,
+              title: _todayMessage?.title,
+              body: _todayMessage?.body,
+            ),
+          ),
           const SliverToBoxAdapter(child: SizedBox(height: 28)),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 12, 12, 10),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: _handleLogoTap,
-            child: const GhadeerBrandMark(size: 46, backgroundColor: null),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'الغدير',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF123B42),
-                    height: 1.1,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Al-Ghadeer Clinic',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: Color(0xFF6D8084),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Text(
-            'معاً لصحة أفضل',
-            style: TextStyle(
-              fontSize: 12.5,
-              color: Color(0xFF1197A8),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: 'الإشعارات',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationsInboxPage(),
-                ),
-              );
-            },
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF123B42),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsetsDirectional.fromSTEB(14, 8, 8, 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE4EEEE)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.045),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          // مهم: لا نغلّف المايك داخل InkWell البحث — وإلا الضغطة الأولى
-          // تفتح الصفحة فقط والثانية تشغّل الصوت.
-          child: Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () => _openSmartSearch(),
-                  borderRadius: BorderRadius.circular(14),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.search_rounded,
-                          color: Color(0xFF0FAFA3),
-                          size: 24,
-                        ),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'ابحث عن طبيب، اختصاص أو خدمة...',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Color(0xFF8A9A9E),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Material(
-                color: const Color(0xFFE8F7F5),
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => _openSmartSearch(voice: true),
-                  child: const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Icon(
-                      Icons.mic_none_rounded,
-                      color: Color(0xFF0FAFA3),
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMainCategories() {
-    // تحت البحث: المختبرات / الأشعة / الباقات فقط
-    // (الأطباء ظاهرة في الصفحة، والعروض مكررة مع الباقات)
-    final items = <({String id, String title, IconData icon, String? imageAsset})>[
-      (
-        id: 'labs',
-        title: 'المختبرات',
-        icon: Icons.biotech_outlined,
-        imageAsset: 'assets/labs/defaults/lab_blood_sample.jpg',
-      ),
-      (
-        id: 'radiology',
-        title: 'الأشعة',
-        icon: Icons.radar_outlined,
-        imageAsset: 'assets/radiology/chest_xray.png',
-      ),
-      (
-        id: 'packages',
-        title: 'الباقات',
-        icon: Icons.inventory_2_outlined,
-        imageAsset: 'assets/packages/gift.png',
-      ),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-      child: Row(
-        children: items.map((item) {
-          final active = _mainCategory == item.id;
-          return Expanded(
-            child: InkWell(
-              onTap: () => _onMainCategoryTap(item.id),
-              borderRadius: BorderRadius.circular(18),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Column(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 160),
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        color: item.imageAsset != null
-                            ? Colors.white
-                            : (active
-                                ? const Color(0xFF0FAFA3)
-                                : const Color(0xFFEAF6FA)),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: active
-                              ? const Color(0xFF0FAFA3)
-                              : const Color(0xFFD5EAEF),
-                          width: active ? 1.8 : 1,
-                        ),
-                        boxShadow: item.imageAsset != null
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.06),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: item.imageAsset != null
-                          ? Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Image.asset(
-                                  item.imageAsset!,
-                                  fit: BoxFit.cover,
-                                  alignment: const Alignment(0, -0.05),
-                                  filterQuality: FilterQuality.high,
-                                  errorBuilder: (_, _, _) => Icon(
-                                    item.icon,
-                                    color: active
-                                        ? const Color(0xFF0FAFA3)
-                                        : const Color(0xFF1197A8),
-                                    size: 26,
-                                  ),
-                                ),
-                                if (active)
-                                  const ColoredBox(
-                                    color: Color(0x180FAFA3),
-                                  ),
-                              ],
-                            )
-                          : Icon(
-                              item.icon,
-                              color: active
-                                  ? Colors.white
-                                  : const Color(0xFF1197A8),
-                              size: 26,
-                            ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                        color: active
-                            ? const Color(0xFF0FAFA3)
-                            : const Color(0xFF243F44),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  void _onMainCategoryTap(String id) {
-    setState(() => _mainCategory = id);
+  void _onHomeServiceTap(String id) {
     switch (id) {
-      case 'labs':
-      case 'packages':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const LabsPage()),
-        );
+      case 'doctors':
+        _openAllSpecialties();
         return;
       case 'radiology':
         Navigator.push(
@@ -1083,80 +765,31 @@ class _HomePageState extends State<HomePage> {
           MaterialPageRoute(builder: (_) => const RadiologyPage()),
         );
         return;
+      case 'labs':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LabsPage()),
+        );
+        return;
+      case 'physio':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PhysioPage()),
+        );
+        return;
+      case 'supplies':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SuppliesPage()),
+        );
+        return;
+      case 'pharmacy':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PharmaciesPage()),
+        );
+        return;
     }
-  }
-
-  Widget _buildPromoBanner() {
-    if (_todayMessageLoading) {
-      return Container(
-        margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-        height: 112,
-        decoration: BoxDecoration(
-          color: const Color(0xFFEAF6FA),
-          borderRadius: BorderRadius.circular(20),
-        ),
-      );
-    }
-
-    final message = _todayMessage;
-    if (message == null || !message.hasContent) {
-      return const SizedBox.shrink();
-    }
-
-    return DynamicHighlightCard(message: message);
-  }
-
-  Widget _buildDoctorsSectionHeader() {
-    final count = doctors.length;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 12, 12, 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'الأطباء',
-                  style: TextStyle(
-                    color: Color(0xFF123B42),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  count > 0 ? '$count+ طبيب في خدمتكم' : 'أطباء متاحون لخدمتكم',
-                  style: const TextStyle(
-                    color: Color(0xFF78888B),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: _openAllSpecialties,
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF0FAFA3),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'كل الاختصاصات',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-                ),
-                SizedBox(width: 2),
-                Icon(Icons.chevron_left_rounded, size: 20),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _openAllSpecialties() {
@@ -1171,15 +804,44 @@ class _HomePageState extends State<HomePage> {
         builder: (_) => AllSpecialtiesPage(
           doctorSpecialties: specialties,
           onSpecialtySelected: (specialty) {
-            setState(() {
-              _specialtyFilter = specialty;
-              _mainCategory = 'doctors';
-              _bottomNavIndex = 0;
+            final list = _doctorsMatchingSpecialty(specialty);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SpecialtyDoctorsPage(
+                    specialty: specialty,
+                    doctors: list,
+                    favoriteIds: favoriteDoctorIds,
+                    onToggleFavorite: _toggleFavorite,
+                    onOpenProfile: _showDoctorProfile,
+                  ),
+                ),
+              );
             });
           },
         ),
       ),
     );
+  }
+
+  List<DoctorItem> _doctorsMatchingSpecialty(String specialty) {
+    final filter = specialty.trim();
+    if (filter.isEmpty) return _sortedDoctorItems();
+    final filterLower = filter.toLowerCase();
+    final matched = SpecialtyCatalog.match(filter);
+    return _sortedDoctorItems().where((d) {
+      final s = d.specialty.trim();
+      if (s.isEmpty) return false;
+      if (s.toLowerCase().contains(filterLower) ||
+          filterLower.contains(s.toLowerCase())) {
+        return true;
+      }
+      if (matched == null) return false;
+      final doctorMatch = SpecialtyCatalog.match(s);
+      return doctorMatch?.id == matched.id;
+    }).toList();
   }
 
   List<DoctorItem> _sortedDoctorItems() {
@@ -1217,7 +879,6 @@ class _HomePageState extends State<HomePage> {
       final byStatus = rank(a).compareTo(rank(b));
       if (byStatus != 0) return byStatus;
 
-      // الأكثر طلبًا / مشاهدة يظهر أولًا في الرئيسية.
       final byViews = b.profileViews.compareTo(a.profileViews);
       if (byViews != 0) return byViews;
 
@@ -1228,191 +889,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<DoctorItem> _filteredDoctorItems() {
-    final all = _sortedDoctorItems();
     final filter = _specialtyFilter?.trim();
-    if (filter == null || filter.isEmpty) return all;
-
-    final filterLower = filter.toLowerCase();
-    final matched = SpecialtyCatalog.match(filter);
-
-    return all.where((d) {
-      final s = d.specialty.trim();
-      if (s.isEmpty) return false;
-      if (s.toLowerCase().contains(filterLower) ||
-          filterLower.contains(s.toLowerCase())) {
-        return true;
-      }
-      if (matched == null) return false;
-      final doctorMatch = SpecialtyCatalog.match(s);
-      return doctorMatch?.id == matched.id;
-    }).toList();
-  }
-
-  Widget _buildSpecialtyFilters() {
-    final raw = doctors
-        .map((d) => d['specialty']?.toString() ?? '')
-        .where((s) => s.trim().isNotEmpty);
-    final shortcuts = SpecialtyCatalog.homeShortcuts(raw, limit: 8);
-    final chips = <String?>[null, ...shortcuts];
-
-    return SizedBox(
-      height: 40,
-      child: Row(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsetsDirectional.only(start: 16, end: 8),
-              scrollDirection: Axis.horizontal,
-              itemCount: chips.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final value = chips[index];
-                final active = value == null
-                    ? _specialtyFilter == null
-                    : _specialtyFilter != null &&
-                          (SpecialtyCatalog.match(_specialtyFilter!)?.nameAr ==
-                                  value ||
-                              _specialtyFilter == value);
-                final label = value == null
-                    ? 'الكل'
-                    : SpecialtyCatalog.shortLabel(value);
-                return FilterChip(
-                  selected: active,
-                  showCheckmark: false,
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  label: Text(
-                    label,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                      color: active ? Colors.white : const Color(0xFF456066),
-                    ),
-                  ),
-                  selectedColor: const Color(0xFF0FAFA3),
-                  backgroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  side: BorderSide(
-                    color: active
-                        ? const Color(0xFF0FAFA3)
-                        : const Color(0xFFE0E8EA),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  onSelected: (_) {
-                    setState(() => _specialtyFilter = value);
-                  },
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsetsDirectional.only(end: 12),
-            child: Material(
-              color: const Color(0xFFEAF6FA),
-              borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                onTap: _openAllSpecialties,
-                borderRadius: BorderRadius.circular(12),
-                child: const SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: Icon(
-                    Icons.tune_rounded,
-                    size: 18,
-                    color: Color(0xFF0FAFA3),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDoctors() {
-    if (isLoadingDoctors) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-        child: Column(
-          children: List.generate(
-            3,
-            (i) => Container(
-              margin: EdgeInsets.only(bottom: i == 2 ? 0 : 10),
-              height: 102,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE6EEEE)),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final items = _filteredDoctorItems();
-    if (items.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.search_off_rounded,
-              size: 42,
-              color: Color(0xFF9BB8B6),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              doctorsError != null
-                  ? doctorsError!
-                  : doctors.isEmpty
-                  ? 'لا يوجد أطباء حالياً'
-                  : 'لم نجد طبيبًا مطابقًا لبحثك',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF5B6C70),
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  isLoadingDoctors = true;
-                  doctorsError = null;
-                  if (_specialtyFilter != null) _specialtyFilter = null;
-                });
-                loadDoctors();
-              },
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة التحميل'),
-            ),
-            if (_specialtyFilter != null) ...[
-              TextButton(
-                onPressed: () => setState(() => _specialtyFilter = null),
-                child: const Text('عرض كل الأطباء'),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    return _buildDoctorCardsLayout(
-      doctors: items,
-      padding: EdgeInsets.fromLTRB(
-        AppResponsive.pagePadding(context),
-        10,
-        AppResponsive.pagePadding(context),
-        8,
-      ),
-      shrinkWrap: true,
-      primary: false,
-    );
+    if (filter == null || filter.isEmpty) return _sortedDoctorItems();
+    return _doctorsMatchingSpecialty(filter);
   }
 
   /// قائمة/شبكة بطاقات الأطباء حسب عرض الشاشة (موبايل عمود واحد كما هو).
@@ -1787,6 +1266,45 @@ class AdminPage extends StatelessWidget {
               },
             ),
             _adminTile(
+              icon: Icons.local_pharmacy_rounded,
+              title: 'إدارة الصيدليات',
+              subtitle: 'إضافة وتعديل وإظهار/إخفاء الصيدليات',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PharmaciesAdminPage(),
+                  ),
+                );
+              },
+            ),
+            _adminTile(
+              icon: Icons.wheelchair_pickup_rounded,
+              title: 'إدارة المستلزمات والتجهيزات',
+              subtitle: 'محلات المستلزمات — إضافة وتعديل وإخفاء',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SuppliesAdminPage(),
+                  ),
+                );
+              },
+            ),
+            _adminTile(
+              icon: Icons.accessibility_new_rounded,
+              title: 'إدارة العلاج الطبيعي',
+              subtitle: 'مراكز التأهيل — إضافة وتعديل وإخفاء',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PhysioAdminPage(),
+                  ),
+                );
+              },
+            ),
+            _adminTile(
               icon: Icons.radar_outlined,
               title: 'إعدادات الأشعة',
               subtitle: 'إضافة وتعديل مراكز الأشعة',
@@ -1808,6 +1326,19 @@ class AdminPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const NotificationsAdminPage(),
+                  ),
+                );
+              },
+            ),
+            _adminTile(
+              icon: Icons.widgets_outlined,
+              title: 'إدارة الأيقونات',
+              subtitle: 'صور أيقونات الرئيسية والاختصاصات وشريط الأسفل — الشعار ثابت',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AppIconsAdminPage(),
                   ),
                 );
               },
@@ -2055,21 +1586,17 @@ class _DoctorsAdminPageState extends State<DoctorsAdminPage> {
   }
 
   Future<void> _openDoctorForm({Map<String, dynamic>? doctor}) async {
-    final changed = await Navigator.push<Map<String, dynamic>>(
+    final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => DoctorAdminFormPage(doctor: doctor),
       ),
     );
 
-    if (changed != null) {
-      final index = _doctors.indexWhere((item) => item['id'] == doctor?['id']);
-
-      if (index != -1) {
-        setState(() {
-          _doctors[index] = {...?doctor, ...changed};
-        });
-      }
+    // مثل المختبرات: أعد التحميل من السيرفر بعد أي حفظ ناجح
+    // (إضافة أو تعديل) حتى لا تُفقد التغييرات أو يُكسر نوع الإرجاع.
+    if (saved == true) {
+      await _loadDoctors();
     }
   }
 
@@ -2409,6 +1936,11 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
   late final TextEditingController _locationController;
   late final TextEditingController _phoneController;
   late final TextEditingController _whatsappController;
+  late final TextEditingController _websiteController;
+  late final TextEditingController _instagramController;
+  late final TextEditingController _facebookController;
+  late final TextEditingController _tiktokController;
+  late final TextEditingController _telegramController;
   late final TextEditingController _imageController;
   XFile? _pickedImage;
   Uint8List? _pickedImageBytes;
@@ -2490,6 +2022,21 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
 
     _whatsappController = TextEditingController(
       text: doctor?['whatsapp']?.toString() ?? '',
+    );
+    _websiteController = TextEditingController(
+      text: doctor?['website_url']?.toString() ?? '',
+    );
+    _instagramController = TextEditingController(
+      text: doctor?['instagram_url']?.toString() ?? '',
+    );
+    _facebookController = TextEditingController(
+      text: doctor?['facebook_url']?.toString() ?? '',
+    );
+    _tiktokController = TextEditingController(
+      text: doctor?['tiktok_url']?.toString() ?? '',
+    );
+    _telegramController = TextEditingController(
+      text: doctor?['telegram_url']?.toString() ?? '',
     );
 
     _imageController = TextEditingController(
@@ -2635,6 +2182,11 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
     _locationController.dispose();
     _phoneController.dispose();
     _whatsappController.dispose();
+    _websiteController.dispose();
+    _instagramController.dispose();
+    _facebookController.dispose();
+    _tiktokController.dispose();
+    _telegramController.dispose();
     _imageController.dispose();
     _shortDescriptionController.dispose();
     _bioController.dispose();
@@ -2728,168 +2280,190 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
 
   Future<void> _saveDoctor() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_removingImageBg) return;
+    if (_removingImageBg) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('انتظر انتهاء تجهيز الصورة ثم أعد الحفظ.'),
+        ),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
     debugPrint('SESSION USER = ${_supabase.auth.currentSession?.user.email}');
-    final oldImageUrl = widget.doctor?['image_url']?.toString();
-    String? imageUrl = _imageController.text.trim().isEmpty
-        ? null
-        : _imageController.text.trim();
 
-    if (_pickedImageBytes != null) {
-      // إن كان الخيار مفعّلاً ولم تُعالَج بعد، حاول قبل الرفع مرة واحدة.
-      if (_removeImageBackground &&
-          !_pickedImageBgRemoved &&
-          _pickedImageOriginalBytes != null) {
-        final again = await DoctorImageBgRemover.removeBackground(
-          _pickedImageOriginalBytes!,
-        );
-        if (again != null) {
-          _pickedImageBytes = again;
-          _pickedImageBgRemoved = true;
-        }
-      }
-
-      final originalName = _pickedImage?.name ?? 'doctor.jpg';
-      final extension = _pickedImageBgRemoved
-          ? 'png'
-          : originalName.contains('.')
-          ? originalName.split('.').last.toLowerCase()
-          : 'jpg';
-
-      final safeExtension =
-          ['jpg', 'jpeg', 'png', 'webp', 'heic'].contains(extension)
-          ? extension
-          : 'jpg';
-
-      final fileName =
-          'doctors/${DateTime.now().millisecondsSinceEpoch}.$safeExtension';
-
-      await _supabase.storage
-          .from('clinic-media')
-          .uploadBinary(
-            fileName,
-            _pickedImageBytes!,
-            fileOptions: FileOptions(
-              upsert: false,
-              contentType: switch (safeExtension) {
-                'png' => 'image/png',
-                'webp' => 'image/webp',
-                'heic' => 'image/heic',
-                _ => 'image/jpeg',
-              },
-            ),
-          );
-
-      imageUrl = _supabase.storage.from('clinic-media').getPublicUrl(fileName);
-    }
-
-    // لو كانت صورة لوغو غدير من الإدارة → اللوغو المعتمد.
-    if (imageUrl != null && imageUrl.trim().isNotEmpty) {
-      final normalized = GhadeerBranding.normalizeEntityImageUrl(imageUrl);
-      imageUrl = normalized.isEmpty ? null : normalized;
-    }
-
-    final selectedWorkingDays = _workingWeek.entries
-        .where(
-          (entry) => entry.value && (_dayExceptions[entry.key] ?? 'evening') != 'off',
-        )
-        .map((entry) => entry.key)
-        .toList();
-
-    final workingDaysText = selectedWorkingDays.length == _workingWeek.length
-        ? 'كل أيام الأسبوع'
-        : selectedWorkingDays.join('، ');
-    String exceptionLabel(String value) {
-      switch (value) {
-        case 'morning':
-          return 'صباحًا';
-        case 'evening':
-          return 'مساءً';
-        case 'both':
-          return 'صباحًا ومساءً';
-        case 'off':
-          return 'عطلة';
-        default:
-          return '';
-      }
-    }
-
-    final baseWorkingHours =
+    // قبل أي await — تجنّب استخدام context عبر فجوة غير متزامنة.
+    final defaultHoursLabel =
         _defaultStartTime != null && _defaultEndTime != null
         ? '${_defaultStartTime!.format(context)} إلى ${_defaultEndTime!.format(context)}'
-        : _workingHoursController.text.trim();
-
-    // جدول البطاقة: السبت مساءً، …، الأحد عطلة، الجمعة صباحًا ومساءً
-    final dayExceptionTexts = <String>[];
-    final anyDayConfigured =
-        _workingWeek.values.any((v) => v) ||
-        _dayExceptions.values.any((v) => v != null && v.isNotEmpty);
-    if (anyDayConfigured) {
-      for (final day in _workingWeek.keys) {
-        final enabled = _workingWeek[day] ?? false;
-        final period = _dayExceptions[day] ?? (enabled ? 'evening' : 'off');
-        if (!enabled || period == 'off') {
-          dayExceptionTexts.add('$day عطلة');
-          continue;
-        }
-        final label = exceptionLabel(period);
-        if (label.isEmpty) continue;
-        dayExceptionTexts.add('$day $label');
-      }
-    }
-
-    final workingHoursText = dayExceptionTexts.isEmpty
-        ? baseWorkingHours
-        : baseWorkingHours.isEmpty
-        ? dayExceptionTexts.join('، ')
-        : '$baseWorkingHours | ${dayExceptionTexts.join('، ')}';
-    final rawSpecialty = _specialtyController.text.trim();
-    final smartSpecialty =
-        SpecialtyCatalog.match(rawSpecialty)?.nameAr ?? rawSpecialty;
-    if (smartSpecialty != rawSpecialty) {
-      _specialtyController.text = smartSpecialty;
-    }
-
-    final bioText = _bioController.text.trim();
-    final shortText = _shortDescriptionController.text.trim().isNotEmpty
-        ? _shortDescriptionController.text.trim()
-        : bioText;
-
-    final data = <String, dynamic>{
-      'doctor_name': _nameController.text.trim(),
-      'specialty': smartSpecialty,
-      'clinic_location': _locationController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'whatsapp': _whatsappController.text.trim(),
-      'image_url': imageUrl,
-      'short_description': shortText,
-      'bio': bioText,
-      'services': _servicesController.text.trim(),
-      'working_days': workingDaysText,
-      'working_hours': workingHoursText,
-      'consultation_fee': _feeController.text.trim().isEmpty
-          ? null
-          : _feeController.text.trim(),
-      'display_order': int.tryParse(_orderController.text.trim()) ?? 0,
-      'is_active': _isActive,
-      'ghadeer_badge': _ghadeerBadge,
-      'show_call_button': _showCallButton,
-      'show_whatsapp_button': _showWhatsAppButton,
-      'show_booking_button': _showBookingButton,
-      'booking_status': _bookingStatus,
-      'gender': _gender,
-      'years_experience': int.tryParse(_yearsController.text.trim()) ?? 0,
-      'patients_served': int.tryParse(_patientsController.text.trim()) ?? 0,
-      'languages': _languagesController.text.trim(),
-      'qualifications': _qualificationsController.text.trim(),
-      'age_group': _ageGroupController.text.trim(),
-      'profile_quote': _quoteController.text.trim(),
-      'notifications_enabled': _notificationsEnabled,
-    };
+        : null;
 
     try {
+      final oldImageUrl = widget.doctor?['image_url']?.toString();
+      String? imageUrl = _imageController.text.trim().isEmpty
+          ? null
+          : _imageController.text.trim();
+
+      if (_pickedImageBytes != null) {
+        // إن كان الخيار مفعّلاً ولم تُعالَج بعد، حاول قبل الرفع مرة واحدة.
+        if (_removeImageBackground &&
+            !_pickedImageBgRemoved &&
+            _pickedImageOriginalBytes != null) {
+          final again = await DoctorImageBgRemover.removeBackground(
+            _pickedImageOriginalBytes!,
+          );
+          if (again != null) {
+            _pickedImageBytes = again;
+            _pickedImageBgRemoved = true;
+          }
+        }
+
+        final originalName = _pickedImage?.name ?? 'doctor.jpg';
+        final extension = _pickedImageBgRemoved
+            ? 'png'
+            : originalName.contains('.')
+            ? originalName.split('.').last.toLowerCase()
+            : 'jpg';
+
+        final safeExtension =
+            ['jpg', 'jpeg', 'png', 'webp', 'heic'].contains(extension)
+            ? extension
+            : 'jpg';
+
+        final fileName =
+            'doctors/${DateTime.now().millisecondsSinceEpoch}.$safeExtension';
+
+        await _supabase.storage
+            .from('clinic-media')
+            .uploadBinary(
+              fileName,
+              _pickedImageBytes!,
+              fileOptions: FileOptions(
+                upsert: false,
+                contentType: switch (safeExtension) {
+                  'png' => 'image/png',
+                  'webp' => 'image/webp',
+                  'heic' => 'image/heic',
+                  _ => 'image/jpeg',
+                },
+              ),
+            );
+
+        imageUrl = _supabase.storage.from('clinic-media').getPublicUrl(fileName);
+      }
+
+      // لو كانت صورة لوغو غدير من الإدارة → اللوغو المعتمد.
+      if (imageUrl != null && imageUrl.trim().isNotEmpty) {
+        final normalized = GhadeerBranding.normalizeEntityImageUrl(imageUrl);
+        imageUrl = normalized.isEmpty ? null : normalized;
+      }
+
+      final selectedWorkingDays = _workingWeek.entries
+          .where(
+            (entry) =>
+                entry.value &&
+                (_dayExceptions[entry.key] ?? 'evening') != 'off',
+          )
+          .map((entry) => entry.key)
+          .toList();
+
+      final workingDaysText = selectedWorkingDays.length == _workingWeek.length
+          ? 'كل أيام الأسبوع'
+          : selectedWorkingDays.join('، ');
+      String exceptionLabel(String value) {
+        switch (value) {
+          case 'morning':
+            return 'صباحًا';
+          case 'evening':
+            return 'مساءً';
+          case 'both':
+            return 'صباحًا ومساءً';
+          case 'off':
+            return 'عطلة';
+          default:
+            return '';
+        }
+      }
+
+      final baseWorkingHours =
+          defaultHoursLabel ?? _workingHoursController.text.trim();
+
+      // جدول البطاقة: السبت مساءً، …، الأحد عطلة، الجمعة صباحًا ومساءً
+      final dayExceptionTexts = <String>[];
+      final anyDayConfigured =
+          _workingWeek.values.any((v) => v) ||
+          _dayExceptions.values.any((v) => v != null && v.isNotEmpty);
+      if (anyDayConfigured) {
+        for (final day in _workingWeek.keys) {
+          final enabled = _workingWeek[day] ?? false;
+          final period = _dayExceptions[day] ?? (enabled ? 'evening' : 'off');
+          if (!enabled || period == 'off') {
+            dayExceptionTexts.add('$day عطلة');
+            continue;
+          }
+          final label = exceptionLabel(period);
+          if (label.isEmpty) continue;
+          dayExceptionTexts.add('$day $label');
+        }
+      }
+
+      final workingHoursText = dayExceptionTexts.isEmpty
+          ? baseWorkingHours
+          : baseWorkingHours.isEmpty
+          ? dayExceptionTexts.join('، ')
+          : '$baseWorkingHours | ${dayExceptionTexts.join('، ')}';
+      final rawSpecialty = _specialtyController.text.trim();
+      final smartSpecialty =
+          SpecialtyCatalog.match(rawSpecialty)?.nameAr ?? rawSpecialty;
+      if (smartSpecialty != rawSpecialty) {
+        _specialtyController.text = smartSpecialty;
+      }
+
+      final bioText = _bioController.text.trim();
+      final shortText = _shortDescriptionController.text.trim().isNotEmpty
+          ? _shortDescriptionController.text.trim()
+          : bioText;
+
+      // حقول الإنتاج المؤكّدة فقط. أعمدة doctor_profile_schema.sql
+      // (خبرة/مؤهلات/فئة عمرية…) تُستثنى حتى تُنفَّذ الهجرة يدويًا.
+      final data = doctorSavePayloadForProduction(<String, dynamic>{
+        'doctor_name': _nameController.text.trim(),
+        'specialty': smartSpecialty,
+        'clinic_location': _locationController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'whatsapp': _whatsappController.text.trim(),
+        'website_url': _websiteController.text.trim(),
+        'instagram_url': _instagramController.text.trim(),
+        'facebook_url': _facebookController.text.trim(),
+        'tiktok_url': _tiktokController.text.trim(),
+        'telegram_url': _telegramController.text.trim(),
+        'image_url': imageUrl,
+        'short_description': shortText,
+        'bio': bioText,
+        'services': _servicesController.text.trim(),
+        'working_days': workingDaysText,
+        'working_hours': workingHoursText,
+        'consultation_fee': _feeController.text.trim().isEmpty
+            ? null
+            : _feeController.text.trim(),
+        'display_order': int.tryParse(_orderController.text.trim()) ?? 0,
+        'is_active': _isActive,
+        'ghadeer_badge': _ghadeerBadge,
+        'show_call_button': _showCallButton,
+        'show_whatsapp_button': _showWhatsAppButton,
+        'show_booking_button': _showBookingButton,
+        'booking_status': _bookingStatus,
+        'gender': _gender,
+        'years_experience': int.tryParse(_yearsController.text.trim()) ?? 0,
+        'patients_served': int.tryParse(_patientsController.text.trim()) ?? 0,
+        'languages': _languagesController.text.trim(),
+        'qualifications': _qualificationsController.text.trim(),
+        'age_group': _ageGroupController.text.trim(),
+        'profile_quote': _quoteController.text.trim(),
+        'notifications_enabled': _notificationsEnabled,
+      });
+
       await _persistDoctorRecord(data);
 
       if (_isEditing &&
@@ -2915,11 +2489,7 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
       }
       if (!mounted) return;
 
-      if (_isEditing) {
-        Navigator.pop(context, data);
-      } else {
-        Navigator.pop(context, true);
-      }
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
 
@@ -2932,23 +2502,44 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
 
   /// يحفظ سجل الطبيب مع تجاهل الأعمدة الاختيارية غير الموجودة في Schema
   /// حتى لا يفشل تحديث الصورة وباقي الحقول الأساسية بسبب عمود واحد مفقود.
+  /// عند الإضافة: إن وُجد نفس الاسم+الهاتف يُحدَّث السجل بدل إدراج مكرر.
   Future<void> _persistDoctorRecord(Map<String, dynamic> raw) async {
     final payload = Map<String, dynamic>.from(raw);
+    var editingId = _isEditing ? widget.doctor!['id']?.toString() : null;
+
+    if (editingId == null || editingId.isEmpty) {
+      try {
+        final existing = await _supabase
+            .from('doctors')
+            .select('id,doctor_name,phone');
+        final rows = List<Map<String, dynamic>>.from(existing as List);
+        editingId = findExistingDoctorIdByNamePhone(
+          rows: rows,
+          name: payload['doctor_name']?.toString() ?? '',
+          phone: payload['phone']?.toString() ?? '',
+        );
+        if (editingId != null) {
+          debugPrint(
+            'Doctor save: merging into existing id=$editingId '
+            '(same name+phone — avoid duplicate insert)',
+          );
+        }
+      } catch (e) {
+        debugPrint('Doctor save: duplicate-check skipped: $e');
+      }
+    }
 
     for (var attempt = 0; attempt < 8; attempt++) {
       try {
-        if (_isEditing) {
-          await _supabase
-              .from('doctors')
-              .update(payload)
-              .eq('id', widget.doctor!['id']);
+        if (editingId != null && editingId.isNotEmpty) {
+          await _supabase.from('doctors').update(payload).eq('id', editingId);
         } else {
           await _supabase.from('doctors').insert(payload);
         }
         return;
       } on PostgrestException catch (e) {
         if (e.code != 'PGRST204') rethrow;
-        final missing = _missingColumnFromPostgrest(e.message);
+        final missing = missingDoctorColumnFromPostgrest(e.message);
         if (missing == null || !payload.containsKey(missing)) {
           rethrow;
         }
@@ -2960,14 +2551,6 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
     }
 
     throw Exception('تعذر حفظ الطبيب بعد تجاهل أعمدة غير موجودة في Schema');
-  }
-
-  String? _missingColumnFromPostgrest(String message) {
-    final match = RegExp(
-      r"Could not find the '([^']+)' column",
-      caseSensitive: false,
-    ).firstMatch(message);
-    return match?.group(1);
   }
 
   /// توحيد قيم الفئة العمرية لخيارات الإدارة الثلاث.
@@ -3221,6 +2804,53 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
                 label: 'رقم واتساب',
                 icon: Icons.chat_outlined,
                 keyboardType: TextInputType.phone,
+              ),
+
+              const Padding(
+                padding: EdgeInsets.fromLTRB(4, 8, 4, 4),
+                child: Text(
+                  'مواقع التواصل (اختياري)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+                child: Text(
+                  'فارغ = لا يظهر في الورقة. واتساب يبقى الزر المباشر.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6B7C80),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              _field(
+                controller: _websiteController,
+                label: 'الموقع الإلكتروني',
+                icon: Icons.language_rounded,
+              ),
+              _field(
+                controller: _instagramController,
+                label: 'إنستغرام',
+                icon: Icons.camera_alt_outlined,
+              ),
+              _field(
+                controller: _facebookController,
+                label: 'فيسبوك',
+                icon: Icons.facebook_rounded,
+              ),
+              _field(
+                controller: _tiktokController,
+                label: 'تيك توك',
+                icon: Icons.music_note_rounded,
+              ),
+              _field(
+                controller: _telegramController,
+                label: 'تليجرام',
+                icon: Icons.send_rounded,
               ),
 
               // أيام/ساعات التواجد النصية تُملأ من الجدول الأسبوعي عند الحفظ.

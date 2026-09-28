@@ -261,19 +261,21 @@ class GhadeerBrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mark = Image.asset(
-      GhadeerBranding.officialLogoAsset,
-      width: size,
-      height: size,
-      fit: BoxFit.contain,
-      filterQuality: FilterQuality.high,
-      errorBuilder: (context, error, stackTrace) {
-        return Icon(
-          Icons.local_hospital_rounded,
-          size: size * 0.7,
-          color: color,
-        );
-      },
+    final mark = ClipOval(
+      child: Image.asset(
+        GhadeerBranding.officialLogoAsset,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            Icons.local_hospital_rounded,
+            size: size * 0.7,
+            color: color,
+          );
+        },
+      ),
     );
 
     if (backgroundColor == null) {
@@ -285,10 +287,10 @@ class GhadeerBrandMark extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(size * 0.28),
+        shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
-      padding: EdgeInsets.all(size * 0.08),
+      padding: EdgeInsets.all(size * 0.04),
       child: mark,
     );
   }

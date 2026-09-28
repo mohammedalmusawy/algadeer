@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../branding/ghadeer_brand_mark.dart';
+import '../../models/entity_social_links.dart';
 import '../../models/lab_models.dart';
+import '../../widgets/clinic_app_bar.dart';
+import '../../widgets/entity_social_sheet.dart';
 import '../lab_default_images.dart';
 import '../labs_service.dart';
 import '../widgets/lab_network_or_asset_image.dart';
-import '../../widgets/clinic_app_bar.dart';
 
 class LabFormPage extends StatefulWidget {
   const LabFormPage({super.key, this.lab});
@@ -29,6 +31,11 @@ class _LabFormPageState extends State<LabFormPage> {
   late final TextEditingController _address;
   late final TextEditingController _phone;
   late final TextEditingController _whatsapp;
+  late final TextEditingController _website;
+  late final TextEditingController _instagram;
+  late final TextEditingController _facebook;
+  late final TextEditingController _tiktok;
+  late final TextEditingController _telegram;
   late final TextEditingController _workingHours;
   late final TextEditingController _mapUrl;
   late final TextEditingController _order;
@@ -53,6 +60,11 @@ class _LabFormPageState extends State<LabFormPage> {
     _address = TextEditingController(text: lab?.address ?? '');
     _phone = TextEditingController(text: lab?.phone ?? '');
     _whatsapp = TextEditingController(text: lab?.whatsapp ?? '');
+    _website = TextEditingController(text: lab?.social.website ?? '');
+    _instagram = TextEditingController(text: lab?.social.instagram ?? '');
+    _facebook = TextEditingController(text: lab?.social.facebook ?? '');
+    _tiktok = TextEditingController(text: lab?.social.tiktok ?? '');
+    _telegram = TextEditingController(text: lab?.social.telegram ?? '');
     _workingHours = TextEditingController(text: lab?.workingHours ?? '');
     _mapUrl = TextEditingController(text: lab?.mapUrl ?? '');
     _order = TextEditingController(text: '${lab?.displayOrder ?? 0}');
@@ -74,6 +86,11 @@ class _LabFormPageState extends State<LabFormPage> {
     _address.dispose();
     _phone.dispose();
     _whatsapp.dispose();
+    _website.dispose();
+    _instagram.dispose();
+    _facebook.dispose();
+    _tiktok.dispose();
+    _telegram.dispose();
     _workingHours.dispose();
     _mapUrl.dispose();
     _order.dispose();
@@ -165,6 +182,13 @@ class _LabFormPageState extends State<LabFormPage> {
         mapUrl: _mapUrl.text.trim(),
         workingHours: _workingHours.text.trim(),
         slogan: _slogan.text.trim(),
+        social: EntitySocialLinks(
+          website: _website.text.trim(),
+          instagram: _instagram.text.trim(),
+          facebook: _facebook.text.trim(),
+          tiktok: _tiktok.text.trim(),
+          telegram: _telegram.text.trim(),
+        ),
       );
 
       await _service.upsertLab(lab, existingId: widget.lab?.id);
@@ -439,6 +463,14 @@ class _LabFormPageState extends State<LabFormPage> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.chat_outlined),
                 ),
+              ),
+              const SizedBox(height: 12),
+              EntitySocialAdminFields(
+                website: _website,
+                instagram: _instagram,
+                facebook: _facebook,
+                tiktok: _tiktok,
+                telegram: _telegram,
               ),
               const SizedBox(height: 12),
               TextFormField(

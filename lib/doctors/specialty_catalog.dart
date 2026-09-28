@@ -39,7 +39,7 @@ class SpecialtyCatalog {
       nameAr: 'طب الأطفال',
       shortNameAr: 'الأطفال',
       icon: Icons.child_care_outlined,
-      keywords: ['أطفال', 'اطفال', 'طفل', 'pediatric'],
+      keywords: ['أطفال', 'اطفال', 'اطفل', 'طفل', 'جهال', 'pediatric'],
       popular: true,
     ),
     SpecialtyDefinition(
@@ -94,7 +94,8 @@ class SpecialtyCatalog {
       nameAr: 'طب الأسنان',
       shortNameAr: 'أطباء الأسنان',
       icon: Icons.health_and_safety_outlined,
-      keywords: ['أسنان', 'اسنان', 'سن', 'dental', 'dent'],
+      // لا تُدرج «سن» وحدها — تتصادم مع «سنوات/سن» خارج طب الأسنان.
+      keywords: ['أسنان', 'اسنان', 'dental', 'dent'],
       popular: true,
     ),
     SpecialtyDefinition(

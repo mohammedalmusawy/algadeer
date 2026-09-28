@@ -8,6 +8,7 @@ import '../branding/ghadeer_brand_mark.dart';
 import '../models/radiology_models.dart';
 import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
+import '../widgets/entity_contact_actions.dart';
 import 'radiology_default_images.dart';
 import 'radiology_service.dart';
 import 'widgets/radiology_network_or_asset_image.dart';
@@ -31,7 +32,6 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
 
   static const _navy = Color(0xFF123B42);
   static const _teal = Color(0xFF0FAFA3);
-  static const _actionBlue = Color(0xFF1197A8);
   static const _muted = Color(0xFF5B6C70);
   static const _pageBg = Color(0xFFF7FBFC);
   static const _favKey = 'favoriteRadiologyIds';
@@ -327,7 +327,6 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
 
   Widget _buildIdentity() {
     final bio = _center.description.trim();
-    final location = _center.address.trim();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
@@ -365,8 +364,46 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
                     color: _muted,
                   ),
                 ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActions() {
+    // مباشرة تحت بطاقة الهوية — قبل النبذة الطويلة حتى ما تنزل لتحت.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+      child: EntityContactActionsRow(
+        phone: _center.phone,
+        whatsapp: _center.whatsapp,
+        social: _center.social,
+        socialTitle: 'مواقع تواصل ${_center.name}',
+        onCall: () => launchClinicCall(_center.phone),
+        onWhatsapp: () async {
+          final message = await WhatsAppMessageSettingsService().buildPrefill(
+            providerTitle: _center.name,
+            providerIsDoctor: false,
+          );
+          await launchClinicWhatsApp(_center.whatsapp, message: message);
+        },
+        onLocation: _openLocation,
+        showLocation: _center.address.trim().isNotEmpty ||
+            _center.mapUrl.trim().isNotEmpty,
+      ),
+    );
+  }
+
+  Widget _buildAddressAndHours() {
+    final location = _center.address.trim();
+    final hours = _center.workingHours.trim();
+    if (location.isEmpty && hours.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           if (location.isNotEmpty) ...[
-            const SizedBox(height: 22),
             const Text(
               'عنوان المركز',
               textAlign: TextAlign.right,
@@ -377,21 +414,72 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
               ),
             ),
             const SizedBox(height: 10),
-            Text(
-              location,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontSize: 14.5,
-                height: 1.7,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF33454F),
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: _openLocation,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE4EEEE)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F7F5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.location_on_rounded,
+                          color: Color(0xFF1197A8),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              location,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                fontSize: 14.5,
+                                height: 1.55,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF33454F),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _center.mapUrl.trim().isNotEmpty
+                                  ? 'فتح الموقع في الخرائط'
+                                  : 'بحث العنوان في الخرائط',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1197A8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_left_rounded, color: _muted),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
-          if (_center.workingHours.trim().isNotEmpty) ...[
-            const SizedBox(height: 18),
+          if (hours.isNotEmpty) ...[
+            SizedBox(height: location.isNotEmpty ? 18 : 0),
             Text(
-              'ساعات العمل: ${_center.workingHours.trim()}',
+              'ساعات العمل: $hours',
               textAlign: TextAlign.right,
               style: const TextStyle(
                 fontSize: 14,
@@ -399,67 +487,6 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
                 color: Color(0xFF1A4F58),
               ),
             ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActions() {
-    final buttons = <Widget>[];
-    if (_center.phone.trim().isNotEmpty) {
-      buttons.add(
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: () => launchClinicCall(_center.phone),
-            style: FilledButton.styleFrom(backgroundColor: _actionBlue),
-            icon: const Icon(Icons.phone_in_talk_rounded),
-            label: const Text('اتصال'),
-          ),
-        ),
-      );
-    }
-    if (_center.whatsapp.trim().isNotEmpty) {
-      buttons.add(
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: () async {
-              final message =
-                  await WhatsAppMessageSettingsService().buildPrefill(
-                providerTitle: _center.name,
-                providerIsDoctor: false,
-              );
-              await launchClinicWhatsApp(_center.whatsapp, message: message);
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF25D366),
-            ),
-            icon: const Icon(Icons.chat_rounded),
-            label: const Text('واتساب'),
-          ),
-        ),
-      );
-    }
-    if (_center.address.trim().isNotEmpty ||
-        _center.mapUrl.trim().isNotEmpty) {
-      buttons.add(
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _openLocation,
-            icon: const Icon(Icons.near_me_rounded),
-            label: const Text('الموقع'),
-          ),
-        ),
-      );
-    }
-    if (buttons.isEmpty) return const SizedBox(height: 8);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Row(
-        children: [
-          for (var i = 0; i < buttons.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
-            buttons[i],
           ],
         ],
       ),
@@ -500,8 +527,10 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
                       ),
                       slivers: [
                         SliverToBoxAdapter(child: _buildHero()),
-                        SliverToBoxAdapter(child: _buildIdentity()),
+                        // الأزرار فوق — مباشرة تحت البطاقة، قبل النبذة الطويلة.
                         SliverToBoxAdapter(child: _buildActions()),
+                        SliverToBoxAdapter(child: _buildIdentity()),
+                        SliverToBoxAdapter(child: _buildAddressAndHours()),
                         const SliverToBoxAdapter(child: SizedBox(height: 28)),
                       ],
                     ),
@@ -510,7 +539,6 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
     );
   }
 }
-
 class _RadVerifiedPill extends StatelessWidget {
   const _RadVerifiedPill();
 

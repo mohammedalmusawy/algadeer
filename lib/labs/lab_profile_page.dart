@@ -11,6 +11,10 @@ import '../utils/contact_launch.dart';
 import '../services/app_stats_service.dart';
 import '../voice/lab_packages_speech.dart';
 import '../voice/voice_response_controller.dart';
+import '../services/entity_access_pin_service.dart';
+import '../widgets/entity_access_pin_gate.dart';
+import '../widgets/entity_contact_actions.dart';
+import 'admin/packages_admin_page.dart';
 import 'lab_card_links.dart';
 import 'lab_default_images.dart';
 import 'lab_package_detail_page.dart';
@@ -18,8 +22,7 @@ import 'lab_packages_page.dart';
 import 'lab_pick_analyses_sheet.dart';
 import 'labs_service.dart';
 import 'widgets/lab_network_or_asset_image.dart';
-import 'widgets/lab_package_card.dart';
-import 'widgets/package_hero_image.dart';
+import 'widgets/lab_package_strip.dart';
 
 /// بطاقة المختبر الرقمية — قالب Premium واحد لكل المختبرات من Supabase.
 class LabProfilePage extends StatefulWidget {
@@ -257,21 +260,18 @@ class _LabProfilePageState extends State<LabProfilePage> {
     return list;
   }
 
-  /// Featured = is_featured أو show_on_home، وإلا أعلى خصم، وإلا أول باقة.
-  LabPackageItem? get _featuredPackage {
-    if (_packages.isEmpty) return null;
-    final featured = _packages.where((p) => p.isFeatured || p.showOnHome);
-    if (featured.isNotEmpty) {
-      final list = featured.toList()
-        ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
-      return list.first;
-    }
-    final discounted = _packages.where((p) => p.discountPercent != null).toList()
-      ..sort((a, b) => (b.discountPercent ?? 0).compareTo(a.discountPercent ?? 0));
-    if (discounted.isNotEmpty) return discounted.first;
+  /// باقات الصفحة الرئيسية: كل ما عليه show_on_home أو is_featured،
+  /// وإن ماكو تعيين نعرض كل الباقات مرتّبة (قدر المكان).
+  List<LabPackageItem> get _homePackages {
+    if (_packages.isEmpty) return const [];
+    final flagged = _packages
+        .where((p) => p.isFeatured || p.showOnHome)
+        .toList()
+      ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    if (flagged.isNotEmpty) return flagged;
     final ordered = [..._packages]
       ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
-    return ordered.first;
+    return ordered;
   }
 
   List<LabPackageItem> get _offerPackages =>
@@ -292,8 +292,12 @@ class _LabProfilePageState extends State<LabProfilePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            LabPackageDetailPage(packageId: pkg.id, labName: _lab.name),
+        builder: (_) => LabPackageDetailPage(
+          packageId: pkg.id,
+          labName: _lab.name,
+          labWhatsapp: _lab.whatsapp,
+          labPhone: _lab.phone,
+        ),
       ),
     );
   }
@@ -395,8 +399,10 @@ class _LabProfilePageState extends State<LabProfilePage> {
                         ),
                         slivers: [
                           SliverToBoxAdapter(child: _buildHero()),
-                          SliverToBoxAdapter(child: _buildIdentity()),
+                          // الأزرار فوق — مباشرة تحت البطاقة، قبل النبذة الطويلة.
                           SliverToBoxAdapter(child: _buildActions()),
+                          SliverToBoxAdapter(child: _buildIdentity()),
+                          SliverToBoxAdapter(child: _buildAddressSection()),
                           SliverToBoxAdapter(child: _buildTabs()),
                           SliverToBoxAdapter(child: _buildTabBody()),
                           const SliverToBoxAdapter(child: SizedBox(height: 20)),
@@ -560,12 +566,15 @@ class _LabProfilePageState extends State<LabProfilePage> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  _LabHeroNameSpecialty(
-                                    name: _lab.name.trim().isEmpty
-                                        ? 'مختبر'
-                                        : _lab.name.trim(),
-                                    specialty: _heroSpecialty,
-                                    supportLine: '',
+                                  StaffTripleTap(
+                                    onTripleTap: _openLabPackagesManage,
+                                    child: _LabHeroNameSpecialty(
+                                      name: _lab.name.trim().isEmpty
+                                          ? 'مختبر'
+                                          : _lab.name.trim(),
+                                      specialty: _heroSpecialty,
+                                      supportLine: '',
+                                    ),
                                   ),
                                 ],
                               ),
@@ -628,7 +637,6 @@ class _LabProfilePageState extends State<LabProfilePage> {
 
   Widget _buildIdentity() {
     final bio = _lab.description.trim();
-    final location = _lab.address.trim();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -667,143 +675,138 @@ class _LabProfilePageState extends State<LabProfilePage> {
                     color: _muted,
                   ),
                 ),
-          if (location.isNotEmpty) ...[
-            const SizedBox(height: 22),
-            const Text(
-              'عنوان المختبر',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: _navy,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: _openLocation,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE4EEEE)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F7F5),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.location_on_rounded,
-                          color: _actionBlue,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              location,
-                              textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                fontSize: 14.5,
-                                height: 1.55,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF33454F),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _lab.mapUrl.trim().isNotEmpty
-                                  ? 'فتح الموقع في الخرائط'
-                                  : 'بحث العنوان في الخرائط',
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: _actionBlue,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_left_rounded, color: _muted),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
   }
 
   Widget _buildActions() {
-    final buttons = <Widget>[];
-
-    if (_lab.phone.trim().isNotEmpty) {
-      buttons.add(
-        _ActionBtn(
-          icon: Icons.phone_in_talk_rounded,
-          title: 'اتصال',
-          filled: true,
-          color: _actionBlue,
-          onTap: () {
-            _stats.recordLabCallTap(_lab.id);
-            launchClinicCall(_lab.phone);
-          },
-        ),
-      );
-    }
-    if (_lab.whatsapp.trim().isNotEmpty) {
-      buttons.add(
-        _ActionBtn(
-          icon: Icons.chat_rounded,
-          title: 'واتساب',
-          filled: true,
-          color: const Color(0xFF25D366),
-          onTap: () async {
-            _stats.recordLabWhatsAppTap(_lab.id);
-            final message = await WhatsAppMessageSettingsService().buildPrefill(
-              providerTitle: _lab.name,
-              providerIsDoctor: false,
-            );
-            await launchClinicWhatsApp(_lab.whatsapp, message: message);
-          },
-        ),
-      );
-    }
-    if (_lab.address.trim().isNotEmpty || _lab.mapUrl.trim().isNotEmpty) {
-      buttons.add(
-        _ActionBtn(
-          icon: Icons.near_me_rounded,
-          title: 'الموقع',
-          filled: false,
-          color: _actionBlue,
-          onTap: _openLocation,
-        ),
-      );
-    }
-
-    if (buttons.isEmpty) return const SizedBox(height: 8);
-
+    // مباشرة تحت النبذة — اتصال · واتساب · مواقع · الموقع.
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-      child: Row(
+      child: EntityContactActionsRow(
+        phone: _lab.phone,
+        whatsapp: _lab.whatsapp,
+        social: _lab.social,
+        socialTitle: 'مواقع تواصل ${_lab.name}',
+        onCall: () {
+          _stats.recordLabCallTap(_lab.id);
+          launchClinicCall(_lab.phone);
+        },
+        onWhatsapp: () async {
+          _stats.recordLabWhatsAppTap(_lab.id);
+          final message = await WhatsAppMessageSettingsService().buildPrefill(
+            providerTitle: _lab.name,
+            providerIsDoctor: false,
+          );
+          await launchClinicWhatsApp(_lab.whatsapp, message: message);
+        },
+        onLocation: _openLocation,
+        showLocation: _lab.address.trim().isNotEmpty ||
+            _lab.mapUrl.trim().isNotEmpty,
+      ),
+    );
+  }
+
+  Widget _buildAddressSection() {
+    final location = _lab.address.trim();
+    if (location.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (var i = 0; i < buttons.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
-            Expanded(child: buttons[i]),
-          ],
+          const Text(
+            'عنوان المختبر',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: _navy,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: _openLocation,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE4EEEE)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F7F5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.location_on_rounded,
+                        color: _actionBlue,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            location,
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              height: 1.55,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF33454F),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _lab.mapUrl.trim().isNotEmpty
+                                ? 'فتح الموقع في الخرائط'
+                                : 'بحث العنوان في الخرائط',
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: _actionBlue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_left_rounded, color: _muted),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _openLabPackagesManage() async {
+    final ok = await openEntityAccessPinGate(
+      context,
+      entityKey: EntityAccessPinService.labKey(_lab.id),
+      entityTitle: _lab.name,
+    );
+    if (!ok || !mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PackagesAdminPage(
+          lockedLabId: _lab.id,
+          lockedLabName: _lab.name,
+        ),
       ),
     );
   }
@@ -900,31 +903,48 @@ class _LabProfilePageState extends State<LabProfilePage> {
   }
 
   Widget _aboutTab() {
-    final featured = _featuredPackage;
+    final homePkgs = _homePackages;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (featured != null) ...[
-          const Padding(
-            padding: EdgeInsets.fromLTRB(18, 14, 18, 8),
-            child: Text(
-              '🔥 الباقة الأكثر طلبًا',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: _ink,
+        if (homePkgs.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'الباقات',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: _ink,
+                    ),
+                  ),
+                ),
+                if (homePkgs.length > 1)
+                  _packagesSpeakButton(packages: homePkgs),
+              ],
+            ),
+          ),
+          // شريط أفقي مثل الصيدلية — كل الباقات + سحب.
+          LabPackagesStrip(
+            packages: homePkgs,
+            onOpen: _openPackage,
+          ),
+          if (homePkgs.length > 4)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => setState(() => _tab = 1),
+                child: const Text(
+                  'عرض كل الباقات',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _FeaturedPackageCard(
-              package: featured,
-              onOpen: () => _openPackage(featured),
-            ),
-          ),
         ],
-        if (_lab.description.trim().isNotEmpty && featured == null)
+        if (_lab.description.trim().isNotEmpty && homePkgs.isEmpty)
           _sectionCard(
             title: 'نبذة عن المختبر',
             icon: Icons.biotech_outlined,
@@ -955,27 +975,25 @@ class _LabProfilePageState extends State<LabProfilePage> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Column(
-        children: [
-          Align(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Align(
             alignment: Alignment.centerLeft,
             child: _packagesSpeakButton(
               packages: packages,
               offersOnly: offersOnly,
             ),
           ),
-          const SizedBox(height: 12),
-          for (var i = 0; i < packages.length; i++) ...[
-            if (i > 0) const SizedBox(height: 10),
-            LabPackageCard(
-              package: packages[i],
-              onOpen: () => _openPackage(packages[i]),
-            ),
-          ],
-        ],
-      ),
+        ),
+        LabPackagesStrip(
+          packages: packages,
+          onOpen: _openPackage,
+        ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 
@@ -1667,241 +1685,6 @@ class _LabPortraitFallback extends StatelessWidget {
         Icons.biotech_rounded,
         size: 72,
         color: Color(0xFF9BB8B6),
-      ),
-    );
-  }
-}
-
-class _ActionBtn extends StatelessWidget {
-  const _ActionBtn({
-    required this.icon,
-    required this.title,
-    required this.color,
-    required this.filled,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final Color color;
-  final bool filled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: filled ? color : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 72),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: filled ? color : color.withValues(alpha: 0.35),
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: filled ? Colors.white : color, size: 22),
-              const SizedBox(height: 6),
-              Text(
-                title,
-                style: TextStyle(
-                  color: filled ? Colors.white : const Color(0xFF123B42),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FeaturedPackageCard extends StatelessWidget {
-  const _FeaturedPackageCard({
-    required this.package,
-    required this.onOpen,
-  });
-
-  final LabPackageItem package;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final discount = package.discountPercent;
-
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onOpen,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE4EEF0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  PackageHeroImage(
-                    packageName: package.name,
-                    imageUrl: package.imageUrl,
-                    isFeatured: true,
-                    width: 96,
-                    height: 120,
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 4,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE25555),
-                        borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(8),
-                          bottomRight: Radius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'الأكثر طلبًا',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      package.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF123B42),
-                      ),
-                    ),
-                    if (package.description.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        package.description.trim(),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF5B6C70),
-                          fontSize: 12,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                    if (package.analysesCount > 0) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.science_outlined,
-                            size: 15,
-                            color: Color(0xFF1197A8),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${package.analysesCount} تحليل',
-                            style: const TextStyle(
-                              color: Color(0xFF1197A8),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (discount != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFE8E8),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'خصم $discount%',
-                              style: const TextStyle(
-                                color: Color(0xFFC94A4A),
-                                fontWeight: FontWeight.w900,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        if (package.newPrice != null)
-                          Text(
-                            '${formatLabPrice(package.newPrice)} د.ع',
-                            style: TextStyle(
-                              color: discount != null
-                                  ? const Color(0xFFC94A4A)
-                                  : const Color(0xFF0FAFA3),
-                              fontSize: 17,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        if (package.hasOldPrice)
-                          Text(
-                            '${formatLabPrice(package.oldPrice)} د.ع',
-                            style: const TextStyle(
-                              color: Color(0xFF9AA6A8),
-                              fontSize: 12.5,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_left_rounded,
-                color: Color(0xFFB0BEC2),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

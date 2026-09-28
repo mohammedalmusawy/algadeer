@@ -5,7 +5,7 @@ import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import 'lab_package_detail_page.dart';
 import 'labs_service.dart';
-import 'widgets/lab_package_card.dart';
+import 'widgets/lab_package_strip.dart';
 import '../widgets/clinic_app_bar.dart';
 
 class LabPackagesPage extends StatefulWidget {
@@ -171,24 +171,22 @@ class _LabPackagesPageState extends State<LabPackagesPage> {
                           ),
                         )
                       else
-                        ..._packages.map(
-                          (pkg) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: LabPackageCard(
-                              package: pkg,
-                              onOpen: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => LabPackageDetailPage(
-                                      packageId: pkg.id,
-                                      labName: lab.name,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                        LabPackagesStrip(
+                          packages: _packages,
+                          padding: EdgeInsets.zero,
+                          onOpen: (pkg) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => LabPackageDetailPage(
+                                  packageId: pkg.id,
+                                  labName: lab.name,
+                                  labWhatsapp: lab.whatsapp,
+                                  labPhone: lab.phone,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),

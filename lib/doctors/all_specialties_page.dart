@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../utils/responsive.dart';
+import '../widgets/app_slot_icon.dart';
 import 'specialty_catalog.dart';
 
 /// صفحة كل الاختصاصات الطبية — Design Target (يمين الصورة المرجعية).
@@ -202,8 +203,11 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  icon,
+                                AppSlotIcon(
+                                  slotId: e.def != null
+                                      ? 'specialty.${e.def!.id}'
+                                      : 'specialty.custom',
+                                  fallback: icon,
                                   size: 34,
                                   color: const Color(0xFF0FAFA3),
                                 ),

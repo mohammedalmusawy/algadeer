@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/clinic_app_bar.dart';
+import '../../widgets/entity_access_pin_gate.dart';
 import 'analyses_admin_page.dart';
 import 'labs_admin_page.dart';
 import 'packages_admin_page.dart';
-import '../../widgets/clinic_app_bar.dart';
 
 class LabsAdminHubPage extends StatelessWidget {
   const LabsAdminHubPage({super.key});
@@ -43,6 +44,22 @@ class LabsAdminHubPage extends StatelessWidget {
                 title: 'قاموس التحاليل',
                 subtitle: 'إضافة وتحرير التحاليل لإعادة استخدامها',
                 page: const AnalysesAdminPage(),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: Color(0xFFD7E4E4)),
+                ),
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: const Text(
+                  'رقم إدارة إعادة تعيين السرّي',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text(
+                  'يُستخدم عند نسيان رقم المختبر أو الصيدلية',
+                ),
+                onTap: () => showSetAdminAccessPinDialog(context),
               ),
             ],
           ),

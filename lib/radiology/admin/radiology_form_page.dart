@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../branding/ghadeer_brand_mark.dart';
+import '../../models/entity_social_links.dart';
 import '../../models/radiology_models.dart';
 import '../../widgets/clinic_app_bar.dart';
+import '../../widgets/entity_social_sheet.dart';
 import '../radiology_default_images.dart';
 import '../radiology_service.dart';
 import '../widgets/radiology_network_or_asset_image.dart';
@@ -29,6 +31,11 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
   late final TextEditingController _address;
   late final TextEditingController _phone;
   late final TextEditingController _whatsapp;
+  late final TextEditingController _website;
+  late final TextEditingController _instagram;
+  late final TextEditingController _facebook;
+  late final TextEditingController _tiktok;
+  late final TextEditingController _telegram;
   late final TextEditingController _workingHours;
   late final TextEditingController _mapUrl;
   late final TextEditingController _order;
@@ -53,6 +60,11 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
     _address = TextEditingController(text: c?.address ?? '');
     _phone = TextEditingController(text: c?.phone ?? '');
     _whatsapp = TextEditingController(text: c?.whatsapp ?? '');
+    _website = TextEditingController(text: c?.social.website ?? '');
+    _instagram = TextEditingController(text: c?.social.instagram ?? '');
+    _facebook = TextEditingController(text: c?.social.facebook ?? '');
+    _tiktok = TextEditingController(text: c?.social.tiktok ?? '');
+    _telegram = TextEditingController(text: c?.social.telegram ?? '');
     _workingHours = TextEditingController(text: c?.workingHours ?? '');
     _mapUrl = TextEditingController(text: c?.mapUrl ?? '');
     _order = TextEditingController(text: '${c?.displayOrder ?? 0}');
@@ -74,6 +86,11 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
     _address.dispose();
     _phone.dispose();
     _whatsapp.dispose();
+    _website.dispose();
+    _instagram.dispose();
+    _facebook.dispose();
+    _tiktok.dispose();
+    _telegram.dispose();
     _workingHours.dispose();
     _mapUrl.dispose();
     _order.dispose();
@@ -157,6 +174,13 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
         mapUrl: _mapUrl.text.trim(),
         workingHours: _workingHours.text.trim(),
         slogan: _slogan.text.trim(),
+        social: EntitySocialLinks(
+          website: _website.text.trim(),
+          instagram: _instagram.text.trim(),
+          facebook: _facebook.text.trim(),
+          tiktok: _tiktok.text.trim(),
+          telegram: _telegram.text.trim(),
+        ),
       );
 
       await _service.upsertCenter(center, existingId: widget.center?.id);
@@ -325,6 +349,13 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
               TextFormField(
                 controller: _whatsapp,
                 decoration: const InputDecoration(labelText: 'واتساب'),
+              ),
+              EntitySocialAdminFields(
+                website: _website,
+                instagram: _instagram,
+                facebook: _facebook,
+                tiktok: _tiktok,
+                telegram: _telegram,
               ),
               TextFormField(
                 controller: _workingHours,

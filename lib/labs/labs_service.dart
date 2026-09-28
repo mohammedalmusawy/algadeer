@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../doctors/doctor_admin_persist.dart';
 import '../models/lab_models.dart';
 import 'package_image_library.dart';
 import 'package_templates.dart';
@@ -69,19 +70,30 @@ class LabsService {
   }
 
   Future<LabItem> upsertLab(LabItem lab, {String? existingId}) async {
-    final payload = lab.toMap();
-    if (existingId == null || existingId.isEmpty) {
-      final row = await _client.from('labs').insert(payload).select().single();
-      return LabItem.fromMap(Map<String, dynamic>.from(row));
+    final payload = Map<String, dynamic>.from(lab.toMap());
+    for (var attempt = 0; attempt < 8; attempt++) {
+      try {
+        if (existingId == null || existingId.isEmpty) {
+          final row =
+              await _client.from('labs').insert(payload).select().single();
+          return LabItem.fromMap(Map<String, dynamic>.from(row));
+        }
+        final row = await _client
+            .from('labs')
+            .update(payload)
+            .eq('id', existingId)
+            .select()
+            .single();
+        return LabItem.fromMap(Map<String, dynamic>.from(row));
+      } on PostgrestException catch (e) {
+        if (e.code != 'PGRST204') rethrow;
+        final missing = missingDoctorColumnFromPostgrest(e.message);
+        if (missing == null || !payload.containsKey(missing)) rethrow;
+        payload.remove(missing);
+        debugPrint('labs upsertLab: stripped missing column $missing');
+      }
     }
-
-    final row = await _client
-        .from('labs')
-        .update(payload)
-        .eq('id', existingId)
-        .select()
-        .single();
-    return LabItem.fromMap(Map<String, dynamic>.from(row));
+    throw StateError('تعذر حفظ المختبر بعد تجاهل الأعمدة الاختيارية');
   }
 
   Future<void> deleteLab(String labId) async {
@@ -333,6 +345,20 @@ class LabsService {
 
   Future<void> deletePackage(String packageId) async {
     await _client.from('lab_packages').delete().eq('id', packageId);
+  }
+
+  /// إخفاء/إظهار باقة للزبون — للإدارة وصاحب المختبر.
+  Future<void> setPackageActive(String packageId, bool isActive) async {
+    if (!isAuthenticated) {
+      throw StateError(
+        'يجب تسجيل دخول الإدارة قبل تغيير ظهور الباقة '
+        '(RLS تمنع Update للمستخدم غير المسجّل).',
+      );
+    }
+    await _client
+        .from('lab_packages')
+        .update({'is_active': isActive})
+        .eq('id', packageId);
   }
 
   Future<List<String>> fetchKnownTestNames() async {

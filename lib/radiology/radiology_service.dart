@@ -1,7 +1,7 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../doctors/doctor_admin_persist.dart';
 import '../models/radiology_models.dart';
 
 class RadiologyService {
@@ -55,19 +55,33 @@ class RadiologyService {
     RadiologyCenter center, {
     String? existingId,
   }) async {
-    final payload = center.toMap();
-    if (existingId == null || existingId.isEmpty) {
-      final row =
-          await _client.from('radiology_centers').insert(payload).select().single();
-      return RadiologyCenter.fromMap(Map<String, dynamic>.from(row));
+    final payload = Map<String, dynamic>.from(center.toMap());
+    for (var attempt = 0; attempt < 8; attempt++) {
+      try {
+        if (existingId == null || existingId.isEmpty) {
+          final row = await _client
+              .from('radiology_centers')
+              .insert(payload)
+              .select()
+              .single();
+          return RadiologyCenter.fromMap(Map<String, dynamic>.from(row));
+        }
+        final row = await _client
+            .from('radiology_centers')
+            .update(payload)
+            .eq('id', existingId)
+            .select()
+            .single();
+        return RadiologyCenter.fromMap(Map<String, dynamic>.from(row));
+      } on PostgrestException catch (e) {
+        if (e.code != 'PGRST204') rethrow;
+        final missing = missingDoctorColumnFromPostgrest(e.message);
+        if (missing == null || !payload.containsKey(missing)) rethrow;
+        payload.remove(missing);
+        debugPrint('radiology upsertCenter: stripped missing column $missing');
+      }
     }
-    final row = await _client
-        .from('radiology_centers')
-        .update(payload)
-        .eq('id', existingId)
-        .select()
-        .single();
-    return RadiologyCenter.fromMap(Map<String, dynamic>.from(row));
+    throw StateError('تعذر حفظ مركز الأشعة بعد تجاهل الأعمدة الاختيارية');
   }
 
   Future<void> deleteCenter(String id) async {

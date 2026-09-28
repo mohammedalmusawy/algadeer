@@ -4,21 +4,28 @@ import 'package:flutter/material.dart';
 
 import '../models/lab_models.dart';
 import '../services/app_stats_service.dart';
+import '../utils/contact_launch.dart';
 import '../voice/lab_packages_speech.dart';
 import '../voice/voice_response_controller.dart';
+import '../widgets/clinic_app_bar.dart';
+import '../widgets/entity_contact_actions.dart';
+import 'lab_package_order_message.dart';
 import 'labs_service.dart';
 import 'widgets/package_hero_image.dart';
-import '../widgets/clinic_app_bar.dart';
 
 class LabPackageDetailPage extends StatefulWidget {
   const LabPackageDetailPage({
     super.key,
     required this.packageId,
     this.labName = '',
+    this.labWhatsapp = '',
+    this.labPhone = '',
   });
 
   final String packageId;
   final String labName;
+  final String labWhatsapp;
+  final String labPhone;
 
   @override
   State<LabPackageDetailPage> createState() => _LabPackageDetailPageState();
@@ -33,6 +40,9 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
   String? _error;
   bool _speechBusy = false;
   bool _viewRecorded = false;
+  String _labWhatsapp = '';
+  String _labPhone = '';
+  String _labName = '';
 
   static const _navy = Color(0xFF123B42);
   static const _actionBlue = Color(0xFF1197A8);
@@ -40,6 +50,9 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
   @override
   void initState() {
     super.initState();
+    _labWhatsapp = widget.labWhatsapp;
+    _labPhone = widget.labPhone;
+    _labName = widget.labName;
     _load();
   }
 
@@ -64,8 +77,26 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
     try {
       final package = await _service.fetchPackageDetails(widget.packageId);
       if (!mounted) return;
+
+      // إن ما وصلت أرقام التواصل من الصفحة السابقة، نجيبها من المختبر.
+      var wa = _labWhatsapp;
+      var phone = _labPhone;
+      var name = _labName;
+      if ((wa.trim().isEmpty && phone.trim().isEmpty) || name.trim().isEmpty) {
+        final lab = await _service.fetchLabById(package.labId);
+        if (lab != null) {
+          if (name.trim().isEmpty) name = lab.name;
+          if (wa.trim().isEmpty) wa = lab.whatsapp;
+          if (phone.trim().isEmpty) phone = lab.phone;
+        }
+      }
+
+      if (!mounted) return;
       setState(() {
         _package = package;
+        _labWhatsapp = wa;
+        _labPhone = phone;
+        _labName = name;
         _loading = false;
       });
       if (package.id.isNotEmpty) {
@@ -97,7 +128,7 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
 
     final text = LabPackagesSpeech.buildOne(
       package,
-      labName: widget.labName,
+      labName: _labName,
     );
     if (text.isEmpty) {
       if (!mounted) return;
@@ -116,6 +147,34 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
     } finally {
       _speechBusy = false;
     }
+  }
+
+  String get _whatsappTarget {
+    final wa = _labWhatsapp.trim();
+    if (wa.isNotEmpty) return wa;
+    return _labPhone.trim();
+  }
+
+  Future<void> _sendPackageWhatsApp() async {
+    final package = _package;
+    if (package == null) return;
+    final target = _whatsappTarget;
+    if (target.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يوجد رقم واتساب لهذا المختبر.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final message = LabPackageOrderMessage.build(
+      labName: _labName,
+      package: package,
+    );
+    await launchClinicWhatsApp(target, message: message);
   }
 
   Widget _speakButton() {
@@ -164,6 +223,40 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
     );
   }
 
+  Widget _whatsappBar() {
+    final canSend = _whatsappTarget.isNotEmpty;
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: FilledButton.icon(
+            onPressed: canSend ? () => unawaited(_sendPackageWhatsApp()) : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: kEntityWhatsAppGreen,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: const Color(0xFFB7DCC4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            icon: const Icon(Icons.chat_rounded),
+            label: const Text(
+              'أرسل تفاصيل الباقة عبر واتساب',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final package = _package;
@@ -186,6 +279,8 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
               onPressed: () => unawaited(_stopSpeechAndPop()),
             ),
           ),
+          bottomNavigationBar:
+              !_loading && _error == null && package != null ? _whatsappBar() : null,
           body: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
@@ -236,9 +331,9 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
                           Row(
                             children: [
                               Expanded(
-                                child: widget.labName.isNotEmpty
+                                child: _labName.isNotEmpty
                                     ? Text(
-                                        widget.labName,
+                                        _labName,
                                         style: const TextStyle(
                                           color: Color(0xFF0FAFA3),
                                           fontWeight: FontWeight.w700,
@@ -274,9 +369,9 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    Text(
+                    const Text(
                       'التحاليل المشمولة في الباقة',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w900,
                         color: Color(0xFF123B42),
@@ -322,18 +417,23 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
                         ),
                         child: Column(
                           children: [
-                            for (var i = 0; i < package.analyses.length; i++) ...[
+                            for (var i = 0;
+                                i < package.analyses.length;
+                                i++) ...[
                               if (i > 0)
                                 const Divider(
                                   height: 1,
                                   thickness: 1,
                                   color: Color(0xFFF0F4F4),
                                 ),
-                              _UserAnalysisRow(analysis: package.analyses[i]),
+                              _UserAnalysisRow(
+                                analysis: package.analyses[i],
+                              ),
                             ],
                           ],
                         ),
                       ),
+                    const SizedBox(height: 24),
                   ],
                 ),
         ),

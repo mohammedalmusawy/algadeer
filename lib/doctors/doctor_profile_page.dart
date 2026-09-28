@@ -12,6 +12,7 @@ import '../companion/personal_companion_profile_service.dart';
 import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import '../voice/voice_response_controller.dart';
+import '../widgets/entity_social_sheet.dart';
 import 'doctor_availability_service.dart';
 import 'doctor_card_links.dart';
 import 'doctor_engagement_service.dart';
@@ -710,6 +711,23 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
         ),
       );
     }
+
+    if (children.isNotEmpty) children.add(const SizedBox(width: 8));
+    children.add(
+      Expanded(
+        child: _CompactContactAction(
+          icon: Icons.public_rounded,
+          title: 'مواقع',
+          subtitle: 'تواصل',
+          color: unified,
+          onTap: () => showEntitySocialSheet(
+            context,
+            links: doctor.social,
+            title: 'مواقع تواصل ${doctor.name}',
+          ),
+        ),
+      ),
+    );
 
     if (children.isNotEmpty) children.add(const SizedBox(width: 8));
     children.add(

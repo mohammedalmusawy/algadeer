@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../branding/ghadeer_brand_mark.dart';
+import 'entity_social_links.dart';
 
 bool labBoolFlag(dynamic value, {bool fallback = false}) {
   if (value is bool) return value;
@@ -109,6 +110,7 @@ class LabItem {
   final String workingHours;
   final String slogan;
   final DateTime? createdAt;
+  final EntitySocialLinks social;
 
   const LabItem({
     required this.id,
@@ -125,6 +127,7 @@ class LabItem {
     this.workingHours = '',
     this.slogan = '',
     this.createdAt,
+    this.social = EntitySocialLinks.empty,
   });
 
   factory LabItem.fromMap(Map<String, dynamic> data) {
@@ -145,6 +148,7 @@ class LabItem {
       workingHours: data['working_hours']?.toString() ?? '',
       slogan: data['slogan']?.toString() ?? '',
       createdAt: DateTime.tryParse(data['created_at']?.toString() ?? ''),
+      social: EntitySocialLinks.fromMap(data),
     );
   }
 
@@ -162,6 +166,7 @@ class LabItem {
       'map_url': mapUrl.trim(),
       'working_hours': workingHours.trim(),
       'slogan': slogan.trim(),
+      ...social.toDbMap(),
     };
   }
 }
@@ -483,6 +488,42 @@ class LabPackageItem {
     this.showOnHome = false,
     this.testNames = const [],
   });
+
+  LabPackageItem copyWith({
+    String? id,
+    String? labId,
+    String? name,
+    String? description,
+    int? oldPrice,
+    int? newPrice,
+    String? imageUrl,
+    bool? isActive,
+    int? displayOrder,
+    DateTime? createdAt,
+    int? analysesCount,
+    List<AnalysisItem>? analyses,
+    bool? isFeatured,
+    bool? showOnHome,
+    List<String>? testNames,
+  }) {
+    return LabPackageItem(
+      id: id ?? this.id,
+      labId: labId ?? this.labId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      oldPrice: oldPrice ?? this.oldPrice,
+      newPrice: newPrice ?? this.newPrice,
+      imageUrl: imageUrl ?? this.imageUrl,
+      isActive: isActive ?? this.isActive,
+      displayOrder: displayOrder ?? this.displayOrder,
+      createdAt: createdAt ?? this.createdAt,
+      analysesCount: analysesCount ?? this.analysesCount,
+      analyses: analyses ?? this.analyses,
+      isFeatured: isFeatured ?? this.isFeatured,
+      showOnHome: showOnHome ?? this.showOnHome,
+      testNames: testNames ?? this.testNames,
+    );
+  }
 
   bool get hasOldPrice =>
       oldPrice != null &&

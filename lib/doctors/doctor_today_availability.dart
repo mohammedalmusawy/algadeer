@@ -1,6 +1,6 @@
 import '../search/arabic_text_utils.dart';
 import 'doctor_gender.dart';
-import 'doctor_profile_page.dart' show parseDoctorWeekSchedule;
+import 'doctor_profile_page.dart' show DoctorWeekDayEntry, parseDoctorWeekSchedule;
 
 /// حالة تواجد الطبيب «اليوم» — مصدرها حقول Supabase فقط:
 /// `working_days` / `working_hours` / `booking_status` / `absence_from` / `absence_to`.
@@ -70,18 +70,29 @@ class DoctorTodayAvailability {
     }
 
     final dayName = _dayByWeekday[now.weekday] ?? '';
-    var week = parseDoctorWeekSchedule(
+    final hoursWeek = parseDoctorWeekSchedule(
       workingDays: '',
       workingHours: workingHours,
     );
-    final periodKnown = week.isNotEmpty;
-    if (week.isEmpty) {
-      week = parseDoctorWeekSchedule(
+    DoctorWeekDayEntry? todayEntry;
+    for (final entry in hoursWeek) {
+      if (entry.day == dayName) todayEntry = entry;
+    }
+    final periodKnown = todayEntry != null;
+    if (todayEntry == null) {
+      // ساعات يوم آخر لا تثبت عطلة اليوم؛ نرجع لقائمة أيام الدوام.
+      final daysWeek = parseDoctorWeekSchedule(
         workingDays: workingDays,
         workingHours: '',
       );
+      for (final entry in daysWeek) {
+        if (entry.day == dayName) todayEntry = entry;
+      }
+      if (todayEntry == null && daysWeek.isNotEmpty) {
+        return const DoctorTodayAvailability(state: DoctorTodayState.dayOff);
+      }
     }
-    if (week.isEmpty) {
+    if (todayEntry == null) {
       // لا جدول مقروء. حالة الحجز «غير متاح» تبقى معلومة صريحة.
       if (bookingStatus.trim() == 'unavailable') {
         return const DoctorTodayAvailability(
@@ -91,21 +102,11 @@ class DoctorTodayAvailability {
       return const DoctorTodayAvailability(state: DoctorTodayState.unknown);
     }
 
-    var found = false;
-    var isOff = false;
-    String? status;
-    for (final entry in week) {
-      if (entry.day == dayName) {
-        found = true;
-        isOff = entry.isOff;
-        status = entry.status;
-      }
-    }
-    if (!found || isOff) {
+    if (todayEntry.isOff) {
       return const DoctorTodayAvailability(state: DoctorTodayState.dayOff);
     }
 
-    final period = periodKnown ? status : null;
+    final period = periodKnown ? todayEntry.status : null;
     switch (bookingStatus.trim()) {
       case 'available':
         return DoctorTodayAvailability(

@@ -1,4 +1,5 @@
 import '../branding/ghadeer_brand_mark.dart';
+import 'entity_social_links.dart';
 
 bool radiologyBoolFlag(dynamic value, {bool fallback = false}) {
   if (value is bool) return value;
@@ -22,6 +23,7 @@ class RadiologyCenter {
   final String workingHours;
   final String slogan;
   final DateTime? createdAt;
+  final EntitySocialLinks social;
 
   const RadiologyCenter({
     required this.id,
@@ -38,6 +40,7 @@ class RadiologyCenter {
     this.workingHours = '',
     this.slogan = '',
     this.createdAt,
+    this.social = EntitySocialLinks.empty,
   });
 
   factory RadiologyCenter.fromMap(Map<String, dynamic> data) {
@@ -58,6 +61,7 @@ class RadiologyCenter {
       workingHours: data['working_hours']?.toString() ?? '',
       slogan: data['slogan']?.toString() ?? '',
       createdAt: DateTime.tryParse(data['created_at']?.toString() ?? ''),
+      social: EntitySocialLinks.fromMap(data),
     );
   }
 
@@ -75,6 +79,7 @@ class RadiologyCenter {
       'map_url': mapUrl.trim(),
       'working_hours': workingHours.trim(),
       'slogan': slogan.trim(),
+      ...social.toDbMap(),
     };
   }
 }

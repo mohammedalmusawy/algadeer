@@ -11,10 +11,16 @@ import '../widgets/package_hero_image.dart';
 import '../../widgets/clinic_app_bar.dart';
 
 class PackageFormPage extends StatefulWidget {
-  const PackageFormPage({super.key, this.package, required this.labs});
+  const PackageFormPage({
+    super.key,
+    this.package,
+    required this.labs,
+    this.lockedLabId,
+  });
 
   final LabPackageItem? package;
   final List<LabItem> labs;
+  final String? lockedLabId;
 
   @override
   State<PackageFormPage> createState() => _PackageFormPageState();
@@ -84,8 +90,9 @@ class _PackageFormPageState extends State<PackageFormPage> {
     _oldPrice = TextEditingController(text: labPriceFieldText(pkg?.oldPrice));
     _newPrice = TextEditingController(text: labPriceFieldText(pkg?.newPrice));
     _order = TextEditingController(text: '${pkg?.displayOrder ?? 0}');
-    _labId =
-        pkg?.labId ?? (widget.labs.isNotEmpty ? widget.labs.first.id : null);
+    _labId = pkg?.labId ??
+        widget.lockedLabId ??
+        (widget.labs.isNotEmpty ? widget.labs.first.id : null);
     _isActive = pkg?.isActive ?? true;
     _isFeatured = pkg?.isFeatured ?? false;
     _showOnHome = pkg?.showOnHome ?? false;
@@ -895,6 +902,7 @@ class _PackageFormPageState extends State<PackageFormPage> {
                       _sectionLabel('المختبر'),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
+                        // ignore: deprecated_member_use
                         value: _labId,
                         isExpanded: true,
                         decoration: _fieldDecoration('اختر المختبر'),
@@ -909,7 +917,10 @@ class _PackageFormPageState extends State<PackageFormPage> {
                               ),
                             )
                             .toList(),
-                        onChanged: (value) => setState(() => _labId = value),
+                        onChanged: (widget.lockedLabId != null &&
+                                widget.lockedLabId!.isNotEmpty)
+                            ? null
+                            : (value) => setState(() => _labId = value),
                         validator: (v) =>
                             (v == null || v.isEmpty) ? 'اختر المختبر' : null,
                       ),
@@ -1001,8 +1012,11 @@ class _PackageFormPageState extends State<PackageFormPage> {
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text(
-                          'تفعيل الباقة',
+                          'ظاهرة للزبون',
                           style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: const Text(
+                          'الافتراضي ظاهرة — أخفِ فقط إذا لا تريد عرضها',
                         ),
                         value: _isActive,
                         onChanged: (v) => setState(() => _isActive = v),

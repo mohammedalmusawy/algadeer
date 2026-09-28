@@ -1,6 +1,7 @@
 import '../branding/ghadeer_brand_mark.dart';
 import '../doctors/doctor_gender.dart';
 import '../utils/flags.dart';
+import 'entity_social_links.dart';
 
 class DoctorItem {
   final String name;
@@ -34,6 +35,7 @@ class DoctorItem {
   final bool notificationsEnabled;
   /// '' | male | female — فارغ = صياغة مذكر (السلوك الحالي).
   final String gender;
+  final EntitySocialLinks social;
 
   const DoctorItem({
     required this.name,
@@ -66,6 +68,7 @@ class DoctorItem {
     this.profileQuote = '',
     this.notificationsEnabled = true,
     this.gender = DoctorGender.unspecified,
+    this.social = EntitySocialLinks.empty,
   });
 
   bool get isFemale => DoctorGender.isFemale(gender);
@@ -110,6 +113,7 @@ class DoctorItem {
         fallback: true,
       ),
       gender: DoctorGender.normalize(data['gender']?.toString()),
+      social: EntitySocialLinks.fromMap(data),
     );
   }
 }

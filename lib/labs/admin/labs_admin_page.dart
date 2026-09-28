@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../models/lab_models.dart';
 import '../../doctors/app_stats_admin_page.dart';
+import '../../services/entity_access_pin_service.dart';
+import '../../widgets/clinic_app_bar.dart';
+import '../../widgets/entity_access_pin_gate.dart';
 import '../lab_default_images.dart';
 import '../labs_service.dart';
 import '../widgets/lab_network_or_asset_image.dart';
 import 'lab_form_page.dart';
-import '../../widgets/clinic_app_bar.dart';
 
 class LabsAdminPage extends StatefulWidget {
   const LabsAdminPage({super.key});
@@ -159,12 +161,25 @@ class _LabsAdminPageState extends State<LabsAdminPage> {
                               trailing: PopupMenuButton<String>(
                                 onSelected: (value) {
                                   if (value == 'edit') _openForm(lab: lab);
+                                  if (value == 'pin') {
+                                    showSetEntityPinDialog(
+                                      context,
+                                      entityKey: EntityAccessPinService.labKey(
+                                        lab.id,
+                                      ),
+                                      title: 'رقم سري — ${lab.name}',
+                                    );
+                                  }
                                   if (value == 'delete') _delete(lab);
                                 },
                                 itemBuilder: (_) => const [
                                   PopupMenuItem(
                                     value: 'edit',
                                     child: Text('تعديل'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'pin',
+                                    child: Text('الرقم السري'),
                                   ),
                                   PopupMenuItem(
                                     value: 'delete',

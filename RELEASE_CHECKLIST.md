@@ -45,18 +45,20 @@
 - ملف صحي: انتظار إطار قبل التقاط البطاقة؛ PDF بصفحة للبطاقة + صفحة لكل مرفق. **لا إخفاء للمدخل** — العطل المتبقي خارجي/جهاز (SMTP، عزل حسابين حي، مشاركة PDF على جهاز).
 - تحليل الملفات الملموسة سابقاً: بلا مشاكل. البوابة الكاملة أدناه.
 
-### بوابة `flutter analyze` + `flutter test` (مرة واحدة على `dbb4bb6`، 2026-10-06)
+### بوابة `flutter analyze` + `flutter test` (مرة واحدة على النسخة الحالية `4efc245`، 2026-10-06)
+
+الكود يشمل تصحيح `unavailable`. تشغيل سابق على `dbb4bb6` كان 2541/1 قبل ذلك التصحيح؛ هذا الجدول هو التشغيل الكامل على الشجرة الحالية.
 
 | أمر | نتيجة فعلية | تصنيف |
 |---|---|---|
 | `flutter analyze` (المشروع كاملاً) | **62 info، 0 error، 0 warning.** كلها قديمة: `prefer_initializing_formals`، تعليقات مكتبة، `deprecated_member_use`، `dart:html` ويب، إلخ. لا خطأ من ملفات الإطلاق. بند `tool/tmp_name_score.dart` من ملف غير متتبَّع. | قديم — ليس تراجعاً |
-| `flutter test` (الكامل) | **2541 نجاح، 1 إخفاق.** المدة ~50 ث. | انظر الصف التالي |
-| `test/smart_brain_platform_grounding_test.dart` — `fromResults مع كيان → sourceEntityIds + actions من البيانات` | يتوقع زر `call` من `PlatformGrounding.fromResults` لنتيجة طبيب واحدة بهاتف؛ `SmartBrainSuggestedActionsBuilder` الحالي يعطي مسار الاختيار/الفتح لا اتصال ثابت. الملف **لم يُمس** في commits الإطلاق (`953d3f5..HEAD`). | **قديم / خارج نطاق الإطلاق** — لم يُغيَّر العقل لإرضائه |
-| بعد تصحيح `unavailable` | أُعيد `doctor_booking_no_login_test` فقط: **4/4 نجاح** (حجز بلا حساب، حضور، غير متاح للموعد يبقي الاتصال، إجازة تعطّل الاتصال). الكامل لم يُعد بلا سبب. | إصلاح إطلاق |
+| `flutter test` (الكامل) | **2542 نجاح، 1 إخفاق.** المدة ~52 ث. الزيادة +1 عن `dbb4bb6` هي اختبار الإجازة في `doctor_booking_no_login_test`. | انظر الصف التالي |
+| `test/smart_brain_platform_grounding_test.dart` — `fromResults مع كيان → sourceEntityIds + actions من البيانات` | نفس الإخفاق على `dbb4bb6` و`4efc245`. يتوقع زر `call`؛ مسار الاقتراحات الحالي يعطي فتح/اختيار. الملف **لم يُمس** في commits الإطلاق. | **قديم / خارج نطاق الإطلاق** — لم يُغيَّر العقل |
+| `unavailable` / إجازة | التواصل يبقى إذا كانت الحالة «غير متاح للموعد» أو حضور أو مكتمل؛ الإجازة وحدها تعطّل الاتصال. ظهر ضمن الـ 2542 (4 اختبارات حجز بلا حساب). | إصلاح إطلاق، ليس تراجعاً |
 
-نسخة الاختبار اليدوي النهائية: `77b2933` على `release-prep-2026-10-06`. التطبيق المحلي لهذه النسخة: [http://127.0.0.1:7364](http://127.0.0.1:7364).
+نسخة الاختبار اليدوي النهائية: كود `4efc245` على `release-prep-2026-10-06` (بعد `77b2933` تصحيح التواصل). التطبيق المحلي: [http://127.0.0.1:7364](http://127.0.0.1:7364).
 
-اختبارات هذا الممر سابقاً (نُفّذت قبل البوابة الكاملة): `contact_launch_test`، `entity_contact_row_test`، `home_ad_slot_preview_test`، `follow_up_card_visual_test`، مجموعة Hours في `smart_brain_conversation_ui_test`. أدلة أقدم دون إعادة: `ads_campaign_eligibility_test`، `doctor_card_access_test`، `patient_health_file_test`، `live_entity_revalidation_parity_test`.
+لم يُعاد تشغيل مجموعة فرعية بعد هذا الكامل: لا تعديل كود بعد `4efc245`.
 
 ---
 

@@ -84,6 +84,20 @@ void main() {
       expect(g.sourceEntityIds, ['naji']);
       expect(
         g.suggestedActions.any(
+          (a) => a.kind == SmartBrainSuggestedActionKind.openDetails,
+        ),
+        isTrue,
+      );
+      // السلوك المعتمد (next-step): حد 3 يقدّم تفاصيل/حجز/دوام لا اتصال.
+      // الاتصال يبقى مربوطاً بالرقم عندما يتسع الحد — ليس اختراعاً.
+      final withRoom = PlatformGrounding.fromResults(
+        text: 'وجدت نتيجة.',
+        results: [doc],
+        resultType: PlatformGroundedResultType.doctor,
+        maxActions: 9,
+      );
+      expect(
+        withRoom.suggestedActions.any(
           (a) => a.kind == SmartBrainSuggestedActionKind.call,
         ),
         isTrue,

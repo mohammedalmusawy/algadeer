@@ -206,7 +206,7 @@ void main() {
     expect(find.textContaining('غير متاح'), findsWidgets);
   });
 
-  testWidgets('إجازة تعطّل الاتصال دون فرض حساب', (tester) async {
+  testWidgets('إجازة تبقي الاتصال وتوضح الحالة عند الموعد', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -254,8 +254,20 @@ void main() {
         matching: find.byType(InkWell),
       ),
     );
-    expect(call.onTap, isNull);
+    expect(call.onTap, isNotNull);
+    final wa = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byKey(const Key('doctor-whatsapp-button')),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(wa.onTap, isNotNull);
     expect(find.text('سجّل الدخول'), findsNothing);
+
+    await tester.ensureVisible(find.byKey(const Key('doctor-booking-button')));
+    await tester.tap(find.byKey(const Key('doctor-booking-button')));
+    await tester.pump();
+    expect(find.textContaining('إجازة'), findsWidgets);
   });
 }
 

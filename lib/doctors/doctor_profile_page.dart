@@ -164,10 +164,9 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
   bool get _onLeave => _leave.isOnLeave;
 
   bool get _actionsEnabled {
-    if (_onLeave) return false;
     final status = doctor.bookingStatus.trim().toLowerCase();
-    // حالة الحجز (حضوري / مكتمل / غير متاح للموعد) لا تمنع الاتصال أو واتساب.
-    // الإجازة فقط (`_onLeave`) هي التي تعطّل التواصل.
+    // حالة الحجز (حضوري / مكتمل / غير متاح للموعد) والإجازة لا تمنعان الاتصال أو واتساب.
+    // قد يرد السكرتير. الإجازة تُوضَّح عند زر الموعد وفي مربع التواجد.
     if (status == 'walk_in_only' ||
         status == 'full' ||
         status == 'unavailable') {
@@ -176,7 +175,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     return doctor.available;
   }
 
-  bool get _canContact => !_onLeave && _actionsEnabled;
+  bool get _canContact => _actionsEnabled;
 
   Future<void> _loadRatings() async {
     final summaryFuture = _engagement.fetchRatingSummary(widget.doctor.id);

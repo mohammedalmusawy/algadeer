@@ -166,8 +166,9 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
   bool get _actionsEnabled {
     if (_onLeave) return false;
     final status = doctor.bookingStatus.trim().toLowerCase();
-    if (status == 'full') return true;
-    if (status == 'walk_in_only' || status == 'unavailable') return false;
+    if (status == 'unavailable') return false;
+    // الحضوري أو اكتمال الحجز: الاتصال/واتساب يبقيان، وزر الموعد يوضح الحالة.
+    if (status == 'walk_in_only' || status == 'full') return true;
     return doctor.available;
   }
 
@@ -714,6 +715,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       children.add(
         Expanded(
           child: _CompactContactAction(
+            key: const Key('doctor-call-button'),
             icon: Icons.phone_in_talk_rounded,
             title: 'اتصال',
             subtitle: 'مباشر',
@@ -734,6 +736,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       children.add(
         Expanded(
           child: _CompactContactAction(
+            key: const Key('doctor-whatsapp-button'),
             icon: Icons.chat_rounded,
             title: 'واتساب',
             subtitle: 'مباشر',
@@ -1371,6 +1374,7 @@ class _PortraitFallback extends StatelessWidget {
 
 class _CompactContactAction extends StatelessWidget {
   const _CompactContactAction({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,

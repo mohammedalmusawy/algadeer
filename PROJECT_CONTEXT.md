@@ -26,9 +26,9 @@
 | App version | `1.0.0+1` |
 | Dart SDK | `^3.13.2` |
 | Git remote | `origin` → `https://github.com/mohammedalmusawy/algadeer.git` |
-| Current branch | `main` (tracks `origin/main`, up to date with remote **for committed commits**) |
-| Committed HEAD | `9b443db06679343412bbfe602f5739e2ea2e8439` |
-| HEAD message | `Phase 4A Step 5 - editable WhatsApp message template` |
+| Current branch | `release-prep-2026-10-06` (local; **do not merge `main` without explicit order**) |
+| Committed HEAD on this branch | `953d3f5` — `Release prep - local snapshot of current working tree` |
+| `main` last known | `58494ff` — `Preserve working tree - add PROJECT_CONTEXT.md canonical handoff` (tracks `origin/main` for that history) |
 | Author/date (HEAD) | Mohammed Almusawy — Sun Sep 20 16:03:44 2026 +0300 |
 | Stable baseline (do not rewrite) | `ea648ec` — `Phase 3D Step 4 - follow-up regression fixes` (2026-09-20) |
 | Other local branch | `cursor/phase2g-explicit-intent-switch` @ `7d7ac1d` |
@@ -875,6 +875,14 @@ Fix (local only; no production SQL, no deploy, no `main` merge):
 
 Verification (2026-10-06): `smart_brain_conversation_ui_test` (including search → tap suggestion → open → back → hours, and hours-before-select then chip answers pending) + `smart_brain_open_select_parity_test` + `smart_brain_search_scope_test` + `smart_brain_next_step_suggestions_test` + `smart_brain_suggested_actions_test` — **90 passed**. Touched-path `flutter analyze`: no issues. Full `flutter test` not run. Updated local web-server served `lib/main.dart` at `http://127.0.0.1:7362` (onboarding gate «تخطي الآن» visible). Interactive hours sequence in that agent browser was **not** completed (Flutter web canvas has no usable accessibility tree; coordinate click missed skip). Tabs on `:7357` / `:7358` may be stale. Booking remains contact guidance only; patient health / privacy paths unchanged.
 
+### Release preparation started (2026-10-06)
+
+Moved from feature work to launch prep on local branch `release-prep-2026-10-06`. Snapshot `953d3f5` is the rollback point (review zips/tmp/secrets excluded; not pushed; `main` not merged). Single work list: `RELEASE_CHECKLIST.md`.
+
+Code inspection of browse/booking/admin then brain/ads/health: **no confirmed launch-blocking defect** besides profile contact being disabled for `walk_in_only` (call/WhatsApp now stay on; booking button still explains walk-in). Automated: `doctor_booking_no_login_test` passed after the fix. Device/browser confirmation of live numbers, admin gestures, ads-on-production-rows, and patient-health SMTP/isolation remains **required** — not inferred from unit tests.
+
+Suggested hide-without-delete if still unready at publish: «ملفي الصحي» (until login/save/attachments/export/privacy pass on device), physio/supplies home tiles, keep «مواعيدي» as coming-soon. Pharmacies visitor list stays empty until admin publishes the shared catalog.
+
 ### Pharmacy persistence (2026-10-02)
 
 
@@ -934,7 +942,8 @@ Default shipping brain = **local search-and-execute over platform entities**, wi
 - Possible client/Edge mode mismatch (`dynamic_message` / `assistant_query` vs Edge `nlu_parse` / `understand_turn`)
 - Untracked SQL may not be applied on live Supabase
 - Bloated hub files (`smart_brain_planner.dart`, `main.dart`) — maintenance risk
-- Dirty working tree not committed/reviewed as a release
+- Dirty working tree snapshot **committed locally** on `release-prep-2026-10-06` @ `953d3f5` (not pushed; `main` not merged)
+- Launch work list: **`RELEASE_CHECKLIST.md`** (single list until release)
 - Smart Brain: relative dates («باچر / الخميس الجاي») and local meaning-search eval still open; optional doctor brain columns in `doctor_brain_fields_optional.sql` not applied; admin quality panel shows counters only (not live “missing/stale field” inventory from Supabase yet)
 - Interactive Chrome QA of the open/select + next-step chips path after 2026-10-05 changes still needs a manual pass on device/browser (including 360px width)
 - Next-step: package price / lab analyses chips depend on planner understanding those short queries; some entity types share the generic details/location/contact bundle only
@@ -966,7 +975,9 @@ Default shipping brain = **local search-and-execute over platform entities**, wi
 
 ## 16. NEXT MILESTONE
 
-Not selected yet. Review the verified project state and unfinished items with the user before selecting the next milestone.
+**Release preparation** (started 2026-10-06). Work list: `RELEASE_CHECKLIST.md`. No new features. No production change, live SQL, deploy, or `main` merge until explicit publish approval after review.
+
+Rollback: branch `release-prep-2026-10-06`, snapshot `953d3f5`.
 
 ---
 

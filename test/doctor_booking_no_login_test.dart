@@ -73,6 +73,74 @@ void main() {
     expect(find.text('سجّل الدخول'), findsNothing);
     expect(find.byType(TextField), findsNothing);
   });
+
+  testWidgets('حضور مباشر يبقي الاتصال وواتساب بدون حساب', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const doctor = DoctorItem(
+      id: 'walk-1',
+      name: 'الدكتورة هدى',
+      specialty: 'أطفال',
+      location: 'الشطرة',
+      available: true,
+      phone: '07811111111',
+      whatsapp: '07811111111',
+      imageUrl: '',
+      ghadeerBadge: false,
+      bio: '',
+      shortDescription: '',
+      workingDays: 'السبت',
+      workingHours: 'مساءً',
+      bookingStatus: 'walk_in_only',
+      absenceFrom: '',
+      absenceTo: '',
+      showBookingButton: true,
+      showCallButton: true,
+      showWhatsAppButton: true,
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: DoctorProfilePage(
+            doctor: doctor,
+            isFavorite: false,
+            onToggleFavorite: _noop,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.byKey(const Key('doctor-call-button')), findsOneWidget);
+    expect(find.byKey(const Key('doctor-whatsapp-button')), findsOneWidget);
+
+    final call = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byKey(const Key('doctor-call-button')),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(call.onTap, isNotNull);
+
+    final wa = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byKey(const Key('doctor-whatsapp-button')),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(wa.onTap, isNotNull);
+    expect(find.text('سجّل الدخول'), findsNothing);
+
+    await tester.ensureVisible(find.byKey(const Key('doctor-booking-button')));
+    await tester.tap(find.byKey(const Key('doctor-booking-button')));
+    await tester.pump();
+    expect(find.textContaining('حضور'), findsWidgets);
+  });
 }
 
 void _noop() {}

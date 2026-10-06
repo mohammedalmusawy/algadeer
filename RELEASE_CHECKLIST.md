@@ -54,7 +54,7 @@
 | `test/smart_brain_platform_grounding_test.dart` — `fromResults مع كيان → sourceEntityIds + actions من البيانات` | يتوقع زر `call` من `PlatformGrounding.fromResults` لنتيجة طبيب واحدة بهاتف؛ `SmartBrainSuggestedActionsBuilder` الحالي يعطي مسار الاختيار/الفتح لا اتصال ثابت. الملف **لم يُمس** في commits الإطلاق (`953d3f5..HEAD`). | **قديم / خارج نطاق الإطلاق** — لم يُغيَّر العقل لإرضائه |
 | بعد تصحيح `unavailable` | أُعيد `doctor_booking_no_login_test` فقط: **4/4 نجاح** (حجز بلا حساب، حضور، غير متاح للموعد يبقي الاتصال، إجازة تعطّل الاتصال). الكامل لم يُعد بلا سبب. | إصلاح إطلاق |
 
-نسخة الاختبار اليدوي النهائية: الشجرة بعد تصحيح `unavailable` (ستُثبَّت بـ commit على هذا الفرع). التطبيق المحلي لهذه النسخة: [http://127.0.0.1:7364](http://127.0.0.1:7364).
+نسخة الاختبار اليدوي النهائية: `77b2933` على `release-prep-2026-10-06`. التطبيق المحلي لهذه النسخة: [http://127.0.0.1:7364](http://127.0.0.1:7364).
 
 اختبارات هذا الممر سابقاً (نُفّذت قبل البوابة الكاملة): `contact_launch_test`، `entity_contact_row_test`، `home_ad_slot_preview_test`، `follow_up_card_visual_test`، مجموعة Hours في `smart_brain_conversation_ui_test`. أدلة أقدم دون إعادة: `ads_campaign_eligibility_test`، `doctor_card_access_test`، `patient_health_file_test`، `live_entity_revalidation_parity_test`.
 

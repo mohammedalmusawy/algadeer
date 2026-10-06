@@ -166,9 +166,13 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
   bool get _actionsEnabled {
     if (_onLeave) return false;
     final status = doctor.bookingStatus.trim().toLowerCase();
-    if (status == 'unavailable') return false;
-    // الحضوري أو اكتمال الحجز: الاتصال/واتساب يبقيان، وزر الموعد يوضح الحالة.
-    if (status == 'walk_in_only' || status == 'full') return true;
+    // حالة الحجز (حضوري / مكتمل / غير متاح للموعد) لا تمنع الاتصال أو واتساب.
+    // الإجازة فقط (`_onLeave`) هي التي تعطّل التواصل.
+    if (status == 'walk_in_only' ||
+        status == 'full' ||
+        status == 'unavailable') {
+      return true;
+    }
     return doctor.available;
   }
 

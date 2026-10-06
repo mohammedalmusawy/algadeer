@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../doctors/doctor_card_access_client.dart';
 import '../../models/lab_models.dart';
+import '../../services/content_conflict.dart';
 import '../../services/entity_access_pin_service.dart';
 import '../labs_service.dart';
 import '../widgets/package_hero_image.dart';
@@ -8,11 +10,17 @@ import 'package_form_page.dart';
 import '../../widgets/clinic_app_bar.dart';
 
 class PackagesAdminPage extends StatefulWidget {
-  const PackagesAdminPage({super.key, this.lockedLabId, this.lockedLabName});
+  const PackagesAdminPage({
+    super.key,
+    this.lockedLabId,
+    this.lockedLabName,
+    this.ownerSession,
+  });
 
-  /// إن وُجد: المختبر يدير باقاته فقط (بعد الرقم السري).
+  /// إن وُجد: المختبر يدير باقاته فقط بعد جلسة المالك.
   final String? lockedLabId;
   final String? lockedLabName;
+  final DoctorCardSession? ownerSession;
 
   @override
   State<PackagesAdminPage> createState() => _PackagesAdminPageState();
@@ -88,6 +96,7 @@ class _PackagesAdminPageState extends State<PackagesAdminPage> {
           package: package,
           labs: labsForForm.isNotEmpty ? labsForForm : _labs,
           lockedLabId: widget.lockedLabId,
+          ownerSession: widget.ownerSession,
         ),
       ),
     );
@@ -97,7 +106,20 @@ class _PackagesAdminPageState extends State<PackagesAdminPage> {
   Future<void> _toggleVisible(LabPackageItem package) async {
     final next = !package.isActive;
     try {
-      await _service.setPackageActive(package.id, next);
+      if (widget.ownerSession != null) {
+        await DoctorCardAccessClient().upsertPackage(
+          session: widget.ownerSession!,
+          packageId: package.id,
+          package: {'is_active': next},
+          baseRevision: package.contentRevision,
+        );
+      } else {
+        await _service.setPackageActive(
+          package.id,
+          next,
+          baseRevision: package.contentRevision,
+        );
+      }
       if (!mounted) return;
       setState(() {
         final i = _packages.indexWhere((p) => p.id == package.id);
@@ -115,7 +137,9 @@ class _PackagesAdminPageState extends State<PackagesAdminPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر تغيير الظهور: $e')),
+        SnackBar(
+          content: Text(messageForSaveError(e, 'تعذر تغيير الظهور: $e')),
+        ),
       );
     }
   }
@@ -143,7 +167,14 @@ class _PackagesAdminPageState extends State<PackagesAdminPage> {
     );
     if (ok != true) return;
     try {
-      await _service.deletePackage(package.id);
+      if (widget.ownerSession != null) {
+        await DoctorCardAccessClient().deletePackage(
+          session: widget.ownerSession!,
+          packageId: package.id,
+        );
+      } else {
+        await _service.deletePackage(package.id);
+      }
       _load();
     } catch (e) {
       if (!mounted) return;

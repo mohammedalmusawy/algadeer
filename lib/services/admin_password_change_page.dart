@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../doctors/doctor_card_links.dart';
 import '../widgets/clinic_app_bar.dart';
 
 /// بريد حساب الإدارة (نفس المستخدم في دخول اللوحة).
@@ -19,15 +20,25 @@ Future<void> openAdminPasswordChange(
   );
 }
 
-/// رابط الرجوع بعد فتح إيميل الاستعادة (يجب إضافته في Redirect URLs بـ Supabase).
-String? adminPasswordResetRedirectTo() {
-  if (kIsWeb) {
-    // مثال محلي: http://127.0.0.1:7357/
-    return Uri.base.origin.endsWith('/')
-        ? Uri.base.origin
-        : '${Uri.base.origin}/';
+const adminAuthReturnPath = '/admin-recovery';
+
+bool isAdminRecoveryReturnUri(Uri uri) {
+  final frag = uri.fragment.split('?').first;
+  if (frag == adminAuthReturnPath ||
+      frag == 'admin-recovery' ||
+      frag.startsWith('/admin-recovery')) {
+    return true;
   }
-  return null;
+  return uri.pathSegments.contains('admin-recovery');
+}
+
+/// رابط الرجوع بعد فتح إيميل استعادة الإدارة (Redirect URLs منفصل عن المريض).
+String adminPasswordResetRedirectTo({bool web = kIsWeb, String? origin}) {
+  final raw = web
+      ? (origin ?? Uri.base.origin)
+      : DoctorCardLinks.publicWebBase;
+  final base = raw.endsWith('/') ? raw.substring(0, raw.length - 1) : raw;
+  return '$base/#$adminAuthReturnPath';
 }
 
 class AdminPasswordChangePage extends StatefulWidget {

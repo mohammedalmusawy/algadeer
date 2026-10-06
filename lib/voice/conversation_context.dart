@@ -1616,7 +1616,13 @@ class ConversationContext with SessionOnlyStateMarker {
     selectedDoctor = doctor;
     activeEntityType = ConversationEntityType.doctor;
     clarificationCandidates = const [];
-    clearPendingClarification();
+    final keepInfoPending = pendingClarification?.pendingAction ==
+            AssistantIntent.doctorAvailability ||
+        pendingClarification?.pendingAction == AssistantIntent.showLocation ||
+        pendingClarification?.pendingAction == AssistantIntent.bookAppointment;
+    if (!keepInfoPending) {
+      clearPendingClarification();
+    }
     pushRecentReference(doctor);
     // Step 10F: اختيار طبيب بعد عرض نتائج التسليم يُكمل الجلسة الصحية.
     final h = healthGuidanceSession.handoff;

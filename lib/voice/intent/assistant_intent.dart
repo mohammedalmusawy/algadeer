@@ -35,5 +35,7 @@ enum AssistantIntent {
   repeatResponse,
   stopSpeaking,
   help,
+  /// فتح «ملفي الصحي» / بطاقة المتابعة عبر بوابة تسجيل المريض.
+  openPatientHealth,
   symptomGuidance,
 }

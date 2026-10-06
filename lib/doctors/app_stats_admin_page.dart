@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../home/trending_entity.dart';
 import '../services/app_stats_service.dart';
+import '../voice/intent/app_function_catalog.dart';
+import '../voice/intent/brain_quality_metrics.dart';
 import '../widgets/clinic_app_bar.dart';
 
 /// لوحة إحصائية عامة لإدارة الغدير — مع اختيار يومي/أسبوعي/شهري/سنوي.
@@ -20,6 +22,7 @@ class _AppStatsAdminPageState extends State<AppStatsAdminPage> {
   List<TrendingEntity> _topDoctors = const [];
   List<TrendingEntity> _topLabs = const [];
   List<TrendingEntity> _topPackages = const [];
+  Map<String, int> _brainMetrics = const {};
 
   @override
   void initState() {
@@ -33,12 +36,14 @@ class _AppStatsAdminPageState extends State<AppStatsAdminPage> {
     final doctors = await _stats.fetchTopDoctors(limit: 10);
     final labs = await _stats.fetchTopLabs(limit: 10);
     final packages = await _stats.fetchTopPackages(limit: 10);
+    final brain = await BrainQualityMetrics.snapshot();
     if (!mounted) return;
     setState(() {
       _data = data;
       _topDoctors = doctors;
       _topLabs = labs;
       _topPackages = packages;
+      _brainMetrics = brain;
       _loading = false;
     });
   }
@@ -154,6 +159,39 @@ class _AppStatsAdminPageState extends State<AppStatsAdminPage> {
                   title: 'الأطباء في المنصة',
                   value: '${_data.doctorsCount}',
                   subtitle: 'عدد الأطباء المسجّلين (كل الفترات)',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'جودة العقل المحلي',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF123B42),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'عدادات غير حسّاسة على الجهاز فقط — بلا نص محادثة وبلا بيانات صحية.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF6B7C80),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final entry in _brainMetrics.entries)
+                  _statCard(
+                    icon: Icons.psychology_alt_rounded,
+                    title: entry.key,
+                    value: '${entry.value}',
+                    subtitle: 'من استخدام المساعد على هذا الجهاز',
+                  ),
+                _statCard(
+                  icon: Icons.list_alt_rounded,
+                  title: 'وظائف العقل المسجّلة',
+                  value: '${AppFunctionCatalog.entries.length}',
+                  subtitle:
+                      'سجل يدوي للوظائف (لا يكتشف تغييرات الكود تلقائياً)',
                 ),
                 const SizedBox(height: 16),
                 const Text(

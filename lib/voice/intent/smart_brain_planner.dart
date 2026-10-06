@@ -82,6 +82,7 @@ import '../../health/subject/health_subject_models.dart';
 import '../result_context.dart';
 import 'analysis_target_resolver.dart';
 import 'assistant_intent.dart';
+import 'brain_quality_metrics.dart';
 import 'doctor_target_resolver.dart';
 import 'entity_target_resolver.dart';
 import 'ghadeer_scope_gate.dart';
@@ -127,6 +128,8 @@ enum AssistantActionKind {
   healthGuidance,
   stopSpeaking,
   repeatResponse,
+  /// يفتح بوابة «ملفي الصحي» (تسجيل دخول المريض مطلوب للوصول للبيانات).
+  openPatientHealth,
 }
 
 /// خطة فعل خفيفة — لا تطلق UI بنفسها.
@@ -1047,6 +1050,7 @@ class SmartBrainPlanner {
     try {
       final live = await _revalidateLiveResult(target);
       if (live == null) {
+        unawaited(BrainQualityMetrics.recordLiveRevalidateFail());
         final message = _entityUnavailableMessage(target);
         return AssistantActionPlan(
           kind: AssistantActionKind.showMessage,
@@ -1057,6 +1061,7 @@ class SmartBrainPlanner {
       }
       return await plan(live);
     } catch (_) {
+      unawaited(BrainQualityMetrics.recordLiveRevalidateFail());
       // فشل المصدر السلطوي المطلوب لهذا الكيان — لا تستخدم بيانات بالية.
       return AssistantActionPlan(
         kind: AssistantActionKind.showMessage,
@@ -1074,7 +1079,15 @@ class SmartBrainPlanner {
       case AssistantIntent.callDoctor:
       case AssistantIntent.messageDoctor:
       case AssistantIntent.showLocation:
+        // «ورّيني رقمه» / سياقي بلا اسم — لا تبحث عن «رقمه» كاسم كيان.
+        if (intent.requiresContext) return false;
+        if ((intent.entities.actionHint ?? '').trim() == 'show_phone') {
+          return false;
+        }
+        return UnifiedEntityDiscovery.extractNamePhrase(query) != null;
       case AssistantIntent.showProfile:
+        // «افتح التفاصيل» سياقي — لا تبحث عن اسم «التفاصيل» في الكتالوج.
+        if (intent.requiresContext) return false;
         return UnifiedEntityDiscovery.extractNamePhrase(query) != null;
       default:
         return false;
@@ -1735,6 +1748,7 @@ class SmartBrainPlanner {
       case AssistantIntent.selectResult:
       case AssistantIntent.stopSpeaking:
       case AssistantIntent.repeatResponse:
+      case AssistantIntent.openPatientHealth:
         return true;
       case AssistantIntent.doctorSearch:
         final n = ArabicTextUtils.normalize(query);
@@ -1848,7 +1862,10 @@ class SmartBrainPlanner {
     // نطاق «بحث وتنفيذ» فقط: لا حوار طبي، لا تزيين عاطفي/شخصي (الكود القديم
     // محفوظ ويعود عند clinicalEnabled=true). بوابة الأزمة النفسية أعلاه تبقى.
     if (!_clinicalEnabled) {
-      final scoped = await _planScoped(query: pipelineQuery, context: context);
+      final scoped = _upgradeOpenSelect(
+        await _planScoped(query: pipelineQuery, context: context),
+      );
+      _recordBrainQuality(scoped);
       if (scoped.message.trim().isNotEmpty) {
         context.setAssistantResponse(scoped.message);
       }
@@ -1958,6 +1975,7 @@ class SmartBrainPlanner {
     if (intent.intent != AssistantIntent.stopSpeaking &&
         intent.intent != AssistantIntent.repeatResponse &&
         intent.intent != AssistantIntent.showMore &&
+        intent.intent != AssistantIntent.openPatientHealth &&
         intent.entities.actionHint != 'share_or_favorite') {
       if (DoctorPresenceQuestion.isContextual(workingQuery)) {
         return _planContextualPresence(workingQuery, context, intent);
@@ -2017,6 +2035,9 @@ class SmartBrainPlanner {
         message: last,
         canExecute: true,
       );
+    }
+    if (intent.intent == AssistantIntent.openPatientHealth) {
+      return _planOpenPatientHealth(intent);
     }
     if (intent.entities.actionHint == 'share_or_favorite') {
       return _planShareFavoriteClarification(workingQuery, context, intent);
@@ -3684,11 +3705,18 @@ class SmartBrainPlanner {
     return 'هذي النتيجة الحالية: $name.';
   }
 
+  static bool _hasPreservedSearchContext(ConversationContext context) {
+    final ctx = context.currentResultContext;
+    if (ctx != null && ctx.isNotEmpty) return true;
+    return context.selectedEntity != null;
+  }
+
   AssistantActionPlan _planContextualPresence(
     String query,
     ConversationContext context,
     IntentResult original,
   ) {
+    // لا تمسح النتائج أو المختار — سؤال الدوام ليس بحثًا جديدًا.
     context.clearPending();
     context.clearPendingDoctorSuggestion();
     final intent = IntentResult(
@@ -3723,17 +3751,28 @@ class SmartBrainPlanner {
     );
     if (pending != null) {
       context.setPendingClarification(pending);
-    } else {
-      context.clearPendingClarification();
+      final message = _clarificationResponses.build(
+        pending,
+        customLead: 'تقصد أي طبيب؟',
+      );
+      context.setAssistantResponse(message);
+      return AssistantActionPlan(
+        kind: AssistantActionKind.showClarification,
+        intentResult: intent.copyWithClarification(true),
+        message: message,
+        candidates: candidates,
+        canExecute: false,
+        targetResolution: target,
+      );
     }
-    final message = pending == null
-        ? target.message
-        : _clarificationResponses.build(pending);
+    final message = candidates.isEmpty
+        ? GhadeerFollowUpContext.noPronounTargetMessage()
+        : (target.message.trim().isNotEmpty
+            ? target.message
+            : GhadeerFollowUpContext.noPronounTargetMessage());
     context.setAssistantResponse(message);
     return AssistantActionPlan(
-      kind: pending == null
-          ? AssistantActionKind.showMessage
-          : AssistantActionKind.showClarification,
+      kind: AssistantActionKind.showMessage,
       intentResult: intent.copyWithClarification(true),
       message: message,
       candidates: candidates,
@@ -3779,6 +3818,7 @@ class SmartBrainPlanner {
       case AssistantIntent.selectResult:
       case AssistantIntent.stopSpeaking:
       case AssistantIntent.repeatResponse:
+      case AssistantIntent.openPatientHealth:
       case AssistantIntent.showMore:
       case AssistantIntent.doctorAvailability:
         return null;
@@ -3985,6 +4025,7 @@ class SmartBrainPlanner {
       case AssistantIntent.bookAppointment:
       case AssistantIntent.stopSpeaking:
       case AssistantIntent.repeatResponse:
+      case AssistantIntent.openPatientHealth:
       case AssistantIntent.showMore:
       case AssistantIntent.doctorAvailability:
         return null;
@@ -4435,6 +4476,9 @@ class SmartBrainPlanner {
           canExecute: true,
         );
 
+      case AssistantIntent.openPatientHealth:
+        return _planOpenPatientHealth(intent);
+
       case AssistantIntent.showMore:
         return _planShowMore(query, context, intent);
 
@@ -4462,11 +4506,60 @@ class SmartBrainPlanner {
           intent: intent.intent,
         );
         final specialty = VoiceSpecialtySearchCommand.tryParse(query);
+        final specialtyLabel =
+            specialty?.resolvedSpecialtyName ?? intent.entities.specialty;
+        final compoundIndex = intent.entities.resultIndex;
+        // «دورلي طبيب أطفال وافتح الثاني» — بحث ثم اختيار/فتح بنفس الدور.
+        if (compoundIndex != null &&
+            specialtyLabel != null &&
+            specialtyLabel.trim().isNotEmpty) {
+          final found = await _lookupDoctors(specialtyLabel.trim());
+          final doctors = found
+              .where((r) => r.type == SmartSearchResultType.doctor)
+              .toList(growable: false);
+          context.rememberResults(
+            doctors,
+            query: query,
+            intent: AssistantIntent.specialtySearch,
+            specialtyLabel: specialtyLabel,
+          );
+          if (doctors.isEmpty) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showMessage,
+              intentResult: intent,
+              message:
+                  'لم أجد أطباء لاختصاص $specialtyLabel حاليًا.',
+              canExecute: false,
+            );
+          }
+          final picked = ResultContext(
+            entityType: ConversationEntityType.doctor,
+            items: doctors,
+            sourceIntent: AssistantIntent.specialtySearch,
+            turnId: context.turnId,
+          ).atOrdinal(compoundIndex);
+          if (picked == null) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showMessage,
+              intentResult: intent,
+              message: GhadeerFollowUpContext.outOfRangeMessage(
+                requestedOrdinal: compoundIndex,
+                availableCount: doctors.length,
+              ),
+              canExecute: false,
+            );
+          }
+          context.selectDoctor(picked);
+          return _planSelectOrOpen(
+            intent: intent,
+            target: picked,
+            selectMessage: 'تم اختيار ${picked.title}.',
+          );
+        }
         return AssistantActionPlan(
           kind: AssistantActionKind.runSpecialtySearch,
           intentResult: intent,
-          specialtyQuery:
-              specialty?.resolvedSpecialtyName ?? intent.entities.specialty,
+          specialtyQuery: specialtyLabel,
           canExecute: true,
           message: '',
         );
@@ -4510,6 +4603,14 @@ class SmartBrainPlanner {
             canExecute: false,
           );
         }
+        if (_hasPreservedSearchContext(context)) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            message: 'ما فهمت الطلب. تقصد أي خطوة من النتائج الحالية؟',
+            canExecute: false,
+          );
+        }
         context.beginNewDoctorSearch(
           query: query,
           intent: intent.intent,
@@ -4525,6 +4626,14 @@ class SmartBrainPlanner {
         // في مسار البحث والتنفيذ: لا نرقّي unknown إلى بحث عام يخترع نتائج.
         if (!_clinicalEnabled ||
             GhadeerScopeGate.shouldRefuse(query: query, intent: intent)) {
+          if (_hasPreservedSearchContext(context)) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showMessage,
+              intentResult: intent,
+              message: 'ما فهمت الطلب. تقصد أي خطوة من النتائج الحالية؟',
+              canExecute: false,
+            );
+          }
           return AssistantActionPlan(
             kind: AssistantActionKind.showMessage,
             intentResult: intent,
@@ -4533,6 +4642,14 @@ class SmartBrainPlanner {
           );
         }
         if (query.trim().isNotEmpty) {
+          if (_hasPreservedSearchContext(context)) {
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showMessage,
+              intentResult: intent,
+              message: 'ما فهمت الطلب. تقصد أي خطوة من النتائج الحالية؟',
+              canExecute: false,
+            );
+          }
           context.beginNewDoctorSearch(
             query: query,
             intent: AssistantIntent.generalSearch,
@@ -8058,6 +8175,95 @@ class SmartBrainPlanner {
     );
   }
 
+  /// عدادات غير حساسة — بلا نص محادثة.
+  static void _recordBrainQuality(AssistantActionPlan plan) {
+    if (plan.kind == AssistantActionKind.openProfile && plan.canExecute) {
+      unawaited(BrainQualityMetrics.recordOpenSelectOk());
+      return;
+    }
+    if (plan.kind == AssistantActionKind.selectEntity && plan.canExecute) {
+      unawaited(BrainQualityMetrics.recordOpenSelectOk());
+      return;
+    }
+    if (!plan.canExecute &&
+        plan.kind == AssistantActionKind.showMessage &&
+        (plan.message.contains('ما لقيت') ||
+            plan.message.contains(GhadeerScopeGate.outOfScopeMessage) ||
+            plan.message.contains('ما فهمت'))) {
+      unawaited(BrainQualityMetrics.recordUnderstandFail());
+      return;
+    }
+    if (!plan.canExecute &&
+        (plan.kind == AssistantActionKind.prepareCall ||
+            plan.kind == AssistantActionKind.prepareWhatsApp ||
+            plan.kind == AssistantActionKind.openProfile)) {
+      unawaited(BrainQualityMetrics.recordExecuteFail());
+    }
+  }
+
+  /// أمان أخير: «افتح الثاني» يجب أن يفتح حتى لو مسار وسيط نسي التلميح.
+  static AssistantActionPlan _upgradeOpenSelect(AssistantActionPlan plan) {
+    if (plan.kind != AssistantActionKind.selectEntity) return plan;
+    final hint = (plan.intentResult.entities.actionHint ?? '').trim();
+    final n = plan.intentResult.normalizedText;
+    final wantsOpen = hint == 'open' ||
+        (ContextResolver.extractOrdinal(n) != null &&
+            RegExp(r'(?:^|\s|و)(?:افتح|فتح|اعرض)(?=\s|$)').hasMatch(n));
+    final target = plan.target;
+    if (!wantsOpen || target == null || !target.hasNavigableEntity) {
+      return plan;
+    }
+    return AssistantActionPlan(
+      kind: AssistantActionKind.openProfile,
+      intentResult: plan.intentResult,
+      target: target,
+      message: 'فتح ملف ${target.title}.',
+      canExecute: true,
+      contextResolution: plan.contextResolution,
+      targetResolution: plan.targetResolution,
+      labTargetResolution: plan.labTargetResolution,
+      analysisTargetResolution: plan.analysisTargetResolution,
+      packageTargetResolution: plan.packageTargetResolution,
+    );
+  }
+
+  /// اختيار ترتيبي فقط، أو اختيار+فتح إن كان الطلب «افتح الثاني».
+  AssistantActionPlan _planSelectOrOpen({
+    required IntentResult intent,
+    required SmartSearchResult target,
+    required String selectMessage,
+    DoctorTargetResolution? targetResolution,
+    LaboratoryTargetResolution? labTargetResolution,
+    AnalysisTargetResolution? analysisTargetResolution,
+    PackageTargetResolution? packageTargetResolution,
+  }) {
+    final wantsOpen = (intent.entities.actionHint ?? '').trim() == 'open';
+    if (wantsOpen && target.hasNavigableEntity) {
+      return AssistantActionPlan(
+        kind: AssistantActionKind.openProfile,
+        intentResult: intent,
+        target: target,
+        message: 'فتح ملف ${target.title}.',
+        canExecute: true,
+        targetResolution: targetResolution,
+        labTargetResolution: labTargetResolution,
+        analysisTargetResolution: analysisTargetResolution,
+        packageTargetResolution: packageTargetResolution,
+      );
+    }
+    return AssistantActionPlan(
+      kind: AssistantActionKind.selectEntity,
+      intentResult: intent,
+      target: target,
+      message: selectMessage,
+      canExecute: true,
+      targetResolution: targetResolution,
+      labTargetResolution: labTargetResolution,
+      analysisTargetResolution: analysisTargetResolution,
+      packageTargetResolution: packageTargetResolution,
+    );
+  }
+
   AssistantActionPlan _planSelect(
     String query,
     ConversationContext context,
@@ -8076,12 +8282,11 @@ class SmartBrainPlanner {
               target.hasPackage) {
             context.lastIntent = AssistantIntent.selectResult;
             context.setAssistantResponse('تم اختيار ${target.package!.title}');
-            return AssistantActionPlan(
-              kind: AssistantActionKind.selectEntity,
-              intentResult: intent,
-              target: target.package,
-              message: 'تم اختيار ${target.package!.title}.',
-              canExecute: true,
+            return _planSelectOrOpen(
+              intent: intent,
+              target: target.package!,
+              selectMessage: 'تم اختيار ${target.package!.title}.',
+              packageTargetResolution: target,
             );
           }
           if (target.requiresClarification) {
@@ -8102,12 +8307,10 @@ class SmartBrainPlanner {
           );
           if (target.source == AnalysisTargetSource.ordinal &&
               target.hasAnalysis) {
-            return AssistantActionPlan(
-              kind: AssistantActionKind.selectEntity,
-              intentResult: intent,
-              target: target.analysis,
-              message: 'تم اختيار ${target.analysis!.title}.',
-              canExecute: true,
+            return _planSelectOrOpen(
+              intent: intent,
+              target: target.analysis!,
+              selectMessage: 'تم اختيار ${target.analysis!.title}.',
               analysisTargetResolution: target,
             );
           }
@@ -8128,12 +8331,10 @@ class SmartBrainPlanner {
           );
           if (target.source == LaboratoryTargetSource.ordinal &&
               target.hasLab) {
-            return AssistantActionPlan(
-              kind: AssistantActionKind.selectEntity,
-              intentResult: intent,
-              target: target.laboratory,
-              message: 'تم اختيار ${target.laboratory!.title}.',
-              canExecute: true,
+            return _planSelectOrOpen(
+              intent: intent,
+              target: target.laboratory!,
+              selectMessage: 'تم اختيار ${target.laboratory!.title}.',
               labTargetResolution: target,
             );
           }
@@ -8155,12 +8356,10 @@ class SmartBrainPlanner {
           if (target.source == DoctorTargetSource.ordinal &&
               target.hasDoctor) {
             _markHealthHandoffCompleted(context);
-            return AssistantActionPlan(
-              kind: AssistantActionKind.selectEntity,
-              intentResult: intent,
-              target: target.doctor,
-              message: 'تم اختيار ${target.doctor!.title}.',
-              canExecute: true,
+            return _planSelectOrOpen(
+              intent: intent,
+              target: target.doctor!,
+              selectMessage: 'تم اختيار ${target.doctor!.title}.',
               targetResolution: target,
             );
           }
@@ -8181,12 +8380,10 @@ class SmartBrainPlanner {
           );
           if (target.source == RadiologyTargetSource.ordinal &&
               target.hasRadiology) {
-            return AssistantActionPlan(
-              kind: AssistantActionKind.selectEntity,
-              intentResult: intent,
-              target: target.radiology,
-              message: 'تم اختيار ${target.radiology!.title}.',
-              canExecute: true,
+            return _planSelectOrOpen(
+              intent: intent,
+              target: target.radiology!,
+              selectMessage: 'تم اختيار ${target.radiology!.title}.',
             );
           }
           if (target.requiresClarification) {
@@ -8206,12 +8403,10 @@ class SmartBrainPlanner {
           if (target.source == PharmacyTargetSource.ordinal &&
               target.hasPharmacy) {
             context.selectPharmacy(target.pharmacy!);
-            return AssistantActionPlan(
-              kind: AssistantActionKind.selectEntity,
-              intentResult: intent,
-              target: target.pharmacy,
-              message: 'تم اختيار ${target.pharmacy!.title}.',
-              canExecute: true,
+            return _planSelectOrOpen(
+              intent: intent,
+              target: target.pharmacy!,
+              selectMessage: 'تم اختيار ${target.pharmacy!.title}.',
             );
           }
           if (target.requiresClarification) {
@@ -8231,12 +8426,10 @@ class SmartBrainPlanner {
           if (physioTarget.source == PhysioTargetSource.ordinal &&
               physioTarget.hasPhysio) {
             context.selectPhysio(physioTarget.physio!);
-            return AssistantActionPlan(
-              kind: AssistantActionKind.selectEntity,
-              intentResult: intent,
-              target: physioTarget.physio,
-              message: 'تم اختيار ${physioTarget.physio!.title}.',
-              canExecute: true,
+            return _planSelectOrOpen(
+              intent: intent,
+              target: physioTarget.physio!,
+              selectMessage: 'تم اختيار ${physioTarget.physio!.title}.',
             );
           }
           if (physioTarget.requiresClarification) {
@@ -8256,12 +8449,10 @@ class SmartBrainPlanner {
           if (supplyTarget.source == SupplyTargetSource.ordinal &&
               supplyTarget.hasSupply) {
             context.selectSupply(supplyTarget.supply!);
-            return AssistantActionPlan(
-              kind: AssistantActionKind.selectEntity,
-              intentResult: intent,
-              target: supplyTarget.supply,
-              message: 'تم اختيار ${supplyTarget.supply!.title}.',
-              canExecute: true,
+            return _planSelectOrOpen(
+              intent: intent,
+              target: supplyTarget.supply!,
+              selectMessage: 'تم اختيار ${supplyTarget.supply!.title}.',
             );
           }
           if (supplyTarget.requiresClarification) {
@@ -8413,20 +8604,11 @@ class SmartBrainPlanner {
     if (target.source == DoctorTargetSource.ordinal && target.hasDoctor) {
       context.lastIntent = AssistantIntent.selectResult;
       context.setAssistantResponse('تم اختيار ${target.doctor!.title}');
-      return AssistantActionPlan(
-        kind: AssistantActionKind.selectEntity,
-        intentResult: intent,
-        target: target.doctor,
-        message: 'تم اختيار ${target.doctor!.title}.',
-        canExecute: true,
+      return _planSelectOrOpen(
+        intent: intent,
+        target: target.doctor!,
+        selectMessage: 'تم اختيار ${target.doctor!.title}.',
         targetResolution: target,
-        contextResolution: ContextResolution(
-          status: ContextResolutionStatus.selectResult,
-          intent: AssistantIntent.selectResult,
-          target: target.doctor,
-          requestedOrdinal: target.resultIndex,
-          message: 'تم اختيار ${target.doctor!.title}.',
-        ),
       );
     }
     if (target.requiresClarification) {
@@ -8447,6 +8629,24 @@ class SmartBrainPlanner {
       );
     }
     return _mapContextResolution(intent, resolved);
+  }
+
+  /// يفتح بوابة «ملفي الصحي» داخل الغدير — بلا مشاركة تلقائية وبلا كشف بيانات.
+  AssistantActionPlan _planOpenPatientHealth(IntentResult intent) {
+    final hint = (intent.entities.actionHint ?? '').trim();
+    final forCard = hint == 'follow_up_card';
+    final message = forCard
+        ? 'راح أفتح ملفي الصحي. بطاقة المتابعة تطلع من داخل الملف بعد تسجيل الدخول، '
+            'والمشاركة تحتاج اختيارك الصريح فقط.'
+        : 'راح أفتح ملفي الصحي. إذا مو مسجّل راح يطلعلك تسجيل الدخول أولاً — '
+            'بياناتك خاصة بيك، والمشاركة تحتاج اختيارك الصريح.';
+    return AssistantActionPlan(
+      kind: AssistantActionKind.openPatientHealth,
+      intentResult: intent,
+      message: message,
+      canExecute: true,
+      textFirstOnly: true,
+    );
   }
 
   /// «عرض المزيد» — لا ترقيم صفحات؛ نعرض/نؤكد نتائج الجلسة الحالية فقط.
@@ -8522,44 +8722,57 @@ class SmartBrainPlanner {
       context: context,
     );
 
-    if (target.source == DoctorTargetSource.explicitName &&
-        target.hasDoctor) {
-      return AssistantActionPlan(
-        kind: AssistantActionKind.showMessage,
-        intentResult: intent,
-        target: target.doctor,
-        message: GhadeerFollowUpContext.bookingNotAutomaticMessage(
-          target.doctor!,
-        ),
-        canExecute: false,
-        targetResolution: target,
-      );
-    }
-
-    if ((target.source == DoctorTargetSource.selectedContext ||
-            target.source == DoctorTargetSource.ordinal) &&
-        target.hasDoctor) {
-      return AssistantActionPlan(
-        kind: AssistantActionKind.showMessage,
-        intentResult: intent,
-        target: target.doctor,
-        message: GhadeerFollowUpContext.bookingNotAutomaticMessage(
-          target.doctor!,
-        ),
-        canExecute: false,
-        targetResolution: target,
-      );
-    }
-
-    final selected = context.selectedDoctor;
-    if (selected != null &&
+    SmartSearchResult? doctor;
+    if (target.hasDoctor &&
+        (target.source == DoctorTargetSource.explicitName ||
+            target.source == DoctorTargetSource.selectedContext ||
+            target.source == DoctorTargetSource.ordinal)) {
+      doctor = target.doctor;
+    } else if (context.selectedDoctor != null &&
         context.activeEntityType == ConversationEntityType.doctor) {
-      return AssistantActionPlan(
-        kind: AssistantActionKind.showMessage,
-        intentResult: intent,
-        target: selected,
-        message: GhadeerFollowUpContext.bookingNotAutomaticMessage(selected),
-        canExecute: false,
+      doctor = context.selectedDoctor;
+    }
+
+    if (doctor != null) {
+      return _withLiveEntity(
+        target: doctor,
+        intent: intent,
+        plan: (live) {
+          context.selectDoctor(live);
+          final status = (live.bookingStatus ?? '').trim();
+          var message =
+              GhadeerFollowUpContext.bookingNotAutomaticMessage(live);
+          if (status == 'full') {
+            final alts = context
+                .authoritativeItemsFor(ConversationEntityType.doctor)
+                .where(
+                  (d) =>
+                      (d.doctorId ?? '') != (live.doctorId ?? '') &&
+                      (d.bookingStatus ?? '').trim() != 'full',
+                )
+                .take(3)
+                .toList(growable: false);
+            if (alts.isNotEmpty) {
+              final names = alts.map((d) => d.title).join('، ');
+              message =
+                  '$message حجز ${live.title} مكتمل حسب البيانات. بدائل بنفس القائمة (بدون اختيار تلقائي): $names. گلي رقم أو اسم إن تحب.';
+            } else {
+              message =
+                  '$message حجز ${live.title} مكتمل حسب البيانات. ما لقيت بديلاً متاحاً بنفس القائمة الحالية.';
+            }
+          } else if (status == 'walk_in_only') {
+            message =
+                '$message حسب البيانات: الاستقبال حضور مباشر فقط.';
+          }
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: live,
+            message: message,
+            canExecute: false,
+            targetResolution: target.hasDoctor ? target : null,
+          );
+        },
       );
     }
 
@@ -9158,12 +9371,43 @@ class SmartBrainPlanner {
   }) {
     switch (intent.intent) {
       case AssistantIntent.callDoctor:
-        if (!target.canCall) {
+        // «ورّيني رقمه» = عرض فقط؛ «اتصل بيه» = تنفيذ اتصال.
+        if ((intent.entities.actionHint ?? '').trim() == 'show_phone') {
+          context.selectDoctor(target);
+          context.lastIntent = AssistantIntent.callDoctor;
+          context.clearPending();
+          final phone = (target.phone ?? '').trim();
+          if (phone.isEmpty) {
+            final alt = (target.whatsapp ?? '').trim().isNotEmpty
+                ? ' ماكو رقم اتصال، أكدر أفتح واتساب إن تحب.'
+                : ' ماكو رقم اتصال ولا واتساب مسجّل حالياً.';
+            return AssistantActionPlan(
+              kind: AssistantActionKind.showMessage,
+              intentResult: intent,
+              target: target,
+              message: 'رقم ${target.title} غير متوفر في البيانات.$alt',
+              canExecute: false,
+              targetResolution: targetResolution,
+            );
+          }
           return AssistantActionPlan(
             kind: AssistantActionKind.showMessage,
             intentResult: intent,
             target: target,
-            message: 'رقم اتصال ${target.title} غير متوفر حالياً.',
+            message: 'رقم ${target.title}: $phone',
+            canExecute: false,
+            targetResolution: targetResolution,
+          );
+        }
+        if (!target.canCall) {
+          final hasWa = (target.whatsapp ?? '').trim().isNotEmpty;
+          return AssistantActionPlan(
+            kind: AssistantActionKind.showMessage,
+            intentResult: intent,
+            target: target,
+            message: hasWa
+                ? 'رقم اتصال ${target.title} غير متوفر حالياً. أكدر أفتح واتساب إن تحب.'
+                : 'رقم اتصال ${target.title} غير متوفر حالياً.',
             targetResolution: targetResolution,
           );
         }
@@ -9269,6 +9513,19 @@ class SmartBrainPlanner {
   ) {
     switch (resolved.status) {
       case ContextResolutionStatus.selectResult:
+        final selected = resolved.target;
+        if (selected != null &&
+            (intent.entities.actionHint ?? '').trim() == 'open' &&
+            selected.hasNavigableEntity) {
+          return AssistantActionPlan(
+            kind: AssistantActionKind.openProfile,
+            intentResult: intent,
+            target: selected,
+            message: 'فتح ملف ${selected.title}.',
+            canExecute: true,
+            contextResolution: resolved,
+          );
+        }
         return AssistantActionPlan(
           kind: AssistantActionKind.selectEntity,
           intentResult: intent,

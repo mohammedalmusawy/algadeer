@@ -6,6 +6,7 @@ import 'assistant_intent.dart';
 import 'entity_extractor.dart';
 import 'ghadeer_scope_gate.dart';
 import 'intent_result.dart';
+import 'search_modifiers.dart';
 
 /// تجريد حل النية — الحالي قاعدي؛ مستقبلًا يمكن إضافة AIIntentResolver بدون إعادة بناء.
 abstract class IntentResolver {
@@ -64,6 +65,19 @@ class RuleBasedIntentResolver implements IntentResolver {
         confidence: 96,
       );
     }
+    // ملفي الصحي / بطاقة المتابعة — قبل بحث عام قد يلتقط «ملف».
+    final patientHealthHint = _patientHealthActionHint(normalized);
+    if (patientHealthHint != null) {
+      return IntentResult(
+        intent: AssistantIntent.openPatientHealth,
+        originalText: original,
+        normalizedText: normalized,
+        searchMeaning: meaning,
+        entities: entities.copyWith(actionHint: patientHealthHint),
+        confidence: 94,
+        requiresContext: false,
+      );
+    }
 
     // 0b) خارج نطاق الغدير مبكرًا — قبل تصنيف خاطئ كبحث طبيب/اسم.
     // معرفة عامة واضحة تفوز على أي إشارة ضعيفة.
@@ -97,7 +111,10 @@ class RuleBasedIntentResolver implements IntentResolver {
         originalText: original,
         normalizedText: normalized,
         searchMeaning: meaning,
-        entities: entities.copyWith(resultIndex: ordinalCorrection),
+        entities: entities.copyWith(
+          resultIndex: ordinalCorrection,
+          actionHint: _openVerbWithOrdinal(normalized) ? 'open' : null,
+        ),
         confidence: 93,
         requiresContext: true,
       );
@@ -109,7 +126,11 @@ class RuleBasedIntentResolver implements IntentResolver {
         originalText: original,
         normalizedText: normalized,
         searchMeaning: meaning,
-        entities: entities.copyWith(resultIndex: ordinal),
+        entities: entities.copyWith(
+          resultIndex: ordinal,
+          // «افتح الثاني» يفتح؛ «الثاني» / «اختار الثاني» يختاران فقط.
+          actionHint: _openVerbWithOrdinal(normalized) ? 'open' : null,
+        ),
         confidence: 92,
         requiresContext: true,
       );
@@ -406,6 +427,20 @@ class RuleBasedIntentResolver implements IntentResolver {
       );
     }
 
+    // 2a2) سؤال الدوام عن كيان («شنو دوامه») — ليس بحثًا عن الكلمة.
+    if (DoctorPresenceQuestion.isContextual(original) ||
+        DoctorPresenceQuestion.isContextual(normalized)) {
+      return IntentResult(
+        intent: AssistantIntent.doctorAvailability,
+        originalText: original,
+        normalizedText: normalized,
+        searchMeaning: meaning,
+        entities: entities.copyWith(actionHint: 'availability'),
+        confidence: 90,
+        requiresContext: true,
+      );
+    }
+
     // 2b) موقع — صريح أو سياقي (طبيب أو مختبر).
     if (_looksLikeLocation(normalized)) {
       if (hasLabEntity || RegExp(r'(?:ال)?مختبر').hasMatch(normalized)) {
@@ -434,6 +469,30 @@ class RuleBasedIntentResolver implements IntentResolver {
           actionHint: 'location',
         ),
         confidence: hasName ? 88 : 85,
+        requiresContext: !hasName,
+      );
+    }
+
+    // 2b2) عرض الرقم فقط («ورّيني رقمه») — ليس اتصالاً.
+    if (_looksLikeShowPhone(normalized)) {
+      // لا تعتبر جملة العرض نفسها اسماً («وريني رقمه»).
+      final rawName = (entities.doctorName ?? '').trim();
+      final nameIsPhrase = rawName.isEmpty ||
+          _looksLikeShowPhone(ArabicTextUtils.normalize(rawName)) ||
+          RegExp(r'^(?:وريني|ورّيني|شوف|طلع|عرض|اعرض|رقمه|رقمها|الرقم)$')
+              .hasMatch(ArabicTextUtils.normalize(rawName)) ||
+          ArabicTextUtils.normalize(rawName) == normalized;
+      final hasName = !nameIsPhrase && _hasExplicitDoctorName(rawName);
+      return IntentResult(
+        intent: AssistantIntent.callDoctor,
+        originalText: original,
+        normalizedText: normalized,
+        searchMeaning: meaning,
+        entities: entities.copyWith(
+          doctorName: hasName ? rawName : null,
+          actionHint: 'show_phone',
+        ),
+        confidence: 88,
         requiresContext: !hasName,
       );
     }
@@ -796,14 +855,17 @@ class RuleBasedIntentResolver implements IntentResolver {
           requiresContext: labName == null,
         );
       }
-      final hasName = _hasExplicitDoctorName(entities.doctorName);
+      // «التفاصيل / بطاقته / معلوماته» ليست أسماء أطباء.
+      final rawName = entities.doctorName;
+      final hasName =
+          _hasExplicitDoctorName(rawName) && !_isProfileUiWord(rawName);
       return IntentResult(
         intent: AssistantIntent.showProfile,
         originalText: original,
         normalizedText: normalized,
         searchMeaning: meaning,
         entities: entities.copyWith(
-          doctorName: hasName ? entities.doctorName : null,
+          doctorName: hasName ? rawName : null,
           actionHint: 'profile',
         ),
         confidence: hasName ? 86 : 84,
@@ -899,14 +961,24 @@ class RuleBasedIntentResolver implements IntentResolver {
     }
 
     // 4) اختصاص — نفس منطق VoiceSpecialtySearchCommand للنص والصوت.
+    // يدعم مركّباً: «دورلي طبيب أطفال وافتح الثاني».
     final specialty = VoiceSpecialtySearchCommand.tryParse(original);
     if (specialty != null) {
+      final compoundOrdinal = ContextResolver.extractOrdinal(normalized);
+      final compoundOpen = compoundOrdinal != null &&
+          _openVerbWithOrdinal(normalized);
       return IntentResult(
         intent: AssistantIntent.specialtySearch,
         originalText: original,
         normalizedText: normalized,
         searchMeaning: meaning,
-        entities: entities.copyWith(specialty: specialty.resolvedSpecialtyName),
+        entities: entities.copyWith(
+          specialty: specialty.resolvedSpecialtyName,
+          resultIndex: compoundOrdinal,
+          actionHint: compoundOpen
+              ? 'open'
+              : (compoundOrdinal != null ? 'select' : null),
+        ),
         confidence: 90,
       );
     }
@@ -1164,6 +1236,16 @@ class RuleBasedIntentResolver implements IntentResolver {
         RegExp(r'دلني\s+عل(?:يه|يها|يهم)').hasMatch(n);
   }
 
+  /// عرض الرقم دون اتصال: «ورّيني رقمه» / «شنو رقمه».
+  static bool _looksLikeShowPhone(String n) {
+    if (_looksLikeCallVocab(n)) return false;
+    return RegExp(
+          r'(?:وريني|ورّيني|شوف|طلع|عرض|اعرض)\s+(?:لي\s+)?(?:ال)?رقم(?:ه|ها)?',
+        ).hasMatch(n) ||
+        RegExp(r'(?:شنو|شو|ايش)\s*(?:هو\s*)?(?:رقمه|رقمها|الرقم)').hasMatch(n) ||
+        RegExp(r'^(?:رقمه|رقمها)$').hasMatch(n.trim());
+  }
+
   static bool _looksLikeCallVocab(String n) {
     return RegExp(
       r'(?:اتصل|اتصال|دقله|دگله|دكله|دكلهم|دكلها|'
@@ -1181,10 +1263,19 @@ class RuleBasedIntentResolver implements IntentResolver {
   }
 
   static bool _looksLikeProfile(String n) {
+    // لا تلتقط «افتح الثاني» هنا — الترتيبي يُعالَج قبلها مع actionHint=open.
+    if (ContextResolver.extractOrdinal(n) != null &&
+        _isPureContextualOrdinal(n)) {
+      return false;
+    }
     return RegExp(
-          r'(?:افتح|اعرض).{0,28}(?:ملف|نبذه|نبذة|بطاقه|بطاقة|مختبر)',
+          r'(?:افتح|اعرض|عرض).{0,28}(?:ملف|نبذه|نبذة|بطاقه|بطاقة|مختبر|'
+          r'تفاصيل|تفصيل|معلومات)',
         ).hasMatch(n) ||
-        RegExp(r'(?:ملفه|نبذته|معلومات\s*عنه|عرض\s*الملف)').hasMatch(n) ||
+        RegExp(
+          r'(?:ملفه|نبذته|بطاقته|معلوماته|معلومات\s*(?:عنه|عنها)|'
+          r'عرض\s*(?:ال)?(?:ملف|تفاصيل))',
+        ).hasMatch(n) ||
         RegExp(r'(?:افتح|اعرض)\s+(?:ال)?(?:دكتور|طبيب|ملف|مختبر)').hasMatch(n) ||
         RegExp(
           r'(?:افتح|اعرض|اختار)\s+(?:هذا|هاي|هذي|هذه|هذاك|ذاك)',
@@ -1192,9 +1283,28 @@ class RuleBasedIntentResolver implements IntentResolver {
         RegExp(r'^(?:افتحه|افتحها)\s*$').hasMatch(n.trim()) ||
         RegExp(r'(?:نبذة|معلومات)\s*(?:ال)?مختبر').hasMatch(n) ||
         RegExp(
-          r'(?:شوف|طلع|وريني|ورّيني)\s+(?:ال)?(?:تفاصيل|تفصيل|ملف)',
+          r'(?:شوف|طلع|وريني|ورّيني)\s+(?:ال)?(?:تفاصيل|تفصيل|ملف|معلومات|'
+          r'بطاقه|بطاقة)',
         ).hasMatch(n) ||
         RegExp(r'^(?:وريني|ورّيني)$').hasMatch(n.trim());
+  }
+
+  /// فعل فتح صريح مع ترتيب — يميّز «افتح الثاني» عن «الثاني» / «اختار الثاني».
+  /// يدعم «وافتح الثاني» ملتصقة بالواو.
+  static bool _openVerbWithOrdinal(String n) {
+    if (ContextResolver.extractOrdinal(n) == null) return false;
+    return RegExp(
+      r'(?:^|\s|و)(?:افتح|فتح|اعرض)(?=\s|$)',
+    ).hasMatch(n);
+  }
+
+  static bool _isProfileUiWord(String? raw) {
+    final n = ArabicTextUtils.normalize((raw ?? '').trim());
+    if (n.isEmpty) return true;
+    return RegExp(
+      r'^(?:ال)?(?:تفاصيل|تفصيل|معلومات|معلوماته|معلوماتها|ملف|ملفه|'
+      r'ملفها|نبذه|نبذة|بطاقه|بطاقة|بطاقته|بطاقتها)$',
+    ).hasMatch(n);
   }
 
   static bool _looksLikeContextualBooking(String n) {
@@ -1233,6 +1343,25 @@ class RuleBasedIntentResolver implements IntentResolver {
       r'عيد\s*(?:الكلام|الرد|الجواب)|'
       r'repeat)$',
     ).hasMatch(t);
+  }
+
+  /// ملفي الصحي / بطاقة المتابعة — يفتح البوابة فقط؛ المشاركة اختيار صريح داخل الصفحة.
+  static String? _patientHealthActionHint(String n) {
+    final t = n.trim();
+    if (t.isEmpty) return null;
+    if (RegExp(
+      r'(?:بطاقه|بطاقة)\s*(?:ال)?(?:متابعه|متابعة)|'
+      r'(?:عرض|افتح|فتح)\s*(?:بطاقه|بطاقة)\s*(?:ال)?(?:متابعه|متابعة)',
+    ).hasMatch(t)) {
+      return 'follow_up_card';
+    }
+    if (RegExp(
+      r'ملفي\s*الصحي|الملف\s*الصحي|ملفي\s*الصحيه|'
+      r'سجلي\s*(?:الصحي|الطبي)|السجل\s*(?:الصحي|الطبي)',
+    ).hasMatch(t)) {
+      return 'health_file';
+    }
+    return null;
   }
 
   static bool _looksLikePackages(String n) {

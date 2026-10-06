@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/content_conflict.dart';
 import 'doctor_availability_service.dart';
 import '../widgets/clinic_app_bar.dart';
 
@@ -135,7 +136,7 @@ class _DoctorAbsencesAdminPageState extends State<DoctorAbsencesAdminPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر الإلغاء: $e')),
+        SnackBar(content: Text(messageForSaveError(e, 'تعذر الإلغاء: $e'))),
       );
     }
   }
@@ -615,7 +616,9 @@ class _AbsenceEditorSheetState extends State<_AbsenceEditorSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('تعذر الحفظ: $e')));
+          .showSnackBar(
+        SnackBar(content: Text(messageForSaveError(e, 'تعذر الحفظ: $e'))),
+      );
     }
   }
 

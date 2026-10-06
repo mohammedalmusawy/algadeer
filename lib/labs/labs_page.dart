@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../doctors/doctor_card_gate.dart';
 import '../models/lab_models.dart';
 import '../settings/settings_page.dart';
 import '../utils/responsive.dart';
 import '../widgets/clinic_app_bar.dart';
+import 'lab_owner_editor_page.dart';
 import 'lab_profile_page.dart';
 import 'labs_service.dart';
 import 'widgets/lab_card.dart';
@@ -91,6 +93,21 @@ class _LabsPageState extends State<LabsPage> {
       isFavorite: _favoriteIds.contains(lab.id),
       onToggleFavorite: () => _toggleFavorite(lab.id),
       onOpenPackages: () => _openLab(lab),
+      onOwnerAccess: () async {
+        final session = await showEntityOwnerSession(
+          context,
+          entityType: 'lab',
+          entityId: lab.id,
+          title: lab.name,
+        );
+        if (session == null || !mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => LabOwnerEditorPage(lab: lab, session: session),
+          ),
+        );
+      },
     );
   }
 

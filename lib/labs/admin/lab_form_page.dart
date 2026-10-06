@@ -3,9 +3,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../doctors/doctor_card_password_admin_section.dart';
 import '../../branding/ghadeer_brand_mark.dart';
 import '../../models/entity_social_links.dart';
 import '../../models/lab_models.dart';
+import '../../services/content_conflict.dart';
 import '../../widgets/clinic_app_bar.dart';
 import '../../widgets/entity_social_sheet.dart';
 import '../lab_default_images.dart';
@@ -207,7 +209,9 @@ class _LabFormPageState extends State<LabFormPage> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('تعذر الحفظ: $e')));
+          .showSnackBar(
+        SnackBar(content: Text(messageForSaveError(e, 'تعذر الحفظ: $e'))),
+      );
     }
   }
 
@@ -492,6 +496,13 @@ class _LabFormPageState extends State<LabFormPage> {
                 value: _isFeatured,
                 onChanged: (v) => setState(() => _isFeatured = v),
               ),
+              if (widget.lab != null && widget.lab!.id.trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                EntityOwnerAdminPanel(
+                  entityType: 'lab',
+                  entityId: widget.lab!.id,
+                ),
+              ],
               const SizedBox(height: 16),
               SizedBox(
                 height: 52,

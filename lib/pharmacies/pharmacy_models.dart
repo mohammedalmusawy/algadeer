@@ -1,6 +1,74 @@
 import '../models/entity_social_links.dart';
 import 'pharmacy_catalog_bundles.dart';
 
+/// منتج داخل باقة صيدلية (مكمل أو منتج تجاري يختاره الصيدلي).
+class PharmacyPackageProduct {
+  const PharmacyPackageProduct({
+    required this.id,
+    required this.name,
+    this.ingredient = '',
+    this.strength = '',
+    this.form = '',
+    this.imageUrl = '',
+    this.optional = false,
+    this.instructions = '',
+  });
+
+  final String id;
+  final String name;
+  final String ingredient;
+  final String strength;
+  final String form;
+  final String imageUrl;
+  final bool optional;
+  final String instructions;
+
+  PharmacyPackageProduct copyWith({
+    String? name,
+    String? ingredient,
+    String? strength,
+    String? form,
+    String? imageUrl,
+    bool? optional,
+    String? instructions,
+    bool clearImage = false,
+  }) {
+    return PharmacyPackageProduct(
+      id: id,
+      name: name ?? this.name,
+      ingredient: ingredient ?? this.ingredient,
+      strength: strength ?? this.strength,
+      form: form ?? this.form,
+      imageUrl: clearImage ? '' : (imageUrl ?? this.imageUrl),
+      optional: optional ?? this.optional,
+      instructions: instructions ?? this.instructions,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'ingredient': ingredient,
+        'strength': strength,
+        'form': form,
+        'imageUrl': imageUrl,
+        'optional': optional,
+        'instructions': instructions,
+      };
+
+  factory PharmacyPackageProduct.fromMap(Map<String, dynamic> m) =>
+      PharmacyPackageProduct(
+        id: m['id']?.toString() ?? '',
+        name: m['name']?.toString() ?? m['title']?.toString() ?? '',
+        ingredient: m['ingredient']?.toString() ?? '',
+        strength: m['strength']?.toString() ?? '',
+        form: m['form']?.toString() ?? '',
+        imageUrl: m['imageUrl']?.toString() ?? '',
+        optional: m['optional'] == true,
+        instructions: m['instructions']?.toString() ?? '',
+      );
+}
+
 class PharmacyBundle {
   const PharmacyBundle({
     required this.id,
@@ -12,9 +80,16 @@ class PharmacyBundle {
     this.imageUrl = '',
     this.isPopular = true,
     this.isVisible = true,
+    this.showOnHome = false,
+    this.displayOrder = 0,
     this.supplements = const [],
     this.optionalSupplements = const [],
+    this.products = const [],
     this.note = '',
+    this.categoryId = '',
+    this.templateId = '',
+    this.pharmacistReviewed = false,
+    this.description = '',
   });
 
   final String id;
@@ -24,15 +99,59 @@ class PharmacyBundle {
   final int oldPrice;
   final String icon; // emoji fallback
   final String imageUrl;
-  /// تظهر في شريط «الأكثر رواجاً» على صفحة الصيدلية.
+  /// مميزة / شريط الصفحة (مثل is_featured للمختبر).
   final bool isPopular;
   /// إن false: مخفية عن الزبون، ظاهرة للإدارة فقط.
   final bool isVisible;
+  /// اختيار الإدارة لعرض الباقة في شريط صفحة الصيدلية.
+  final bool showOnHome;
+  /// ترتيب الظهور — الإدارة فقط.
+  final int displayOrder;
   final List<String> supplements;
   final List<String> optionalSupplements;
+  final List<PharmacyPackageProduct> products;
   final String note;
+  final String categoryId;
+  final String templateId;
+  final bool pharmacistReviewed;
+  final String description;
+
+  List<PharmacyPackageProduct> get resolvedProducts {
+    if (products.isNotEmpty) return products;
+    final out = <PharmacyPackageProduct>[];
+    var i = 0;
+    for (final name in supplements) {
+      if (name.trim().isEmpty) continue;
+      out.add(
+        PharmacyPackageProduct(
+          id: 'legacy_req_$i',
+          name: name.trim(),
+          ingredient: name.trim(),
+        ),
+      );
+      i++;
+    }
+    for (final name in optionalSupplements) {
+      if (name.trim().isEmpty) continue;
+      out.add(
+        PharmacyPackageProduct(
+          id: 'legacy_opt_$i',
+          name: name.trim(),
+          ingredient: name.trim(),
+          optional: true,
+        ),
+      );
+      i++;
+    }
+    return out;
+  }
 
   List<String> get allSupplementLines {
+    final fromProducts = [
+      for (final p in resolvedProducts)
+        if (p.name.trim().isNotEmpty) p.name.trim(),
+    ];
+    if (fromProducts.isNotEmpty) return fromProducts;
     final out = <String>[...supplements];
     for (final o in optionalSupplements) {
       if (!out.contains(o)) out.add(o);
@@ -49,9 +168,17 @@ class PharmacyBundle {
     String? imageUrl,
     bool? isPopular,
     bool? isVisible,
+    bool? showOnHome,
+    int? displayOrder,
     List<String>? supplements,
     List<String>? optionalSupplements,
+    List<PharmacyPackageProduct>? products,
     String? note,
+    String? categoryId,
+    String? templateId,
+    bool? pharmacistReviewed,
+    String? description,
+    bool clearImage = false,
   }) {
     return PharmacyBundle(
       id: id,
@@ -60,52 +187,95 @@ class PharmacyBundle {
       price: price ?? this.price,
       oldPrice: oldPrice ?? this.oldPrice,
       icon: icon ?? this.icon,
-      imageUrl: imageUrl ?? this.imageUrl,
+      imageUrl: clearImage ? '' : (imageUrl ?? this.imageUrl),
       isPopular: isPopular ?? this.isPopular,
       isVisible: isVisible ?? this.isVisible,
+      showOnHome: showOnHome ?? this.showOnHome,
+      displayOrder: displayOrder ?? this.displayOrder,
       supplements: supplements ?? this.supplements,
       optionalSupplements: optionalSupplements ?? this.optionalSupplements,
+      products: products ?? this.products,
       note: note ?? this.note,
+      categoryId: categoryId ?? this.categoryId,
+      templateId: templateId ?? this.templateId,
+      pharmacistReviewed: pharmacistReviewed ?? this.pharmacistReviewed,
+      description: description ?? this.description,
     );
   }
 
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'title': title,
-        'subtitle': subtitle,
-        'price': price,
-        'oldPrice': oldPrice,
-        'icon': icon,
-        'imageUrl': imageUrl,
-        'isPopular': isPopular,
-        'isVisible': isVisible,
-        'supplements': supplements,
-        'optionalSupplements': optionalSupplements,
-        'note': note,
-      };
+  Map<String, dynamic> toMap() {
+    final resolved = resolvedProducts;
+    return {
+      'id': id,
+      'title': title,
+      'subtitle': subtitle,
+      'price': price,
+      'oldPrice': oldPrice,
+      'icon': icon,
+      'imageUrl': imageUrl,
+      'isPopular': isPopular,
+      'isVisible': isVisible,
+      'showOnHome': showOnHome,
+      'displayOrder': displayOrder,
+      'supplements': [
+        for (final p in resolved)
+          if (!p.optional && p.name.trim().isNotEmpty) p.name.trim(),
+      ],
+      'optionalSupplements': [
+        for (final p in resolved)
+          if (p.optional && p.name.trim().isNotEmpty) p.name.trim(),
+      ],
+      'products': [for (final p in resolved) p.toMap()],
+      'note': note,
+      'categoryId': categoryId,
+      'templateId': templateId,
+      'pharmacistReviewed': pharmacistReviewed,
+      'description': description,
+    };
+  }
 
-  factory PharmacyBundle.fromMap(Map<String, dynamic> m) => PharmacyBundle(
-        id: m['id']?.toString() ?? '',
-        title: m['title']?.toString() ?? '',
-        subtitle: m['subtitle']?.toString() ?? '',
-        price: (m['price'] as num?)?.toInt() ?? 0,
-        oldPrice: (m['oldPrice'] as num?)?.toInt() ?? 0,
-        icon: m['icon']?.toString() ?? '',
-        imageUrl: m['imageUrl']?.toString() ?? '',
-        isPopular: m['isPopular'] != false,
-        isVisible: m['isVisible'] != false,
-        supplements: (m['supplements'] as List?)
-                ?.map((e) => e.toString())
-                .where((e) => e.trim().isNotEmpty)
-                .toList() ??
-            const [],
-        optionalSupplements: (m['optionalSupplements'] as List?)
-                ?.map((e) => e.toString())
-                .where((e) => e.trim().isNotEmpty)
-                .toList() ??
-            const [],
-        note: m['note']?.toString() ?? '',
-      );
+  factory PharmacyBundle.fromMap(Map<String, dynamic> m) {
+    final rawProducts = m['products'];
+    final products = <PharmacyPackageProduct>[];
+    if (rawProducts is List) {
+      for (final row in rawProducts) {
+        if (row is Map) {
+          products.add(
+            PharmacyPackageProduct.fromMap(Map<String, dynamic>.from(row)),
+          );
+        }
+      }
+    }
+    return PharmacyBundle(
+      id: m['id']?.toString() ?? '',
+      title: m['title']?.toString() ?? '',
+      subtitle: m['subtitle']?.toString() ?? '',
+      price: (m['price'] as num?)?.toInt() ?? 0,
+      oldPrice: (m['oldPrice'] as num?)?.toInt() ?? 0,
+      icon: m['icon']?.toString() ?? '',
+      imageUrl: m['imageUrl']?.toString() ?? '',
+      isPopular: m['isPopular'] != false,
+      isVisible: m['isVisible'] != false,
+      showOnHome: m['showOnHome'] == true,
+      displayOrder: int.tryParse('${m['displayOrder'] ?? 0}') ?? 0,
+      supplements: (m['supplements'] as List?)
+              ?.map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList() ??
+          const [],
+      optionalSupplements: (m['optionalSupplements'] as List?)
+              ?.map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList() ??
+          const [],
+      products: products,
+      note: m['note']?.toString() ?? '',
+      categoryId: m['categoryId']?.toString() ?? '',
+      templateId: m['templateId']?.toString() ?? '',
+      pharmacistReviewed: m['pharmacistReviewed'] == true,
+      description: m['description']?.toString() ?? '',
+    );
+  }
 }
 
 class PharmacyItem {
@@ -131,6 +301,7 @@ class PharmacyItem {
     this.longitude,
     this.isActive = true,
     this.social = EntitySocialLinks.empty,
+    this.contentRevision = 1,
   });
 
   final String id;
@@ -156,6 +327,7 @@ class PharmacyItem {
   final double? longitude;
   final bool isActive;
   final EntitySocialLinks social;
+  final int contentRevision;
 
   PharmacyItem copyWith({
     String? name,
@@ -178,6 +350,7 @@ class PharmacyItem {
     double? longitude,
     bool? isActive,
     EntitySocialLinks? social,
+    int? contentRevision,
   }) {
     return PharmacyItem(
       id: id,
@@ -201,6 +374,7 @@ class PharmacyItem {
       longitude: longitude ?? this.longitude,
       isActive: isActive ?? this.isActive,
       social: social ?? this.social,
+      contentRevision: contentRevision ?? this.contentRevision,
     );
   }
 
@@ -225,6 +399,7 @@ class PharmacyItem {
         'latitude': latitude,
         'longitude': longitude,
         'isActive': isActive,
+        'contentRevision': contentRevision,
         ...social.toDbMap(),
       };
 
@@ -261,6 +436,7 @@ class PharmacyItem {
       longitude: (m['longitude'] as num?)?.toDouble(),
       isActive: m['isActive'] != false,
       social: EntitySocialLinks.fromMap(m),
+      contentRevision: int.tryParse('${m['contentRevision'] ?? m['content_revision'] ?? 1}') ?? 1,
     );
   }
 }
@@ -324,7 +500,7 @@ class PharmaciesCatalog {
     return out;
   }
 
-  /// شريط الصفحة: الأكثر رواجاً الظاهرة فقط (حد أقصى 5).
+  /// شريط صفحة الصيدلية: مثل باقات المختبر (showOnHome / مميزة)، ثم الكل مرتّباً.
   static const int stripPopularLimit = 5;
 
   static List<PharmacyBundle> visibleOnly(List<PharmacyBundle> all) => [
@@ -334,8 +510,12 @@ class PharmaciesCatalog {
 
   static List<PharmacyBundle> popularForStrip(List<PharmacyBundle> all) {
     final visible = visibleOnly(all);
-    final popular = visible.where((b) => b.isPopular).toList();
-    final source = popular.isNotEmpty ? popular : visible;
+    final flagged = visible.where((b) => b.isPopular || b.showOnHome).toList()
+      ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    final source = flagged.isNotEmpty
+        ? flagged
+        : (List<PharmacyBundle>.of(visible)
+          ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder)));
     if (source.length <= stripPopularLimit) return source;
     return source.take(stripPopularLimit).toList(growable: false);
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../patient_health/patient_health_gate.dart';
 import '../companion/personal_companion_profile.dart';
 import '../companion/personal_profile_foundation.dart';
 import '../services/user_profile_service.dart';
@@ -265,6 +266,31 @@ class _SettingsPageState extends State<SettingsPage> {
                       subtitle: Text(_sexLabel),
                       trailing: const Icon(Icons.edit_rounded),
                       onTap: _editSex,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFE6F8F6),
+                        child: Icon(Icons.favorite_outline, color: teal),
+                      ),
+                      title: const Text(
+                        'ملفي الصحي',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      subtitle: const Text(
+                        'دفتر متابعة خاص بك. التصفح يبقى بدون تسجيل.',
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PatientHealthGate(),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 10),

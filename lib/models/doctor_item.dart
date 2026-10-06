@@ -36,6 +36,7 @@ class DoctorItem {
   /// '' | male | female — فارغ = صياغة مذكر (السلوك الحالي).
   final String gender;
   final EntitySocialLinks social;
+  final int contentRevision;
 
   const DoctorItem({
     required this.name,
@@ -69,9 +70,63 @@ class DoctorItem {
     this.notificationsEnabled = true,
     this.gender = DoctorGender.unspecified,
     this.social = EntitySocialLinks.empty,
+    this.contentRevision = 1,
   });
 
   bool get isFemale => DoctorGender.isFemale(gender);
+
+  DoctorItem copyWith({
+    String? name,
+    String? specialty,
+    String? location,
+    bool? available,
+    String? phone,
+    String? whatsapp,
+    String? imageUrl,
+    String? bio,
+    String? services,
+    String? shortDescription,
+    String? workingDays,
+    String? workingHours,
+    String? bookingStatus,
+    int? contentRevision,
+  }) {
+    final nextStatus = bookingStatus ?? this.bookingStatus;
+    return DoctorItem(
+      name: name ?? this.name,
+      specialty: specialty ?? this.specialty,
+      location: location ?? this.location,
+      available: available ?? nextStatus == 'available',
+      phone: phone ?? this.phone,
+      whatsapp: whatsapp ?? this.whatsapp,
+      imageUrl: imageUrl ?? this.imageUrl,
+      id: id,
+      ghadeerBadge: ghadeerBadge,
+      bio: bio ?? this.bio,
+      services: services ?? this.services,
+      shortDescription: shortDescription ?? this.shortDescription,
+      workingDays: workingDays ?? this.workingDays,
+      workingHours: workingHours ?? this.workingHours,
+      bookingStatus: nextStatus,
+      absenceFrom: absenceFrom,
+      absenceTo: absenceTo,
+      consultationFee: consultationFee,
+      showCallButton: showCallButton,
+      showWhatsAppButton: showWhatsAppButton,
+      showBookingButton: showBookingButton,
+      yearsExperience: yearsExperience,
+      patientsServed: patientsServed,
+      profileViews: profileViews,
+      languages: languages,
+      qualifications: qualifications,
+      ageGroup: ageGroup,
+      profileQuote: profileQuote,
+      notificationsEnabled: notificationsEnabled,
+      gender: gender,
+      social: social,
+      contentRevision: contentRevision ?? this.contentRevision,
+    );
+  }
 
   factory DoctorItem.fromMap(Map<String, dynamic> data) {
     return DoctorItem(
@@ -114,6 +169,7 @@ class DoctorItem {
       ),
       gender: DoctorGender.normalize(data['gender']?.toString()),
       social: EntitySocialLinks.fromMap(data),
+      contentRevision: int.tryParse('${data['content_revision'] ?? 1}') ?? 1,
     );
   }
 }

@@ -5,19 +5,23 @@
 /// Does NOT start V2. Does NOT touch macOS Speech TCC gates.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghadeer_clinic/search/conversation/smart_brain_chat_models.dart';
 import 'package:ghadeer_clinic/search/conversation/smart_brain_chat_widgets.dart';
+import 'package:ghadeer_clinic/search/conversation/smart_brain_suggested_actions.dart';
 import 'package:ghadeer_clinic/search/query_input_source.dart';
 import 'package:ghadeer_clinic/search/smart_search_models.dart';
 import 'package:ghadeer_clinic/search/voice_contact_command.dart';
 import 'package:ghadeer_clinic/voice/conversation_context.dart';
+import 'package:ghadeer_clinic/voice/intent/assistant_intent.dart';
 import 'package:ghadeer_clinic/voice/intent/intent_resolver.dart';
 import 'package:ghadeer_clinic/voice/intent/smart_brain_fallback_policy.dart';
 import 'package:ghadeer_clinic/voice/intent/smart_brain_planner.dart';
+import 'package:ghadeer_clinic/nlu/nlu_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -315,17 +319,161 @@ void main() {
       expect(s.userTurns, 1);
     });
   });
+
+  group('Hours follow-up through conversation UI', () {
+    testWidgets(
+      'search → tap suggestion → open card → back → hours uses selected doctor',
+      (tester) async {
+        final session = ConversationUiSession(
+          clinicalEnabled: false,
+          doctors: [
+            ConversationUiFixtures.aliNasser,
+            ConversationUiFixtures.secondDoctor,
+          ],
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: _ConversationUiShell(session: session),
+            ),
+          ),
+        );
+
+        await tester.enterText(
+          find.byKey(const Key('smart_brain_composer_field')),
+          'أريد طبيب أطفال',
+        );
+        await tester.tap(find.byKey(const Key('smart_brain_send')));
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        expect(session.conversation.currentResultContext?.items.length, 2);
+        expect(find.byType(ActionChip), findsWidgets);
+        expect(find.textContaining('تخفيف شرط'), findsNothing);
+
+        final aliChip = find.byWidgetPredicate(
+          (w) =>
+              w is ActionChip &&
+              w.key is ValueKey<String> &&
+              (w.key! as ValueKey<String>).value.contains('doc-ali-nasser'),
+        );
+        expect(aliChip, findsOneWidget);
+        await tester.tap(aliChip);
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        expect(session.conversation.selectedDoctor?.doctorId, 'doc-ali-nasser');
+        expect(session.openedProfileIds, contains('doc-ali-nasser'));
+
+        session.simulateReturnFromProfile();
+        await tester.pump();
+        expect(session.conversation.selectedDoctor?.doctorId, 'doc-ali-nasser');
+        expect(
+          session.conversation.currentResultContext?.items.length,
+          greaterThanOrEqualTo(1),
+        );
+
+        await tester.enterText(
+          find.byKey(const Key('smart_brain_composer_field')),
+          'شنو دوامه',
+        );
+        await tester.tap(find.byKey(const Key('smart_brain_send')));
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        final hoursTurn = session.turns.last;
+        expect(hoursTurn.text.contains('ما لقيت'), isFalse, reason: hoursTurn.text);
+        expect(hoursTurn.text.contains('تخفيف شرط'), isFalse);
+        expect(
+          hoursTurn.text.contains('دوام') ||
+              hoursTurn.text.contains('معلومة مؤكدة'),
+          isTrue,
+          reason: hoursTurn.text,
+        );
+        expect(session.conversation.selectedDoctor?.doctorId, 'doc-ali-nasser');
+        expect(find.textContaining('تخفيف شرط'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'hours before selection asks which doctor then answers pending',
+      (tester) async {
+        final session = ConversationUiSession(
+          clinicalEnabled: false,
+          doctors: [
+            ConversationUiFixtures.aliNasser,
+            ConversationUiFixtures.secondDoctor,
+          ],
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: _ConversationUiShell(session: session),
+            ),
+          ),
+        );
+
+        await tester.enterText(
+          find.byKey(const Key('smart_brain_composer_field')),
+          'أريد طبيب أطفال',
+        );
+        await tester.tap(find.byKey(const Key('smart_brain_send')));
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        await tester.enterText(
+          find.byKey(const Key('smart_brain_composer_field')),
+          'شنو دوامه',
+        );
+        await tester.tap(find.byKey(const Key('smart_brain_send')));
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        expect(
+          session.turns.last.text.contains('تقصد أي طبيب'),
+          isTrue,
+          reason: session.turns.last.text,
+        );
+        expect(session.conversation.currentResultContext?.items.length, 2);
+        expect(session.conversation.pendingClarification, isNotNull);
+        expect(find.textContaining('تخفيف شرط'), findsNothing);
+
+        expect(session.lastSuggestions, isNotEmpty);
+        final select = session.lastSuggestions.firstWhere(
+          (a) =>
+              a.kind == SmartBrainSuggestedActionKind.selectOrdinal &&
+              a.entityId == 'doc-ali-nasser',
+        );
+        final chip = find.byKey(Key('smart_brain_suggested_action_${select.id}'));
+        expect(chip, findsOneWidget);
+        await tester.ensureVisible(chip);
+        await tester.pumpAndSettle();
+        await tester.tap(chip);
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        final answer = session.turns.last.text;
+        expect(answer.contains('تقصد أي طبيب'), isFalse, reason: answer);
+        expect(answer.contains('ما لقيت'), isFalse, reason: answer);
+        expect(
+          answer.contains('دوام') || answer.contains('معلومة مؤكدة'),
+          isTrue,
+          reason: answer,
+        );
+        expect(session.conversation.selectedDoctor?.doctorId, isNotNull);
+        expect(session.conversation.pendingClarification, isNull);
+      },
+    );
+  });
 }
 
 class ConversationUiFixtures {
   static final aliNasser = SmartSearchResult(
     type: SmartSearchResultType.doctor,
-    title: 'د. علي ناصر',
+    title: 'د. علي ناصر السعيدي',
     subtitle: 'أطفال',
     doctorId: 'doc-ali-nasser',
     specialty: 'أطفال',
     phone: '07701112233',
     clinicLocation: 'الكرادة',
+    workingHours: 'السبت: مساءً',
+    workingDays: 'السبت، الأحد',
     score: 98,
   );
 
@@ -337,6 +485,8 @@ class ConversationUiFixtures {
     specialty: 'أطفال',
     phone: '07704445566',
     clinicLocation: 'المنصور',
+    workingHours: 'الأحد: صباحًا',
+    workingDays: 'الأحد',
     score: 90,
   );
 }
@@ -346,6 +496,7 @@ class ConversationUiSession {
   ConversationUiSession({
     List<SmartSearchResult>? doctors,
     this.forceErrorMirror = false,
+    bool clinicalEnabled = true,
   })  : conversation = ConversationContext(),
         _docs = doctors ?? [ConversationUiFixtures.aliNasser] {
     _doctorLookup = (q) async {
@@ -361,12 +512,15 @@ class ConversationUiSession {
                 n.contains('ناصر') ||
                 n.contains('طبيب') ||
                 n.contains('دكتور') ||
-                n.contains('أطفال'),
+                n.contains('أطفال') ||
+                n.contains('اطفال'),
           )
           .toList();
     };
     _planner = SmartBrainPlanner(
       intentResolver: RuleBasedIntentResolver(),
+      nluClient: NluClient.disabled,
+      clinicalEnabled: clinicalEnabled,
       doctorLookup: _doctorLookup,
       labLookup: (_) async => const [],
       analysisLookup: (_) async => const [],
@@ -398,6 +552,10 @@ class ConversationUiSession {
   bool crashedPage = false;
   QueryInputSource? lastSource;
 
+  final List<String> openedProfileIds = [];
+  List<SmartBrainSuggestedAction> lastSuggestions = const [];
+  int profileReturnCount = 0;
+
   SmartBrainPlanner get planner => _planner;
 
   int get assistantTurnsBeyondWelcome => turns
@@ -425,23 +583,57 @@ class ConversationUiSession {
         throw StateError('forced failure');
       }
       final plan = await _planner.plan(query: trimmed, context: conversation);
+      final availabilityFollowUp =
+          plan.intentResult.intent == AssistantIntent.doctorAvailability;
       var text = plan.message.trim();
       var results = <SmartSearchResult>[
         if (plan.target != null) plan.target!,
         ...plan.candidates,
       ];
 
-      if (results.isEmpty) {
-        final docs = await _doctorLookup(trimmed);
+      final isSearchKind = plan.kind == AssistantActionKind.runSpecialtySearch ||
+          plan.kind == AssistantActionKind.runDoctorSearch ||
+          plan.kind == AssistantActionKind.runGeneralSearch;
+
+      if (results.isEmpty && isSearchKind) {
+        final needle = plan.specialtyQuery ?? plan.doctorQuery ?? trimmed;
+        final docs = await _doctorLookup(needle);
         if (docs.isNotEmpty) {
           results = docs;
-          conversation.rememberResults(docs, query: trimmed);
+          conversation.rememberResults(
+            docs,
+            query: trimmed,
+            intent: plan.intentResult.intent,
+          );
           text = docs.length == 1
               ? 'لقيت ${docs.first.title}.'
               : 'لقيت ${docs.length} نتائج قريبة من طلبك.';
         }
-      } else {
-        conversation.rememberResults(results, query: trimmed);
+      } else if (isSearchKind && results.isNotEmpty) {
+        conversation.rememberResults(
+          results,
+          query: trimmed,
+          intent: plan.intentResult.intent,
+        );
+      } else if (plan.kind == AssistantActionKind.showClarification &&
+          plan.candidates.isNotEmpty) {
+        results = plan.candidates;
+      } else if (plan.target != null) {
+        conversation.selectEntity(plan.target!);
+        if (plan.kind == AssistantActionKind.openProfile) {
+          final id = (plan.target!.doctorId ?? '').trim();
+          if (id.isNotEmpty) openedProfileIds.add(id);
+        }
+        if (results.isEmpty) {
+          results = conversation.currentResultContext?.items ?? const [];
+        }
+      }
+
+      if (!availabilityFollowUp &&
+          results.isEmpty &&
+          !isSearchKind &&
+          conversation.currentResultContext != null) {
+        results = conversation.currentResultContext!.items;
       }
 
       if (text.isEmpty) {
@@ -466,9 +658,29 @@ class ConversationUiSession {
         text = mirrored;
       }
 
-      return _commitAssistant(text: text, results: results);
+      final bundle = SmartBrainSuggestedActionsBuilder.suggest(
+        context: conversation,
+        presented: results,
+        lastIntent: plan.intentResult.intent,
+        planKind: plan.kind,
+        lastQuery: trimmed,
+        lastMessage: text,
+        maxActions: 3,
+      );
+      lastSuggestions = bundle.actions;
+      final lead = (bundle.leadText ?? '').trim();
+      if (lead.isNotEmpty && !text.contains(lead)) {
+        text = text.isEmpty ? lead : '$text\n$lead';
+      }
+
+      return _commitAssistant(
+        text: text,
+        results: results,
+        suggestedActions: bundle.actions,
+      );
     } catch (_) {
       crashedPage = false;
+      lastSuggestions = const [];
       return _commitAssistant(
         text: 'تعذّر إكمال الطلب. المحادثة ما زالت شغّالة.',
         results: const [],
@@ -476,9 +688,49 @@ class ConversationUiSession {
     }
   }
 
+  Future<void> tapSuggestion(SmartBrainSuggestedAction action) async {
+    final eid = (action.entityId ?? '').trim();
+    if (eid.isNotEmpty) {
+      final pool = <SmartSearchResult>[
+        ...?conversation.currentResultContext?.items,
+        ..._docs,
+        if (action.result != null) action.result!,
+      ];
+      SmartSearchResult? match;
+      for (final r in pool) {
+        if ((r.doctorId ?? '').trim() == eid) {
+          match = r;
+          break;
+        }
+      }
+      match ??= action.result;
+      if (match != null) {
+        conversation.selectEntity(match);
+      }
+    }
+
+    if (action.kind == SmartBrainSuggestedActionKind.openDetails) {
+      final id = (conversation.selectedDoctor?.doctorId ??
+              action.result?.doctorId ??
+              '')
+          .trim();
+      if (id.isNotEmpty) openedProfileIds.add(id);
+    }
+
+    final q = (action.executionQuery ?? '').trim();
+    if (q.isNotEmpty) {
+      await submit(q, source: QueryInputSource.system);
+    }
+  }
+
+  void simulateReturnFromProfile() {
+    profileReturnCount++;
+  }
+
   SmartBrainChatTurn _commitAssistant({
     required String text,
     required List<SmartSearchResult> results,
+    List<SmartBrainSuggestedAction> suggestedActions = const [],
   }) {
     turns.removeWhere((t) => t.isThinking);
     // Deduplicate: never append two assistant replies for one user turn.
@@ -489,6 +741,7 @@ class ConversationUiSession {
       id: 'a_$assistantCommits',
       text: text,
       results: results,
+      suggestedActions: suggestedActions,
     );
     turns.add(turn);
     return turn;
@@ -532,19 +785,34 @@ class _ConversationUiShellState extends State<_ConversationUiShell> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
+            child: SingleChildScrollView(
               key: const Key('smart_brain_chat_list'),
-              itemCount: turns.length,
-              itemBuilder: (context, index) {
-                final turn = turns[index];
-                if (turn.role == SmartBrainChatRole.user) {
-                  return SmartBrainUserBubble(text: turn.text);
-                }
-                return SmartBrainAssistantBubble(
-                  turn: turn,
-                  onResultTap: (_) {},
-                );
-              },
+              child: Column(
+                children: [
+                  for (final turn in turns)
+                    if (turn.role == SmartBrainChatRole.user)
+                      SmartBrainUserBubble(text: turn.text)
+                    else
+                      SmartBrainAssistantBubble(
+                        turn: turn,
+                        onResultTap: (item) {
+                          widget.session.conversation.selectEntity(item);
+                          final id = (item.doctorId ?? '').trim();
+                          if (id.isNotEmpty) {
+                            widget.session.openedProfileIds.add(id);
+                          }
+                        },
+                        onSuggestedAction: (action) {
+                          unawaited(() async {
+                            setState(() => _loading = true);
+                            await widget.session.tapSuggestion(action);
+                            if (!mounted) return;
+                            setState(() => _loading = false);
+                          }());
+                        },
+                      ),
+                ],
+              ),
             ),
           ),
           SmartBrainComposerBar(

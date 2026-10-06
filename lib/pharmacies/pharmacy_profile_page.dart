@@ -5,15 +5,15 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../home/ghadeer_home_colors.dart';
-import '../services/entity_access_pin_service.dart';
+import '../doctors/doctor_card_gate.dart';
+import '../doctors/doctor_card_tap.dart';
 import '../voice/entity_profile_speech.dart';
 import '../voice/voice_response_controller.dart';
-import '../widgets/entity_access_pin_gate.dart';
 import '../widgets/entity_contact_actions.dart';
 import '../widgets/entity_speak_button.dart';
 import 'pharmacy_all_bundles_page.dart';
 import 'pharmacy_bundle_detail_sheet.dart';
-import 'pharmacy_bundles_manage_page.dart';
+import 'pharmacy_owner_editor_page.dart';
 import 'pharmacy_custom_bundle_page.dart';
 import 'pharmacy_fit_image.dart';
 import 'pharmacy_models.dart';
@@ -163,8 +163,8 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
               color: GhadeerHomeColors.pharmacyTitle,
             ),
             Expanded(
-              child: StaffTripleTap(
-                // مخفي عن المستخدم العادي — 3 ضغطات على عنوان «الصيدلية»
+              child: DoctorCardTripleTap(
+                tapCount: 5,
                 onTripleTap: _openBundlesManage,
                 child: const Text(
                   'الصيدلية',
@@ -419,9 +419,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
   }
 
   List<PharmacyBundle> get _allBundles {
-    final raw = _p.bundles.isEmpty
-        ? PharmaciesCatalog.items.first.bundles
-        : _p.bundles;
+    final raw = _p.bundles;
     return PharmaciesCatalog.visibleOnly(
       PharmaciesCatalog.mergeWithCatalog(raw),
     );
@@ -521,9 +519,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
   }
 
   Widget _bundlesStrip() {
-    final raw = _p.bundles.isEmpty
-        ? PharmaciesCatalog.items.first.bundles
-        : _p.bundles;
+    final raw = _p.bundles;
     final bundles = PharmaciesCatalog.popularForStrip(
       PharmaciesCatalog.mergeWithCatalog(raw),
     );
@@ -851,16 +847,20 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
   }
 
   Future<void> _openBundlesManage() async {
-    final ok = await openEntityAccessPinGate(
+    final session = await showEntityOwnerSession(
       context,
-      entityKey: EntityAccessPinService.pharmacyKey(_p.id),
-      entityTitle: _p.name,
+      entityType: 'pharmacy',
+      entityId: _p.id,
+      title: _p.name,
     );
-    if (!ok || !mounted) return;
+    if (session == null || !mounted) return;
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => PharmacyBundlesManagePage(pharmacyId: _p.id),
+        builder: (_) => PharmacyOwnerEditorPage(
+          pharmacy: _p,
+          session: session,
+        ),
       ),
     );
   }

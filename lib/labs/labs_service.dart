@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../doctors/doctor_admin_persist.dart';
 import '../models/lab_models.dart';
+import '../services/content_conflict.dart';
 import 'package_image_library.dart';
 import 'package_templates.dart';
 
@@ -78,16 +79,24 @@ class LabsService {
               await _client.from('labs').insert(payload).select().single();
           return LabItem.fromMap(Map<String, dynamic>.from(row));
         }
+        payload['content_revision'] = lab.contentRevision + 1;
         final row = await _client
             .from('labs')
             .update(payload)
             .eq('id', existingId)
+            .eq('content_revision', lab.contentRevision)
             .select()
-            .single();
+            .maybeSingle();
+        if (row == null) throw const ContentConflictException();
         return LabItem.fromMap(Map<String, dynamic>.from(row));
       } on PostgrestException catch (e) {
         if (e.code != 'PGRST204') rethrow;
         final missing = missingDoctorColumnFromPostgrest(e.message);
+        if (missing == 'content_revision') {
+          throw StateError(
+            'عمود نسخة الحفظ غير موجود. نفّذ entity_content_revision.sql',
+          );
+        }
         if (missing == null || !payload.containsKey(missing)) rethrow;
         payload.remove(missing);
         debugPrint('labs upsertLab: stripped missing column $missing');
@@ -272,16 +281,19 @@ class LabsService {
           await _client.from('lab_packages').insert(payload).select().single(),
         );
       } else {
-        row = Map<String, dynamic>.from(
-          await _client
-              .from('lab_packages')
-              .update(payload)
-              .eq('id', existingId)
-              .select()
-              .single(),
-        );
+        payload['content_revision'] = package.contentRevision + 1;
+        final updated = await _client
+            .from('lab_packages')
+            .update(payload)
+            .eq('id', existingId)
+            .eq('content_revision', package.contentRevision)
+            .select()
+            .maybeSingle();
+        if (updated == null) throw const ContentConflictException();
+        row = Map<String, dynamic>.from(updated);
       }
     } catch (e, st) {
+      if (e is ContentConflictException) rethrow;
       debugPrint('labs upsertPackage package-save error: $e\n$st');
       throw Exception(
         'فشل حفظ الباقة في lab_packages: ${formatLabSupabaseError(e)}',
@@ -348,17 +360,27 @@ class LabsService {
   }
 
   /// إخفاء/إظهار باقة للزبون — للإدارة وصاحب المختبر.
-  Future<void> setPackageActive(String packageId, bool isActive) async {
+  Future<void> setPackageActive(
+    String packageId,
+    bool isActive, {
+    required int baseRevision,
+  }) async {
     if (!isAuthenticated) {
       throw StateError(
         'يجب تسجيل دخول الإدارة قبل تغيير ظهور الباقة '
         '(RLS تمنع Update للمستخدم غير المسجّل).',
       );
     }
-    await _client
+    final updated = await _client
         .from('lab_packages')
-        .update({'is_active': isActive})
-        .eq('id', packageId);
+        .update({
+          'is_active': isActive,
+          'content_revision': baseRevision + 1,
+        })
+        .eq('id', packageId)
+        .eq('content_revision', baseRevision)
+        .select('id');
+    if ((updated as List).isEmpty) throw const ContentConflictException();
   }
 
   Future<List<String>> fetchKnownTestNames() async {

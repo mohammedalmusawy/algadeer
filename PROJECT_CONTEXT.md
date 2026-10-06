@@ -181,7 +181,7 @@ Status labels are based **only on repository evidence** in the working tree.
 ### Pharmacies — **PARTIAL**
 
 - Full public UI + local admin + bundles + WhatsApp + near-me
-- **Data is local only** (`pharmacies_local_v1` + `PharmaciesCatalog`) — no Supabase directory tables in `lib/pharmacies/`
+- Shared rows live in `public.pharmacies` after an administrator publishes them (§14). Device prefs remain a fallback. Package management is the single «الباقات» draft path (2026-10-04).
 - Profile still has «قريباً» for product filter / pharmacy offers
 - Favorite heart on profile is **session-only** (not persisted)
 - Wired into home grid + Smart Brain
@@ -225,10 +225,16 @@ Status labels are based **only on repository evidence** in the working tree.
 - Model `entity_social_links.dart`; SQL `entity_social_links_schema.sql` (untracked) alters doctors/labs/radiology
 - Pharmacies/physio/supplies carry social fields in local models / admin
 
-### Ads — **PARTIAL**
+### Ads — **IMPLEMENTED** (home placement; working tree 2026-10-04)
 
-- Admin + service + `HomeAdSlot` widget exist
-- **Home slot not wired** into current Phase 1 home UI (widget unused outside its file)
+- Admin CRUD + activate toggle + optional inbox notify on activate
+- Eligibility: `is_active` + UTC schedule (`starts_at`/`ends_at`; null end = no auto-expiry) + global impression cap + local per-user/day caps + renderable media
+- `display_seconds` = slide auto-hide only (not campaign length)
+- One eligible campaign shown per placement, highest `priority` first; badge label «إعلان»
+- `HomeAdSlot` wired into Phase 1 home (after Ask banner); pull-to-refresh + admin save/toggle/delete bump `AdsCatalogRefresh` so an open home reloads
+- Admin form placements `doctors`/`labs`/`radiology` exist in data model; **UI slot only wired for `home`**
+- Ads are **not** mixed into Smart Search ranking; paid placement is the labeled home slot only
+- Fake schedule/priority coverage: `test/ads_campaign_eligibility_test.dart` (no production campaign edits)
 
 ### Notifications — **IMPLEMENTED** (in-app only)
 
@@ -451,7 +457,7 @@ These are **progress labels in the dirty tree**, not Git commits titled M1–M7:
 
 ### Supported actions (via brain, not separate voice DSL)
 
-Search entities, ordinal select, refine list, call, WhatsApp, open profile/location, stop speaking, repeat last response, show more, help; booking = message only.
+Search entities, ordinal select, refine list, call, WhatsApp, open profile/location, stop speaking, repeat last response, show more, help, open «ملفي الصحي» / بطاقة المتابعة (gate + auth; no auto-share); booking = message only.
 
 ### Current voice configuration
 
@@ -532,8 +538,9 @@ Voice is an **input/output modality**. Business logic lives in Smart Brain + `Co
 
 - Public: read catalogs, write engagement/stats via RPCs where defined, local favorites
 - Admin: Supabase Auth session → CRUD on entities, notifications, ads, icons, dynamic messages
-- Entity PIN (local prefs): unlocks lab package admin / pharmacy bundle manage from public profile without full clinic admin login
-- Pharmacies/physio/supplies admin: **local device store** (not multi-device sync)
+- Entity PIN (local prefs) is retired from public entry points. It was not an approved access setting, so owner editing stays off until an administrator enables it. Do not copy the PIN store for new secrets.
+- Owner access (2026-10-02): doctor card 3 taps, laboratory and pharmacy cards 5 taps. Activation codes, permissions, and saves go through Edge Function `doctor-card-access` and `entity_owner_access`. The function is deployed on project `ployefiobsnqqahdwnkh`. The Flutter app itself is not published, and `main` is not merged. See §14.
+- Pharmacies: shared table `public.pharmacies` exists on the live project. Visitors see it only after the administrator publishes the device copy. Physio/supplies remain device-local.
 
 ### Images
 
@@ -614,9 +621,10 @@ Durable rules found in code:
 10. **Official sponsor:** single config value `GHADEER_OFFICIAL_SPONSOR`.
 11. **Favorites:** doctor favorites are the primary cross-app favorites tab.
 12. **Near-me:** geolocation optional; modules degrade with fallbacks rather than crashing.
-13. **Entity PIN:** local device secret; forgot-PIN path routes toward WhatsApp admin support from gate UI.
-14. **Ads frequency:** local cap store + server impression/click RPCs when ads are shown.
-15. **Package/order messages:** dedicated builders for lab package and pharmacy bundle WhatsApp text (parity tests).
+13. **Entity PIN:** local device secret for labs/pharmacies only; forgot-PIN path routes toward WhatsApp admin support. Doctor cards do not use this store.
+14. **Doctor card edit:** a doctor password edits only that card (photo, bio, services, schedule, booking phone/WhatsApp, booking status `available` / `walk_in_only` / `full`, and own password after the old one). Name, specialty, clinic address, hide, order, and delete stay with clinic admin. Admin password or the existing admin session can set/reset a doctor password. The password is handed to the doctor outside the app. Changes are public as soon as the trusted write succeeds; no approval queue.
+15. **Ads frequency:** local cap store + server impression/click RPCs when ads are shown.
+16. **Package/order messages:** dedicated builders for lab package and pharmacy bundle WhatsApp text (parity tests).
 
 ---
 
@@ -626,6 +634,7 @@ Durable rules found in code:
 
 - Client may contain **publishable** Supabase URL + anon/publishable key only
 - AI keys only on Edge (Deno env), never in Flutter
+- `DOCTOR_CARD_TOKEN_SECRET` is an Edge secret only. It signs doctor-card sessions. It must not be placed in the Flutter client, SharedPreferences, or logs. Doctor password hashes are not readable by `anon` or `authenticated`.
 - `AI_EDGE_FUNCTION_URL` empty ⇒ no AI network calls from client helpers that check the flag
 
 ### Environment variables
@@ -745,6 +754,163 @@ Large dirty/untracked expansion including:
 
 **Verification status of this dirty tree:** architecture and module presence confirmed by code inspection; **full test suite not re-run** for this document. Treat uncommitted work as **implemented in the tree but not yet a Git milestone**.
 
+### Owner access for doctors, laboratories, and pharmacies (2026-10-02, function deployed, app not published, not merged)
+
+Gestures only open a dialog: 3 taps on a doctor card, 5 taps on a laboratory or pharmacy card. Ordinary opening is delayed until the tap window ends. Call, WhatsApp, and favorite controls stay immediate.
+
+Trusted path: `supabase/functions/doctor-card-access` + `supabase/doctor_card_access_schema.sql` (`entity_owner_access`, `entity_owner_attempts`). Owner editing is off until an administrator enables that entity. Local PIN values are not migrated.
+
+- First enable issues a random activation code, shown once to the signed-in administrator with a copy button. It is bound to that entity, expires after 2 hours, and is single-use. A replacement or reset invalidates the previous code. The code is consumed only when the new password is saved.
+- After activation the owner signs in with a password only. Five failures of a password or a code lock that source for 5 minutes, with the remaining wait in Arabic. Another source is not locked.
+- Administrator controls sit in the existing editors: doctor form in `lib/main.dart`, laboratory form, and pharmacy edit page. Reset invalidates the password, code, and owner sessions, then issues a new code. The old password is never shown.
+- The existing administrator password still opens the entity dialog, checked by Supabase Auth on the function. It is not embedded in the client.
+- Owner saves publish immediately, but only for the permissions the administrator checked. Name, specialty, address, deletion, visibility, order, and access management stay administrator-only. A direct request with a forbidden field is rejected.
+- Laboratory package content, prices, tests, and visibility can be saved by an owner who has the packages permission. Display order, featured, and home placement stay administrator-only.
+- Pharmacy public catalog is `public.pharmacies`. The schema is applied on the live project. Owner patches merge into `profile` only after that row exists. Device prefs stay as a fallback and are not deleted. Admin publishes them with «نشر النسخة المحفوظة على هذا الجهاز». A local write does not replace a published row for visitors. See the pharmacy persistence note below.
+- Disabling access or changing permissions is checked again on the next save, including a session that was already open.
+
+**Live setup on project `ployefiobsnqqahdwnkh` (2026-10-02):**
+
+1. `supabase/doctor_card_access_schema.sql` — the SQL editor run did not leave `entity_owner_access` or `entity_owner_attempts` in the database. Saving owner permissions then returned HTTP 500 `PGRST205` (table absent from the API schema cache) and the app showed «تعذر إكمال الطلب. حاول لاحقًا.». The same file was applied once through the linked project after that check. `pharmacies_public_schema.sql` and `entity_content_revision.sql` were not run again. A test row was deleted afterwards.
+2. `supabase/pharmacies_public_schema.sql` — applied. The in-app button «نشر النسخة المحفوظة على هذا الجهاز» is still the step that fills the empty table.
+3. `supabase/entity_content_revision.sql` — applied after the pharmacies table existed. Not rerun.
+4. `DOCTOR_CARD_TOKEN_SECRET` was created once. Its value is not recorded in this file. Do not set it again unless the current tokens must be invalidated.
+5. `supabase functions deploy doctor-card-access` — deployed on `ployefiobsnqqahdwnkh` and redeployed after the access tables existed. The signed-in administrator session matched `is_clinic_admin()`. `admin_status` returned 200. `admin_configure` for a temporary entity returned 200 with the requested permission, then that row was deleted. `DOCTOR_CARD_TOKEN_SECRET` was left in place.
+6. Hosted `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_ANON_KEY` were already present and were left unchanged. `CLINIC_ADMIN_EMAIL` was not set; the function keeps the email in `is_clinic_admin()`.
+
+The Flutter web/mobile build is not published, and `main` is not merged. Manual card checks still use the local app.
+
+**Manual acceptance still open:** tap the live cards, enable one entity, copy the code, activate, fail five times, reset from the admin editor, change a permission while an editor is open, and upload an allowed image. Do this after the SQL and function are deployed.
+
+**Verification run on 2026-10-02 (local, not production):**
+
+- `deno test supabase/functions/doctor-card-access/policy_test.ts` — 16 passed, including both stale-save orders for doctors, pharmacies, laboratories, and packages. `deno check` on `index.ts` passed. Password change still requires the current password (existing test in that file).
+- `flutter test test/pharmacy_shared_catalog_test.dart` — 2 passed. After a successful shared fetch, a hidden or removed pharmacy is not restored from device prefs or the bundled catalog. Before that first fetch, local then bundled fallback still applies. An unpublished local-only pharmacy stays available to admin.
+- `flutter test test/doctor_card_access_test.dart` — 6 passed (3-tap and 5-tap counters, single tap still opens, triple tap does not, favorite and list drag do not open).
+- `flutter analyze` on the touched Dart files — no new issues. `main.dart` still reports its older infos (unused import, async context, deprecated dropdown value, extra underscores).
+- Full `flutter test` was not re-run. `main` was not merged, and the Flutter application was not published. The three SQL files and the `doctor-card-access` function were applied later the same day; see the live setup list above.
+
+### Pharmacy package editor (2026-10-02)
+
+Progressive Arabic RTL editor (`PharmacyPackageFormPage`): Category → Template → Products → Details → Review/Save. Saved packages stay on `PharmacyBundlesManagePage` separate from creation. Local suggestion catalog `pharmacy_package_suggestions.dart` (version 1): 6 categories, 12 templates, 13 vitamins + minerals/multivitamin/omega-3/probiotic; NIH ODS consumer fact-sheet URLs + `reviewedOn`. Templates never auto-select all ingredients. Pharmacist review checkbox required before publish. Package cover + per-product images via `uploadPharmacyAsset` (`asset_only`) when owner has `image` / `products` / `packages_add` / `packages_edit`. Separate owner permissions `packages_add` / `packages_edit` / `packages_delete` (plus legacy `products` = full). Server enforces via `pharmacyBundlesPermissionDenied` on every update (fresh `loadAccess`). Empty public pharmacy page after shared load with no active rows: messaging + admin publish CTA; does not unhide inactive pharmacies.
+
+Tests: `pharmacy_package_suggestions_test.dart`, `pharmacy_package_editor_test.dart`, `pharmacy_shared_catalog_test.dart`. Policy tests for package CRUD added to `policy_test.ts` (deno not available in this agent run — re-run locally). Edge function must be redeployed for permission enforcement; no new SQL migration required for this editor step.
+
+### Pharmacy packages — single «الباقات» path (2026-10-04)
+
+The package tools are no longer spread through the pharmacy form. Admin and owner editors keep the basic pharmacy fields and open packages from one button, «الباقات». Inside: saved packages, then «إضافة باقة», then a suggested package, then an editor that lists only that template’s items. Choosing a template copies names into a draft. It does not write doses, therapeutic claims, or the template’s caution text, and it does not change the template or previously saved packages. The pharmacist can accept the names, delete or rename an item, edit its description, add an item, and set the package name, description, image, price, and optional previous price. Nothing is stored until «حفظ الباقة». Cancel returns no bundle. Add, edit, delete, show, and hide stay, with the same `packages_add` / `packages_edit` / `packages_delete` / `products` permissions.
+
+### Patient health file — «ملفي الصحي» (2026-10-04)
+
+Browsing doctors, labs, radiology, and pharmacies stays open without an account. Booking on a doctor card is still contact guidance (call/WhatsApp); it does not ask for a new login. «ملفي الصحي» is on the settings page and uses Supabase Auth email/password. The clinic admin email cannot be used as a patient account.
+
+Password recovery and email confirmation for patients use `#/patient-health`. Admin recovery uses `#/admin-recovery`. Those two redirects stay separate. Opening a recovery link still routes by email: admin email → admin password page, any other email → patient password page. After confirmation, a `#/patient-health` return opens the patient gate.
+
+The patient can record more than one diagnosed condition (pressure, diabetes, thalassemia, or another chronic condition), pressure readings, glucose readings with unit and timing, and thalassemia appointments, transfusions, and lab results they type in. The screen says the patient entered the data. There is no automatic treatment schedule, no shared targets, and no automatic medical alerts. Validation only rejects impossible numbers, units, and dates, including Arabic digits.
+
+«عرض بطاقة المتابعة» lets the patient pick one condition, a period, which parts to include, and whether to show their name. Images and attachments are **not** included unless the patient turns on «تضمين الصور والمرفقات» and ticks each file. The export preview shows those chosen images. PDF is the Arabic card page followed by one contained page per selected image. The image export shares the card PNG plus each selected image as separate files; if the share sheet fails, each file is downloaded or saved locally. A selected image that fails to load is named before export and the export is aborted. The share step still warns that the copy cannot be pulled back from the recipient’s device. No public health-file URL is created. In the health file, an attachment shows a tappable thumbnail and opens a zoomable viewer (loading and error states included); bytes stay private in `patient-health` and are read only by the owner.
+
+Schema applied on the live project (2026-10-04, by the owner): `supabase/patient_health_file_schema.sql` and `supabase/security_harden_zero_impact.sql`. Do not re-run those two files. The six patient tables have RLS enabled and forced; bucket `patient-health` is private.
+
+Hardening SQL and Edge Function `patient-account` were corrected after review (2026-10-04): trigger `patient_user_id_immutable` sets `search_path = public`; deletion lists `patient-health` with pagination and nested folders, then deletes **exact listed names** in batches of 1000 (not a folder prefix and not SQL `storage.objects`). Empty listings skip Storage DELETE. The review note said composite FKs/triggers and function version 2 may already be on the live project — **do not blindly re-run** `patient_health_hardening.sql`. SMTP, redirect URLs, and real account-deletion acceptance remain external. `main` was not merged and the site was not published.
+
+### App icon write and doctor photo upload (recorded 2026-10-04)
+
+Live corrections, documented in project SQL (do not re-run the already-applied harden file; `admin_write_policy_correction.sql` is review-only):
+
+1. **App icons** — `app_ui_icons_auth_write` is `is_clinic_admin()` in `app_ui_icons_schema.sql` and in `security_harden_zero_impact.sql`. Storage folder `ui_icons/` is admin-only.
+2. **Doctor photos** — the hosted policy named `Admin upload doctor images 5uiklb_0` was restricted to `is_clinic_admin()`. The same rule is recorded in `supabase/admin_write_policy_correction.sql` (drop that dashboard name, keep `clinic_media_doctors_auth_insert` admin-only). An enabled doctor with the `image` permission still uploads through `doctor-card-access` (`upload_photo` → Storage API → `doctors/{that id}/`). After the image permission is removed, that path returns 403. Booking status `available` / `walk_in_only` / `full` is the same owner field path; admin may also set `unavailable`.
+
+External setup still required before email confirmation and password recovery actually arrive: a mail provider, custom SMTP credentials in Supabase Authentication (not in the app), confirm email left enabled, Site URL, and Redirect URLs that include the patient and admin hashes (`#/patient-health` and `#/admin-recovery`) plus the web origin. The app reports that the send was requested and does not claim the inbox was checked. Deploy `patient-account` and apply `patient_health_hardening.sql` only after review. `main` was not merged and the site was not published.
+
+Verification on 2026-10-04 (local, not production): booking widget test without login; in-memory two-account isolation including UPDATE of `condition_id`; doctor `upload_photo` allow then revoke; Arabic card layout plus a generated Arabic PNG wrapped in PDF; Deno 23 passed (`doctor-card-access` 19, `patient-account` 4); `deno check` on `patient-account/index.ts` passed. Full `flutter analyze`: 63 info, 0 error, 0 warning (exit 1 because of infos; none new as errors). Full `flutter test`: all passed. Widget `toImage` of `FollowUpCardView` is still unreliable in the headless test binding; the running app captures that widget. Live two-account Storage isolation was not exercised against production.
+
+### Ads + local Smart Brain review (2026-10-04)
+
+Reviewed existing ads path and local brain; did **not** add a second ads system or an external AI service. Fixed the main gap: `HomeAdSlot` was unwired — now on Phase 1 home with `AdsCatalogRefresh` after admin changes and pull-to-refresh. Pure eligibility helpers + fake-campaign unit tests cover schedule/priority/expiry/`display_seconds` vs campaign window. Production ad rows were not created or edited.
+
+Smart Brain on this tree remains the local M1–M7.1 search-and-execute stack (`clinicalEnabled` default off). Live revalidation before call/WhatsApp already existed; added coverage that a **changed phone** after search uses the live number. New intents: «ملفي الصحي» / «بطاقة المتابعة» → `openPatientHealth` → `PatientHealthGate` (login required for data; share stays explicit inside the health UI). Paid ads do not alter natural search ranking.
+
+Targeted verification (2026-10-04): `ads_campaign_eligibility_test`, `patient_health_brain_intent_test`, `live_entity_revalidation_parity_test`, `doctor_booking_no_login_test` — **28 passed**. Analyzed touched Dart paths: 0 errors/warnings (pre-existing infos only). No SQL applied, no deploy, no `main` merge.
+
+Local Chrome preview (same day): `--dart-define=ADS_LOCAL_PREVIEW=true` injects an in-memory home campaign (`lib/ads/ads_local_preview.dart`) with no Supabase reads/writes. Verified on `http://127.0.0.1:7357/`: image + «إعلان» badge under Ask Ghadeer; click opened `https://example.com/`; deactivate and campaign end hid the slot; `display_seconds=2` auto-hid the slide. Preview bar stays for controls only when the define is on.
+
+### Local Smart Brain next-step suggestions (2026-10-05)
+
+Contextual next-step chips (0–3) replace the old static «تفاصيل/اتصال/واتساب/المزيد» strip. Builder: `SmartBrainSuggestedActionsBuilder.suggest` in `lib/search/conversation/smart_brain_suggested_actions.dart`. Each chip carries `id`, `kind`, `entityId`, `resultTurnId`, `conversationGeneration`, and `executionQuery`; tap selects by entity id then runs the same `_runSearch` path as typing (live revalidation for call/WhatsApp/booking). Stale chips (old generation/result turn) are refused with an Arabic snackbar. Bare «نعم» executes only a single pending yes-offer; multiple chips ask which step. Auth change clears offer session. No chat/health text stored; ads do not rank suggestions.
+
+Examples covered in unit tests: multi-doctor ordinal open labels; after select → details/booking/hours by goal; after hours → booking+location; WhatsApp only if `canWhatsApp`; lab packages/analyses/location; empty+`availableOnly` → relax one filter (awaits user); thanks → no chips; patient health → gate only without share.
+
+Targeted verification: `smart_brain_next_step_suggestions_test` + `smart_brain_suggested_actions_test` + `smart_brain_open_select_parity_test` — **29 passed**. Interactive Chrome / 360px visual not completed in this agent environment (device Chrome launch previously failed).
+
+### Local Smart Brain context + open/select parity (2026-10-05)
+
+Fixed the proven bug: after «أريد طبيب أطفال», «افتح الثاني» must open (same path as «عرض التفاصيل»); «الثاني» selects only; «افتح التفاصيل / افتح بطاقته / ورّيني معلوماته» use the selected entity and must not start a new name search for «التفاصيل». Safety net `_upgradeOpenSelect` + ordinal-before-name in `DoctorTargetResolver` + profile UI-word filter.
+
+Also in this pass (local, no external AI, no deploy, no `main` merge, no production SQL):
+
+- Auth user change / sign-out clears `ConversationContext` on Smart Search (no account-context leak).
+- «ورّيني رقمه» shows the live phone; «اتصل بيه» prepares call; booking stays non-automatic and suggests same-list alternatives when `booking_status=full` without auto-selecting.
+- Compound: «دورلي طبيب أطفال وافتح الثاني» (strips open/ordinal from specialty parse).
+- Availability copy says «حسب الدوام المسجّل» (never «موجود الآن» from schedule alone).
+- `AppFunctionCatalog` + `BrainQualityMetrics` (device counters, no chat/health text) surfaced on `AppStatsAdminPage`.
+- Review-only optional fields: `supabase/doctor_brain_fields_optional.sql` (commented; not applied).
+- Meaning-search model: **not** enabled; evaluate later against Iraqi held-out phrases.
+
+Targeted verification (2026-10-05): `smart_brain_open_select_parity_test`, `smart_brain_search_scope_test`, `live_entity_revalidation_parity_test`, `patient_health_brain_intent_test` — **76 passed**. Touched-path analyze: 0 errors/warnings (pre-existing infos only). Full `flutter test` / interactive Chrome conversation walkthrough not claimed in this note — run locally before release.
+
+### Local Smart Brain hours follow-up context (2026-10-06)
+
+Proven device bug: after pediatrics results, «شنو دوامه» was treated as a **keyword search**, which called `beginNewDoctorSearch` + empty `rememberResults` and wiped the list; «افتح الأول» then had nothing to open. Tapping «علي ناصر السعيدي» opened the card without keeping a durable selected id for the return trip, so hours after back also searched empty.
+
+Cause (UI → planner → executor): `DoctorPresenceQuestion.isContextual` missed hours phrases (`شنو` was a block token); resolver mapped the line to `generalSearch`; fallback allowed a data search; `selectDoctor` cleared a pending hours clarification before the ordinal/chip query could resume it.
+
+Fix (local only; no production SQL, no deploy, no `main` merge):
+
+- Hours phrases (`شنو دوامه` / `دوامه` / `وريني دوامه`) classify as `doctorAvailability` (entity info, not a word search).
+- No selected doctor + several results → «تقصد أي طبيب؟» with options, `pendingAction=doctorAvailability`. After pick, answer from recorded hours (`DoctorTodayAvailability.describe`); if unrecorded say so — never «لا نتائج» and never guess.
+- Failed/unknown follow-ups with preserved results do not start a new doctor search.
+- Chip tap selects by `entityId` before open; `selectDoctor` keeps pending hours/location/booking so the info question survives selection.
+- Relax-filter chips are not offered for doctor-info intents.
+
+Verification (2026-10-06): `smart_brain_conversation_ui_test` (including search → tap suggestion → open → back → hours, and hours-before-select then chip answers pending) + `smart_brain_open_select_parity_test` + `smart_brain_search_scope_test` + `smart_brain_next_step_suggestions_test` + `smart_brain_suggested_actions_test` — **90 passed**. Touched-path `flutter analyze`: no issues. Full `flutter test` not run. Updated local web-server served `lib/main.dart` at `http://127.0.0.1:7362` (onboarding gate «تخطي الآن» visible). Interactive hours sequence in that agent browser was **not** completed (Flutter web canvas has no usable accessibility tree; coordinate click missed skip). Tabs on `:7357` / `:7358` may be stale. Booking remains contact guidance only; patient health / privacy paths unchanged.
+
+### Pharmacy persistence (2026-10-02)
+
+
+Nothing in the pharmacy catalog was in Supabase before this change. Doctors and labs are. Pharmacy list, products, prices, offers, hours, phones, and images lived in `pharmacies_local_v1` on each device, with `PharmaciesCatalog` as the built-in fallback.
+
+Shared after `pharmacies_public_schema.sql` is applied: the `pharmacies` row (`name`, `is_active`, and `profile`). Owner saves that pass the edge function update `profile` for the permitted keys only: image, logo, slogan, hours, phones, bundles, and offer fields. Those rows are what other devices read.
+
+Still device-local until an administrator publishes: edits that never went through that table, including the old PIN-era bundle edits. Publishing does not delete `pharmacies_local_v1`. Before the shared catalog has ever loaded, visitors still see the local copy, then the built-in catalog. After a successful load, visitors see only active shared rows, including an empty list when the administrator hid or removed every pharmacy. An offline failure keeps that last shared result and does not restore a hidden pharmacy from the device or the bundle. An open pharmacy page no longer borrows another pharmacy's bundles when its own list is empty.
+
+A direct write to SharedPreferences does not change the visitor list once a shared row exists. Public clients have no insert policy. Owner product images that are `data:` URLs are rejected; they must be uploaded to `pharmacies/{that id}/` with the image or products permission.
+
+Owner password change stays a separate action from saving the card. In the doctor, laboratory, and pharmacy owner editors it opens from «تغيير كلمة المرور» into a dialog with the current password, the new password, and confirmation. Cancel closes that dialog and leaves unsaved profile text in place. The server still checks the current password, requires at least 8 characters, and bumps `session_version`. First-time activation remains on the entry sheet. Photo upload checks the session entity id and the image permission, then stores the file under that entity's folder.
+
+### تعارض النسخة عند الحفظ (2026-10-02، العمود موجود على المشروع الحي)
+
+الحماية لم تكن موجودة. أصبحت على الأطباء والمختبرات وباقات التحاليل والصيدليات، بما فيها نشر صف صيدلية موجود.
+
+كل حفظ محتوى يرسل `content_revision` التي فُتحت بها الشاشة. التحديث يطابق هذا الرقم ويرفعه واحدًا في نفس الطلب. صفر صفوف يعني رفضًا. الإدراج الجديد (طبيب أو مختبر أو باقة بلا معرف، أو أول نشر لصيدلية غير موجودة) لا يُعامل كنسخة قديمة. إن وُجد الصف أثناء محاولة الإدراج يُرفض الكتابة.
+
+المسار نفسه للإدارة والمالك. رسالة الرفض الواحدة:
+
+`تعذر الحفظ لأن البيانات تغيّرت من جهة أخرى. ما كتبته ما زال في النموذج.`
+
+النموذج لا يُغلق ولا تُمسح الحقول. لا يُعاد تحميل صف الخادم داخل النموذج، لأن ذلك يمسح ما كتبه المستخدم. إعادة الحفظ بنفس النسخة تبقى مرفوضة إلى أن يخرج ويعيد الفتح.
+
+التحقق المحلي لكلا الترتيبين نجح داخل `policy_test.ts`:
+
+- الإدارة أولًا: حفظ الطبيب بالنسخة 1 ينجح ويصبح 2، ثم حفظ المالك بالنسخة 1 يرجع 409 ولا يغيّر النبذة.
+- المالك أولًا: حفظ منتجات الصيدلية بالنسخة 1 ينجح، ثم نشر الإدارة بالنسخة 1 يرجع تعارضًا ويُبقي عرض المالك.
+- المختبر: وصف الإدارة أولًا، ثم وصف المالك القديم يُرفض والنص المنشور يبقى وصف الإدارة.
+- الباقة: حفظ المالك أولًا، ثم حفظ الإدارة بنفس النسخة يُرفض ويُبقي اسم باقة المالك.
+
+`deno test` لهذه السياسة: 16 نجح. `deno check` على `index.ts` نجح. اختبار ظهور الصيدليات: 2 نجح. تحليل ملفات Dart الملموسة لم يُظهر مشاكل جديدة؛ معلومات `main.dart` القديمة بقيت كما هي.
+
+ملفات SQL الثلاثة نُفِّذت على المشروع الحي، ودالة `doctor-card-access` منشورة. التطبيق نفسه لم يُنشر، و`main` لم يُدمج. نشر كتالوج الصيدليات من زر الإدارة ما زال يدويًا لأن الجدول أُنشئ فارغًا.
+
 ### What “done” means operationally today
 
 Default shipping brain = **local search-and-execute over platform entities**, with clinical/AI stacks **parked**. Directory breadth in the working tree exceeds committed HEAD.
@@ -757,16 +923,21 @@ Default shipping brain = **local search-and-execute over platform entities**, wi
 
 - مواعيدي tab = coming soon; no appointment booking backend
 - Doctor booking button = contact guidance only
-- Pharmacies/physio/supplies: no Supabase sync; device-local only
+- Patient email confirm/reset: app redirects are coded; custom SMTP + Redirect URLs `#/patient-health` and `#/admin-recovery` are still external
+- `patient_health_hardening.sql` / `patient-account`: do not blindly re-run SQL; SMTP and live delete-acceptance still untested
+- Pharmacies: `public.pharmacies` is applied on live Supabase and starts empty until the administrator publishes the device copy. Physio/supplies remain device-local
 - Pharmacy product filter / offers snackbars «قريباً»
 - Pharmacy favorite not persisted
-- Ads: admin exists; home ad slot unwired in Phase 1 home
+- Ads: home slot wired; other placement keys in admin have no list-page UI yet
 - Push notifications absent
 - README still template
 - Possible client/Edge mode mismatch (`dynamic_message` / `assistant_query` vs Edge `nlu_parse` / `understand_turn`)
 - Untracked SQL may not be applied on live Supabase
 - Bloated hub files (`smart_brain_planner.dart`, `main.dart`) — maintenance risk
 - Dirty working tree not committed/reviewed as a release
+- Smart Brain: relative dates («باچر / الخميس الجاي») and local meaning-search eval still open; optional doctor brain columns in `doctor_brain_fields_optional.sql` not applied; admin quality panel shows counters only (not live “missing/stale field” inventory from Supabase yet)
+- Interactive Chrome QA of the open/select + next-step chips path after 2026-10-05 changes still needs a manual pass on device/browser (including 360px width)
+- Next-step: package price / lab analyses chips depend on planner understanding those short queries; some entity types share the generic details/location/contact bundle only
 
 ### Intentionally disabled features (preserve)
 
@@ -847,10 +1018,15 @@ Every future AI/Cursor/ChatGPT session must:
 | `lib/doctors/` | Doctor UI, specialties, availability, notifications admin, stats |
 | `lib/labs/` | Labs + packages + admin |
 | `lib/radiology/` | Radiology centers + admin |
-| `lib/pharmacies/` | Local pharmacy directory + bundles |
+| `lib/pharmacies/` | Pharmacy directory + single «الباقات» draft editor + suggestion catalog |
+| `lib/patient_health/` | Patient health file, follow-up card, Supabase Auth gate |
+| `supabase/patient_health_file_schema.sql` | Patient RLS schema (applied 2026-10-04; do not re-run) |
+| `supabase/patient_health_hardening.sql` | Account-delete + condition owner FK (review only, not applied) |
+| `supabase/admin_write_policy_correction.sql` | Documents live `5uiklb_0` / `app_ui_icons_auth_write` admin-only (review only) |
+| `supabase/functions/patient-account/` | Storage API account deletion |
 | `lib/physio/` | Local physio directory |
 | `lib/supplies/` | Local supplies directory |
-| `lib/ads/` | Campaigns (admin; home slot currently unwired) |
+| `lib/ads/` | Campaigns + home slot + eligibility/refresh |
 | `lib/search/smart_search_page.dart` | Smart Search / brain UI executor |
 | `lib/search/smart_search_service.dart` | Local/Supabase search helper |
 | `lib/search/*_name_matcher.dart` | Fuzzy Arabic entity matching |
@@ -870,6 +1046,8 @@ Every future AI/Cursor/ChatGPT session must:
 | `lib/services/` | Stats, dynamic message, icons, PIN, admin session, profile |
 | `supabase/*.sql` | Manual schemas/seeds |
 | `supabase/functions/ai-assistant/` | Edge AI function |
+| `supabase/functions/doctor-card-access/` | Owner access for doctors, labs, and pharmacies |
+| `supabase/doctor_card_access_schema.sql` | Credential + attempt tables (apply manually) |
 | `test/` | Flat regression suite |
 | `test/fixtures/` | Corpora / golden JSON |
 | `netlify.toml` | Web SPA deploy |

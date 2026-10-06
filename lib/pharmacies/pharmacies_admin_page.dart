@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../home/ghadeer_home_colors.dart';
+import '../services/content_conflict.dart';
 import '../models/entity_social_links.dart';
-import '../services/entity_access_pin_service.dart';
+import '../doctors/doctor_card_password_admin_section.dart';
 import '../widgets/clinic_app_bar.dart';
 import '../widgets/entity_access_pin_gate.dart';
 import '../widgets/entity_social_sheet.dart';
 import 'pharmacies_store.dart';
+import 'pharmacy_bundles_manage_page.dart';
 import 'pharmacy_fit_image.dart';
 import 'pharmacy_models.dart';
 
@@ -47,7 +49,42 @@ class _PharmaciesAdminPageState extends State<PharmaciesAdminPage> {
       ),
     );
     if (result == null) return;
-    await _store.upsert(result);
+    try {
+      await _store.upsert(result);
+    } on ContentConflictException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(contentConflictMessage)),
+      );
+      await _edit(result);
+      return;
+    }
+    if (!mounted) return;
+    final share = _store.lastShareError;
+    if (share != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'حُفظت على هذا الجهاز. النشر للزوار لم يكتمل؛ راجع جدول الصيدليات ثم أعد النشر.',
+          ),
+        ),
+      );
+    }
+    await _reload();
+  }
+
+  Future<void> _publishShared() async {
+    final error = await _store.publishDeviceCopy();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error == null
+              ? 'نُشرت النسخة المحفوظة على هذا الجهاز لكل الزوار.'
+              : 'تعذر نشر بعض الصيدليات. النسخة المحلية ما زالت محفوظة.',
+        ),
+      ),
+    );
     await _reload();
   }
 
@@ -81,15 +118,33 @@ class _PharmaciesAdminPageState extends State<PharmaciesAdminPage> {
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, i) {
                   if (i == 0) {
-                    return const Text(
-                      'التعديلات تُحفظ على هذا الجهاز الآن. '
-                      'ارفع صور الباقات/العروض من الجهاز — تُضبط تلقائياً على قد الموبايل. '
-                      'شعار الغدير ثابت.',
-                      style: TextStyle(
-                        color: GhadeerHomeColors.muted,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
-                      ),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          PharmaciesStore.instance.sharedCatalogReady &&
+                                  !PharmaciesStore.instance.hasSharedCatalog
+                              ? 'جدول الصيدليات المنشور فارغ أو بلا صيدليات نشطة، '
+                                  'لذلك صفحة الزوار فارغة. انشر النسخة المحفوظة أدناه '
+                                  'دون حذف البيانات المحلية.'
+                              : 'النسخة المنشورة يراها الزوار على كل الأجهزة. '
+                                  'ما يُحفظ هنا يبقى على الجهاز إن تعذر النشر.',
+                          style: TextStyle(
+                            color: PharmaciesStore.instance.sharedCatalogReady &&
+                                    !PharmaciesStore.instance.hasSharedCatalog
+                                ? const Color(0xFFB45309)
+                                : GhadeerHomeColors.muted,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: _publishShared,
+                          icon: const Icon(Icons.cloud_upload_outlined),
+                          label: const Text('نشر النسخة المحفوظة على هذا الجهاز'),
+                        ),
+                      ],
                     );
                   }
                   if (i == 1) {
@@ -121,16 +176,6 @@ class _PharmaciesAdminPageState extends State<PharmaciesAdminPage> {
                       trailing: Wrap(
                         spacing: 0,
                         children: [
-                          IconButton(
-                            tooltip: 'الرقم السري',
-                            onPressed: () => showSetEntityPinDialog(
-                              context,
-                              entityKey:
-                                  EntityAccessPinService.pharmacyKey(p.id),
-                              title: 'رقم سري — ${p.name}',
-                            ),
-                            icon: const Icon(Icons.password_rounded),
-                          ),
                           IconButton(
                             tooltip: p.isActive
                                 ? 'إخفاء الصيدلية كاملة'
@@ -185,11 +230,11 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
   late final TextEditingController _tiktok;
   late final TextEditingController _telegram;
   late final TextEditingController _website;
-  late final List<_BundleEditors> _bundles;
   late bool _open;
   late bool _supplements;
   late bool _active;
   bool _picking = false;
+  int _bundleCount = 0;
 
   @override
   void initState() {
@@ -219,13 +264,10 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
     _tiktok = TextEditingController(text: p?.social.tiktok ?? '');
     _telegram = TextEditingController(text: p?.social.telegram ?? '');
     _website = TextEditingController(text: p?.social.website ?? '');
-    final seed = PharmaciesCatalog.mergeWithCatalog(
-      (p?.bundles.isNotEmpty == true) ? p!.bundles : const [],
-    );
-    _bundles = [for (final b in seed) _BundleEditors.fromBundle(b)];
     _open = p?.isOpenNow ?? true;
     _supplements = p?.hasSupplements ?? true;
     _active = p?.isActive ?? true;
+    _bundleCount = _resolvedBundles().length;
   }
 
   @override
@@ -248,10 +290,39 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
     _tiktok.dispose();
     _telegram.dispose();
     _website.dispose();
-    for (final b in _bundles) {
-      b.dispose();
-    }
     super.dispose();
+  }
+
+  List<PharmacyBundle> _resolvedBundles() {
+    final id = widget.initial?.id;
+    if (id != null && id.isNotEmpty) {
+      final fromStore = PharmaciesStore.instance.byId(id);
+      if (fromStore != null) return fromStore.bundles;
+      return widget.initial!.bundles;
+    }
+    return const [];
+  }
+
+  Future<void> _openPackageWorkflow() async {
+    final id = widget.initial?.id.trim() ?? '';
+    if (id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'احفظ الصيدلية أولاً، ثم افتح الباقات.',
+          ),
+        ),
+      );
+      return;
+    }
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PharmacyBundlesManagePage(pharmacyId: id),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _bundleCount = _resolvedBundles().length);
   }
 
   Future<void> _pickInto(TextEditingController target) async {
@@ -274,35 +345,6 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
     }
   }
 
-  void _addBundle() {
-    setState(() {
-      _bundles.add(
-        _BundleEditors(
-          id: 'b_${DateTime.now().millisecondsSinceEpoch}',
-          title: TextEditingController(text: 'باقة جديدة'),
-          subtitle: TextEditingController(),
-          price: TextEditingController(text: '0'),
-          oldPrice: TextEditingController(text: '0'),
-          icon: TextEditingController(text: '💊'),
-          imageUrl: TextEditingController(),
-          note: TextEditingController(),
-          isPopular: true,
-          isVisible: true,
-          supplements: [],
-          optionalSupplements: [],
-        ),
-      );
-    });
-  }
-
-  void _removeBundle(int index) {
-    if (index < 0 || index >= _bundles.length) return;
-    setState(() {
-      final removed = _bundles.removeAt(index);
-      removed.dispose();
-    });
-  }
-
   void _save() {
     final name = _name.text.trim();
     if (name.isEmpty) {
@@ -316,9 +358,6 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
     final pct = int.tryParse(_offerPercent.text.trim()) ?? 20;
     final lat = double.tryParse(_lat.text.trim());
     final lng = double.tryParse(_lng.text.trim());
-    final bundles = <PharmacyBundle>[
-      for (final e in _bundles) e.toBundle(),
-    ];
     final item = PharmacyItem(
       id: id,
       name: name,
@@ -341,10 +380,12 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
       offerPercent: pct.clamp(0, 90),
       offerImageUrl: _offerImage.text.trim(),
       offerIconUrl: _offerIcon.text.trim(),
-      bundles: bundles,
+      // الباقات تُدار عبر المسار التدريجي المنفصل؛ لا تُستبدل من هذا النموذج.
+      bundles: _resolvedBundles(),
       latitude: lat ?? widget.initial?.latitude,
       longitude: lng ?? widget.initial?.longitude,
       isActive: _active,
+      contentRevision: widget.initial?.contentRevision ?? 1,
       social: EntitySocialLinks(
         website: _website.text.trim(),
         instagram: _instagram.text.trim(),
@@ -416,41 +457,15 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
                   telegram: _telegram,
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'باقات المكملات',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 15,
-                          color: GhadeerHomeColors.secondary,
-                        ),
-                      ),
-                    ),
-                    FilledButton.tonalIcon(
-                      onPressed: _addBundle,
-                      icon: const Icon(Icons.add_rounded, size: 18),
-                      label: const Text('إضافة باقة'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'يمكنك إضافة أكثر من 5 باقات. الشريط يعرض الأكثر رواجاً '
-                  '(حتى ${PharmaciesCatalog.stripPopularLimit})، و«عرض الكل» يعرض الجميع.',
-                  style: const TextStyle(
-                    color: GhadeerHomeColors.muted,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12.5,
-                    height: 1.35,
+                OutlinedButton.icon(
+                  onPressed: _openPackageWorkflow,
+                  icon: const Icon(Icons.medication_outlined),
+                  label: Text(
+                    widget.initial == null
+                        ? 'الباقات (بعد الحفظ)'
+                        : 'الباقات${_bundleCount > 0 ? ' ($_bundleCount)' : ''}',
                   ),
                 ),
-                const SizedBox(height: 8),
-                for (var i = 0; i < _bundles.length; i++) ...[
-                  _bundleCard(i, _bundles[i]),
-                  const SizedBox(height: 10),
-                ],
                 SwitchListTile(
                   title: const Text('مفتوحة الآن'),
                   value: _open,
@@ -469,6 +484,14 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
                   value: _active,
                   onChanged: (v) => setState(() => _active = v),
                 ),
+                if (widget.initial != null &&
+                    widget.initial!.id.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  EntityOwnerAdminPanel(
+                    entityType: 'pharmacy',
+                    entityId: widget.initial!.id,
+                  ),
+                ],
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: _save,
@@ -567,142 +590,6 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
     );
   }
 
-  Widget _bundleCard(int index, _BundleEditors e) {
-    return Material(
-      color: e.isVisible ? const Color(0xFFF7FBFC) : const Color(0xFFF0F0F0),
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'باقة ${index + 1}',
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                ),
-                IconButton(
-                  tooltip: e.isVisible ? 'إخفاء الباقة' : 'إظهار الباقة',
-                  onPressed: () => setState(() => e.isVisible = !e.isVisible),
-                  icon: Icon(
-                    e.isVisible
-                        ? Icons.visibility_rounded
-                        : Icons.visibility_off_outlined,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'حذف الباقة',
-                  onPressed: () => _removeBundle(index),
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Color(0xFFE74C3C),
-                  ),
-                ),
-              ],
-            ),
-            _field(e.title, 'عنوان الباقة'),
-            _field(e.subtitle, 'وصف قصير'),
-            _field(e.price, 'السعر'),
-            _field(e.oldPrice, 'السعر القديم'),
-            _field(e.icon, 'رمز صغير (إيموجي)'),
-            _field(e.note, 'ملاحظة للزبون (اختياري)'),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('ظاهرة للزبون'),
-              subtitle: const Text(
-                'الافتراضي ظاهرة — أخفِ فقط إذا لا تريد عرضها',
-              ),
-              value: e.isVisible,
-              onChanged: (v) => setState(() => e.isVisible = v),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('الأكثر رواجاً (تظهر في الشريط)'),
-              value: e.isPopular,
-              onChanged: (v) => setState(() => e.isPopular = v),
-            ),
-            _imagePickerBlock(
-              label: 'صورة الباقة',
-              controller: e.imageUrl,
-              previewSize: 96,
-            ),
-            _adminSupplementsEditor('المكملات', e.supplements),
-            const SizedBox(height: 8),
-            _adminSupplementsEditor('مكملات اختيارية', e.optionalSupplements),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _adminAddSupplement(List<String> items) async {
-    final c = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إضافة مكمل'),
-        content: TextField(
-          controller: c,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'اسم المكمل'),
-          onSubmitted: (_) => Navigator.pop(ctx, true),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('إضافة'),
-          ),
-        ],
-      ),
-    );
-    final t = c.text.trim();
-    c.dispose();
-    if (ok == true && t.isNotEmpty) {
-      setState(() => items.add(t));
-    }
-  }
-
-  Widget _adminSupplementsEditor(String title, List<String> items) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-            TextButton.icon(
-              onPressed: () => _adminAddSupplement(items),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('إضافة'),
-            ),
-          ],
-        ),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (var i = 0; i < items.length; i++)
-              InputChip(
-                label: Text(items[i]),
-                onDeleted: () => setState(() => items.removeAt(i)),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _field(TextEditingController c, String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -714,87 +601,5 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
         ),
       ),
     );
-  }
-}
-
-class _BundleEditors {
-  _BundleEditors({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.price,
-    required this.oldPrice,
-    required this.icon,
-    required this.imageUrl,
-    required this.note,
-    required this.isPopular,
-    required this.isVisible,
-    required this.supplements,
-    required this.optionalSupplements,
-  });
-
-  factory _BundleEditors.fromBundle(PharmacyBundle b) => _BundleEditors(
-        id: b.id,
-        title: TextEditingController(text: b.title),
-        subtitle: TextEditingController(text: b.subtitle),
-        price: TextEditingController(text: '${b.price}'),
-        oldPrice: TextEditingController(text: '${b.oldPrice}'),
-        icon: TextEditingController(text: b.icon),
-        imageUrl: TextEditingController(text: b.imageUrl),
-        note: TextEditingController(text: b.note),
-        isPopular: b.isPopular,
-        isVisible: b.isVisible,
-        supplements: List.of(b.supplements),
-        optionalSupplements: List.of(b.optionalSupplements),
-      );
-
-  final String id;
-  final TextEditingController title;
-  final TextEditingController subtitle;
-  final TextEditingController price;
-  final TextEditingController oldPrice;
-  final TextEditingController icon;
-  final TextEditingController imageUrl;
-  final TextEditingController note;
-  bool isPopular;
-  bool isVisible;
-  final List<String> supplements;
-  final List<String> optionalSupplements;
-
-  PharmacyBundle toBundle() {
-    final titleText = title.text.trim().isEmpty ? 'باقة' : title.text.trim();
-    final subs = supplements.map((e) => e.trim()).where((e) => e.isNotEmpty);
-    return PharmacyBundle(
-      id: id,
-      title: titleText,
-      subtitle: subtitle.text.trim().isNotEmpty
-          ? subtitle.text.trim()
-          : subs.take(4).join(' · '),
-      price: int.tryParse(price.text.trim()) ?? 0,
-      oldPrice: int.tryParse(oldPrice.text.trim()) ?? 0,
-      icon: icon.text.trim(),
-      imageUrl: imageUrl.text.trim(),
-      isPopular: isPopular,
-      isVisible: isVisible,
-      supplements: supplements
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList(),
-      optionalSupplements: optionalSupplements
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList(),
-      note: note.text.trim(),
-    );
-  }
-
-  void dispose() {
-    title.dispose();
-    subtitle.dispose();
-    price.dispose();
-    oldPrice.dispose();
-    icon.dispose();
-    imageUrl.dispose();
-    note.dispose();
   }
 }

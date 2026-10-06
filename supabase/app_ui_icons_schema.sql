@@ -27,13 +27,44 @@ create policy "app_ui_icons_public_read"
   to anon, authenticated
   using (true);
 
--- كتابة للإدارة (authenticated). اضبط حسب نظام صلاحياتك إن لزم.
+-- كتابة لإدارة العيادة فقط. حساب المريض المصدّق لا يغيّر أيقونات التطبيق.
 drop policy if exists "app_ui_icons_auth_write" on public.app_ui_icons;
 create policy "app_ui_icons_auth_write"
   on public.app_ui_icons
   for all
   to authenticated
-  using (true)
-  with check (true);
+  using (public.is_clinic_admin())
+  with check (public.is_clinic_admin());
 
--- تأكد أن bucket clinic-media يسمح بالرفع لمسار ui_icons/ (نفس مخزن الإعلانات).
+-- رفع صور الأيقونات إلى clinic-media/ui_icons/ من جلسة الإدارة فقط.
+drop policy if exists clinic_media_ui_icons_auth_insert on storage.objects;
+create policy clinic_media_ui_icons_auth_insert
+  on storage.objects for insert to authenticated
+  with check (
+    public.is_clinic_admin()
+    and bucket_id = 'clinic-media'
+    and (storage.foldername(name))[1] = 'ui_icons'
+  );
+
+drop policy if exists clinic_media_ui_icons_auth_update on storage.objects;
+create policy clinic_media_ui_icons_auth_update
+  on storage.objects for update to authenticated
+  using (
+    public.is_clinic_admin()
+    and bucket_id = 'clinic-media'
+    and (storage.foldername(name))[1] = 'ui_icons'
+  )
+  with check (
+    public.is_clinic_admin()
+    and bucket_id = 'clinic-media'
+    and (storage.foldername(name))[1] = 'ui_icons'
+  );
+
+drop policy if exists clinic_media_ui_icons_auth_delete on storage.objects;
+create policy clinic_media_ui_icons_auth_delete
+  on storage.objects for delete to authenticated
+  using (
+    public.is_clinic_admin()
+    and bucket_id = 'clinic-media'
+    and (storage.foldername(name))[1] = 'ui_icons'
+  );

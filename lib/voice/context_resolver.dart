@@ -470,15 +470,24 @@ class ContextResolver {
   }
 
   static bool _looksLikeProfileFollowUp(String n) {
-    if (RegExp(r'(?:ملفه|نبذته|بطاقته|معلومات\s*عنه)').hasMatch(n)) {
-      return true;
-    }
     if (RegExp(
-      r'(?:افتح|اعرض)\s+(?:ملف|نبذه|نبذة|بطاقه|بطاقة)?\s*(?:ه|ها)?$',
+      r'(?:ملفه|نبذته|بطاقته|معلوماته|معلومات\s*(?:عنه|عنها))',
     ).hasMatch(n)) {
       return true;
     }
-    if (RegExp(r'عرض\s*الملف').hasMatch(n)) return true;
+    if (RegExp(
+      r'(?:افتح|اعرض|عرض)\s+(?:ال)?(?:ملف|نبذه|نبذة|بطاقه|بطاقة|تفاصيل|'
+      r'تفصيل|معلومات)\s*(?:ه|ها)?$',
+    ).hasMatch(n)) {
+      return true;
+    }
+    if (RegExp(r'عرض\s*(?:ال)?(?:ملف|تفاصيل)').hasMatch(n)) return true;
+    if (RegExp(
+      r'(?:شوف|طلع|وريني|ورّيني)\s+(?:ال)?(?:تفاصيل|تفصيل|ملف|معلومات|'
+      r'بطاقه|بطاقة)',
+    ).hasMatch(n)) {
+      return true;
+    }
     if (n.length <= 24 &&
         RegExp(r'(?:افتح|اعرض)\s+(?:ال)?(?:طبيب|دكتور)$').hasMatch(n)) {
       return true;

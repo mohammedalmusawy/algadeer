@@ -14,9 +14,15 @@ import '../utils/contact_launch.dart';
 import '../voice/voice_response_controller.dart';
 import '../widgets/entity_social_sheet.dart';
 import 'doctor_availability_service.dart';
+import 'doctor_card_gate.dart';
 import 'doctor_card_links.dart';
+import 'doctor_card_tap.dart';
 import 'doctor_engagement_service.dart';
 import 'doctor_gender.dart';
+import 'doctor_week_schedule.dart';
+
+export 'doctor_week_schedule.dart'
+    show DoctorWeekDayEntry, doctorWeekDayOrder, parseDoctorWeekSchedule;
 
 /// بطاقة الطبيب الرقمية / الملف الشخصي — تصميم Premium مطابق للمرجع البصري.
 /// البيانات ديناميكية من [DoctorItem] / Supabase لكل طبيب.
@@ -44,6 +50,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
   final _profileService = PersonalCompanionProfileService();
   final _voice = VoiceResponseController();
   late bool _favorite;
+  DoctorItem? _edited;
   DoctorRatingSummary _rating = const DoctorRatingSummary();
   int? _myRating;
   bool _ratingBusy = false;
@@ -133,7 +140,19 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     }
   }
 
-  DoctorItem get doctor => widget.doctor;
+  DoctorItem get doctor => _edited ?? widget.doctor;
+
+  Future<void> _openCardAccess() async {
+    final result = await openDoctorCardAccess(context, doctor);
+    if (!mounted || result == null) return;
+    if (result.deleted) {
+      Navigator.pop(context);
+      return;
+    }
+    if (result.doctor != null) {
+      setState(() => _edited = result.doctor);
+    }
+  }
 
   /// مصدر صورة الـ Hero الحالي.
   /// حالياً: image_url فقط (غالباً بوستر ترويجي في البيانات الحالية).
@@ -461,15 +480,18 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                                   color: Color(0xFF1A4F58),
                                 ),
                               ),
-                              _HeroDoctorNameSpecialty(
-                                key: const Key(
-                                  'hero_doctor_name_specialty',
+                              DoctorCardTripleTap(
+                                onTripleTap: () => unawaited(_openCardAccess()),
+                                child: _HeroDoctorNameSpecialty(
+                                  key: const Key(
+                                    'hero_doctor_name_specialty',
+                                  ),
+                                  name: _doctorProfileDisplayName(
+                                    doctor.name,
+                                  ),
+                                  specialty: doctor.specialty,
+                                  supportLine: _heroSupportLine,
                                 ),
-                                name: _doctorProfileDisplayName(
-                                  doctor.name,
-                                ),
-                                specialty: doctor.specialty,
-                                supportLine: _heroSupportLine,
                               ),
                               if (showPresencePanel)
                                 _HeroPresencePanel(
@@ -609,6 +631,29 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                   : _muted,
             ),
           ),
+          if (doctor.services.trim().isNotEmpty) ...[
+            const SizedBox(height: 22),
+            const Text(
+              'الخدمات الطبية',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: _navy,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              doctor.services.trim(),
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 14.5,
+                height: 1.7,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF33454F),
+              ),
+            ),
+          ],
           if (location.isNotEmpty) ...[
             const SizedBox(height: 22),
             const Text(
@@ -755,6 +800,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
+                key: const Key('doctor-booking-button'),
                 onPressed: _onBookingPressed,
                 icon: const Icon(Icons.event_available_rounded, size: 18),
                 label: const Text('حجز موعد'),
@@ -823,80 +869,6 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       ),
     );
   }
-}
-
-/// ترتيب أيام الأسبوع للعرض والحفظ.
-const doctorWeekDayOrder = <String>[
-  'السبت',
-  'الأحد',
-  'الاثنين',
-  'الثلاثاء',
-  'الأربعاء',
-  'الخميس',
-  'الجمعة',
-];
-
-/// يوم واحد في جدول التواجد: الاسم + الحالة (مساءً / عطلة / …).
-typedef DoctorWeekDayEntry = ({String day, String status, bool isOff});
-
-String? _periodLabelFromChunk(String chunk) {
-  final n = chunk
-      .replaceAll('أ', 'ا')
-      .replaceAll('إ', 'ا')
-      .replaceAll('آ', 'ا');
-  if (n.contains('عطل') || n.contains('اجاز') || n.contains('إجاز')) {
-    return 'عطلة';
-  }
-  final hasMorning = n.contains('صباح');
-  final hasEvening = n.contains('مساء');
-  if (hasMorning && hasEvening) return 'صباحًا ومساءً';
-  if (hasMorning) return 'صباحًا';
-  if (hasEvening) return 'مساءً';
-  return null;
-}
-
-/// يقرأ جدول الأسبوع من حقول الإدارة (متوافق مع الصيغ القديمة).
-List<DoctorWeekDayEntry> parseDoctorWeekSchedule({
-  required String workingDays,
-  required String workingHours,
-}) {
-  final hours = workingHours.trim();
-  final daysRaw = workingDays.trim();
-  final parsed = <String, String>{};
-
-  if (hours.isNotEmpty) {
-    for (final day in doctorWeekDayOrder) {
-      final match = RegExp(
-        '$day\\s*:?\\s*([^،|]+)',
-        unicode: true,
-      ).firstMatch(hours);
-      if (match == null) continue;
-      final period = _periodLabelFromChunk(match.group(1) ?? '');
-      if (period == null) continue;
-      parsed[day] = period;
-    }
-  }
-
-  if (parsed.isEmpty && daysRaw.isNotEmpty) {
-    final allWeek = daysRaw.contains('كل أيام الأسبوع');
-    for (final day in doctorWeekDayOrder) {
-      if (allWeek || daysRaw.contains(day)) {
-        parsed[day] = 'مساءً';
-      }
-    }
-  }
-
-  if (parsed.isEmpty) return const [];
-
-  return [
-    for (final day in doctorWeekDayOrder)
-      if (parsed.containsKey(day))
-        (
-          day: day,
-          status: parsed[day]!,
-          isOff: parsed[day] == 'عطلة',
-        ),
-  ];
 }
 
 /// عرض اسم الطبيب في الـ Hero.

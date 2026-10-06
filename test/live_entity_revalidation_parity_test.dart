@@ -297,6 +297,24 @@ void main() {
       final call = await planner.plan(query: 'اتصل بيه', context: ctx);
       expect(call.kind, AssistantActionKind.prepareCall);
     });
+
+    test('phone number change after search uses live number', () async {
+      var items = [
+        _pharm('p', 'صيدلية رقم م71', phone: '07701111111', whatsapp: 'w'),
+      ];
+      final planner = _planner(pharmacies: () => items);
+      final ctx = ConversationContext();
+      await planner.plan(query: 'صيدلية رقم م71', context: ctx);
+
+      items = [
+        _pharm('p', 'صيدلية رقم م71', phone: '07702222222', whatsapp: 'w'),
+      ];
+      final call = await planner.plan(query: 'اتصل بيه', context: ctx);
+      expect(call.kind, AssistantActionKind.prepareCall);
+      expect(call.canExecute, isTrue);
+      expect(call.target?.phone, '07702222222');
+      expect(call.target?.phone, isNot('07701111111'));
+    });
   });
 }
 

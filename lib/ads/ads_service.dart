@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ad_campaign.dart';
+import 'ads_eligibility.dart';
 
 class AdsService {
   AdsService({SupabaseClient? client}) : _client = client ?? Supabase.instance.client;
@@ -42,11 +43,14 @@ class AdsService {
           .eq('is_active', true)
           .order('priority', ascending: false)
           .limit(12);
-      final list = (rows as List)
+      final parsed = (rows as List)
           .map((e) => AdCampaign.fromMap(Map<String, dynamic>.from(e as Map)))
-          .where((c) => c.isWithinSchedule && !c.hasReachedGlobalCap)
-          .where((c) => c.hasImage || (c.isVideo && c.hasVideo))
           .toList();
+      final list = AdsEligibility.catalogEligible(
+        campaigns: parsed,
+        placement: placement,
+        nowUtc: DateTime.now().toUtc(),
+      );
       if (list.isEmpty) return null;
 
       final store = AdsFrequencyStore();

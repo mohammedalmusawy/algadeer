@@ -3,8 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../doctors/doctor_card_access_client.dart';
 import '../../branding/ghadeer_brand_mark.dart';
 import '../../models/lab_models.dart';
+import '../../services/content_conflict.dart';
 import '../labs_service.dart';
 import '../package_image_library.dart';
 import '../widgets/package_hero_image.dart';
@@ -16,11 +18,13 @@ class PackageFormPage extends StatefulWidget {
     this.package,
     required this.labs,
     this.lockedLabId,
+    this.ownerSession,
   });
 
   final LabPackageItem? package;
   final List<LabItem> labs;
   final String? lockedLabId;
+  final DoctorCardSession? ownerSession;
 
   @override
   State<PackageFormPage> createState() => _PackageFormPageState();
@@ -772,21 +776,30 @@ class _PackageFormPageState extends State<PackageFormPage> {
         _selected[i] = item.copyWith(descriptionAr: text);
       }
 
-      try {
-        await _syncSelectedDescriptions();
-      } catch (e) {
-        debugPrint('description_ar sync warning: $e');
+      if (widget.ownerSession == null) {
+        try {
+          await _syncSelectedDescriptions();
+        } catch (e) {
+          debugPrint('description_ar sync warning: $e');
+        }
       }
 
       var imageUrl = GhadeerBranding.normalizeEntityImageUrl(_imageUrl.trim());
       final oldUrl = widget.package?.imageUrl.trim() ?? '';
 
       if (_pickedBytes != null) {
-        imageUrl = await _service.uploadPackageImage(
-          bytes: _pickedBytes!,
-          originalName: _pickedName ?? 'package.jpg',
-          packageId: widget.package?.id,
-        );
+        if (widget.ownerSession != null) {
+          imageUrl = await DoctorCardAccessClient().uploadPackageImage(
+            session: widget.ownerSession!,
+            bytes: _pickedBytes!,
+          );
+        } else {
+          imageUrl = await _service.uploadPackageImage(
+            bytes: _pickedBytes!,
+            originalName: _pickedName ?? 'package.jpg',
+            packageId: widget.package?.id,
+          );
+        }
       }
 
       final package = LabPackageItem(
@@ -805,14 +818,34 @@ class _PackageFormPageState extends State<PackageFormPage> {
         analyses: List<AnalysisItem>.from(_selected),
       );
 
-      await _service.upsertPackage(
-        package,
-        existingId: widget.package?.id,
-        analysisIds: _selected.map((e) => e.id).toList(),
-        testNames: _selected.map((e) => e.name).toList(),
-      );
+      if (widget.ownerSession != null) {
+        await DoctorCardAccessClient().upsertPackage(
+          session: widget.ownerSession!,
+          packageId: widget.package?.id,
+          package: {
+            'package_name': package.name,
+            'description': package.description,
+            'old_price': package.oldPrice,
+            'price': package.newPrice,
+            'image_url': package.imageUrl,
+            'is_active': package.isActive,
+            'tests': package.toMap()['tests'],
+          },
+          baseRevision: widget.package?.id.isNotEmpty == true
+              ? widget.package!.contentRevision
+              : null,
+        );
+      } else {
+        await _service.upsertPackage(
+          package,
+          existingId: widget.package?.id,
+          analysisIds: _selected.map((e) => e.id).toList(),
+          testNames: _selected.map((e) => e.name).toList(),
+        );
+      }
 
-      if (_pickedBytes != null &&
+      if (widget.ownerSession == null &&
+          _pickedBytes != null &&
           oldUrl.isNotEmpty &&
           oldUrl != imageUrl &&
           oldUrl.contains('/packages/')) {
@@ -829,7 +862,9 @@ class _PackageFormPageState extends State<PackageFormPage> {
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تعذر الحفظ: ${formatLabSupabaseError(e)}'),
+          content: Text(
+            messageForSaveError(e, 'تعذر الحفظ: ${formatLabSupabaseError(e)}'),
+          ),
           duration: const Duration(seconds: 8),
         ),
       );
@@ -1003,6 +1038,7 @@ class _PackageFormPageState extends State<PackageFormPage> {
                         decoration: _fieldDecoration('السعر الجديد'),
                       ),
                       const SizedBox(height: 12),
+                      if (widget.ownerSession == null)
                       TextFormField(
                         controller: _order,
                         keyboardType: TextInputType.number,
@@ -1021,6 +1057,7 @@ class _PackageFormPageState extends State<PackageFormPage> {
                         value: _isActive,
                         onChanged: (v) => setState(() => _isActive = v),
                       ),
+                      if (widget.ownerSession == null) ...[
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text(
@@ -1039,6 +1076,7 @@ class _PackageFormPageState extends State<PackageFormPage> {
                         value: _showOnHome,
                         onChanged: (v) => setState(() => _showOnHome = v),
                       ),
+                      ],
                       if (_templateSuggestedAnalyses.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         _sectionLabel('التحاليل المقترحة'),

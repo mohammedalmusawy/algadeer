@@ -5,6 +5,13 @@
 -- الأدمن الوحيد المسموح بالكتابة:
 --   almusawyalmusawy90@gmail.com
 -- الزائر (anon) والقراءة العامة: بدون تغيير وظيفي.
+--
+-- تصحيحان مُثبَّتان في هذا الملف (صلاحيات الأيقونات ورفع صور الأطباء):
+-- 1) app_ui_icons: الكتابة لـ is_clinic_admin() فقط، وكذلك مسار ui_icons/.
+-- 2) doctors/ داخل clinic-media: كتابة العميل للإدارة فقط. صورة الطبيب
+--    المصرّح له تُرفع عبر doctor-card-access (Storage API) إلى doctors/{id}/.
+-- الاسم الحي القديم لسياسة رفع صور الأطباء: "Admin upload doctor images 5uiklb_0"
+-- (مقيَّدة بـ is_clinic_admin). التوثيق الكامل في admin_write_policy_correction.sql.
 -- ============================================================
 
 create or replace function public.is_clinic_admin()
@@ -56,6 +63,7 @@ select public._secure_admin_all_policy('public.package_images'::regclass, 'packa
 select public._secure_admin_all_policy('public.app_notifications'::regclass, 'app_notifications_auth_write');
 select public._secure_admin_all_policy('public.notification_settings'::regclass, 'notification_settings_auth_all');
 select public._secure_admin_all_policy('public.doctor_absences'::regclass, 'doctor_absences_auth_write');
+select public._secure_admin_all_policy('public.app_ui_icons'::regclass, 'app_ui_icons_auth_write');
 
 -- قراءة المختبرات/التحاليل: نشط للجميع، أو الكل للأدمن فقط
 do $$
@@ -139,7 +147,10 @@ end $$;
 -- Storage: كتابة المجلدات الإدارية للأدمن فقط (إن وُجدت السياسات نعيد إنشاءها)
 do $$
 declare
-  folders text[] := array['dynamic', 'ads', 'labs', 'radiology', 'packages', 'doctors'];
+  -- doctors/: الزائر يقرأ الصورة الظاهرة. الكتابة من العميل للإدارة فقط.
+  -- صورة الطبيب المصرّح له تُرفع عبر Edge Function doctor-card-access
+  -- (Storage API بمفتاح الخدمة) داخل doctors/{id}/ وليست عبر سياسة authenticated.
+  folders text[] := array['dynamic', 'ads', 'labs', 'radiology', 'packages', 'doctors', 'ui_icons'];
   folder text;
   pol text;
 begin

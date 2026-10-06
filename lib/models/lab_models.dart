@@ -111,6 +111,7 @@ class LabItem {
   final String slogan;
   final DateTime? createdAt;
   final EntitySocialLinks social;
+  final int contentRevision;
 
   const LabItem({
     required this.id,
@@ -128,6 +129,7 @@ class LabItem {
     this.slogan = '',
     this.createdAt,
     this.social = EntitySocialLinks.empty,
+    this.contentRevision = 1,
   });
 
   factory LabItem.fromMap(Map<String, dynamic> data) {
@@ -149,6 +151,7 @@ class LabItem {
       slogan: data['slogan']?.toString() ?? '',
       createdAt: DateTime.tryParse(data['created_at']?.toString() ?? ''),
       social: EntitySocialLinks.fromMap(data),
+      contentRevision: int.tryParse('${data['content_revision'] ?? 1}') ?? 1,
     );
   }
 
@@ -470,6 +473,7 @@ class LabPackageItem {
   final bool isFeatured;
   final bool showOnHome;
   final List<String> testNames;
+  final int contentRevision;
 
   const LabPackageItem({
     required this.id,
@@ -487,6 +491,7 @@ class LabPackageItem {
     this.isFeatured = false,
     this.showOnHome = false,
     this.testNames = const [],
+    this.contentRevision = 1,
   });
 
   LabPackageItem copyWith({
@@ -505,6 +510,7 @@ class LabPackageItem {
     bool? isFeatured,
     bool? showOnHome,
     List<String>? testNames,
+    int? contentRevision,
   }) {
     return LabPackageItem(
       id: id ?? this.id,
@@ -522,6 +528,7 @@ class LabPackageItem {
       isFeatured: isFeatured ?? this.isFeatured,
       showOnHome: showOnHome ?? this.showOnHome,
       testNames: testNames ?? this.testNames,
+      contentRevision: contentRevision ?? this.contentRevision,
     );
   }
 
@@ -596,6 +603,7 @@ class LabPackageItem {
       testNames: tests.isNotEmpty
           ? tests
           : analyses.map((a) => a.name).toList(),
+      contentRevision: int.tryParse('${data['content_revision'] ?? 1}') ?? 1,
     );
   }
 

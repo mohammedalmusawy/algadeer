@@ -22,12 +22,14 @@ import '../radiology/radiology_service.dart';
 import '../medical/medical_navigation_service.dart';
 import '../models/doctor_item.dart';
 import '../utils/contact_launch.dart';
+import '../patient_health/patient_health_gate.dart';
 import '../settings/whatsapp_message_settings.dart';
 import '../voice/arabic_speech_numbers.dart';
 import '../voice/assistant_orchestrator.dart';
 import '../voice/clarification/clarification_models.dart';
 import '../voice/context_resolver.dart';
 import '../voice/conversation_context.dart';
+import '../voice/intent/assistant_intent.dart';
 import '../voice/intent/intent_resolver.dart';
 import '../voice/intent/search_modifiers.dart';
 import '../voice/intent/smart_brain_fallback_policy.dart';
@@ -145,6 +147,19 @@ class _SmartSearchPageState extends State<SmartSearchPage>
   /// عدّاد محاولات startSession لهذه الصفحة (للتشخيص/الاختبار).
   int _voiceStartAttemptCount = 0;
 
+  StreamSubscription<AuthState>? _authSub;
+  String? _authUserId;
+
+  /// آخر خطة/عرض لاقتراحات الخطوة التالية (جلسة فقط).
+  AssistantActionPlan? _lastPlan;
+  String _lastUserQuery = '';
+  final Set<String> _shownInfoTags = <String>{};
+  SmartBrainSuggestedActionKind? _justExecutedSuggestionKind;
+  List<SmartBrainSuggestedAction> _lastOfferedSuggestions = const [];
+  SmartBrainSuggestedAction? _pendingSingleSuggestion;
+  bool _suggestionInFlight = false;
+  SearchModifiers _lastModifiers = SearchModifiers.none;
+
   @visibleForTesting
   int get voiceStartAttemptCountForTest => _voiceStartAttemptCount;
 
@@ -180,6 +195,29 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     );
     _seedWelcomeTurn();
     unawaited(_loadWelcomeName());
+    _authUserId = Supabase.instance.client.auth.currentUser?.id;
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((event) {
+      final nextId = event.session?.user.id;
+      if (nextId == _authUserId) return;
+      _authUserId = nextId;
+      // منع تسرب سياق المحادثة بين الحسابات / بعد تسجيل الخروج.
+      _conversation.reset();
+      _results = const [];
+      _clearSuggestionSession();
+      if (!mounted) return;
+      setState(() {
+        _assistantReply = null;
+        _chatTurns
+          ..clear()
+          ..add(
+            SmartBrainChatTurn.assistant(
+              id: 'welcome-auth-${DateTime.now().millisecondsSinceEpoch}',
+              text: _welcomeTextFor(null),
+              isWelcome: true,
+            ),
+          );
+      });
+    });
     if (widget.initialQuery.trim().isNotEmpty) {
       _controller.text = widget.initialQuery.trim();
       unawaited(
@@ -279,6 +317,36 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     _scrollChatToEnd();
   }
 
+  void _clearSuggestionSession() {
+    _lastPlan = null;
+    _lastUserQuery = '';
+    _shownInfoTags.clear();
+    _justExecutedSuggestionKind = null;
+    _lastOfferedSuggestions = const [];
+    _pendingSingleSuggestion = null;
+    _lastModifiers = SearchModifiers.none;
+    _suggestionInFlight = false;
+  }
+
+  bool _isBareAffirmation(String raw) {
+    final n = ArabicTextUtils.normalize(raw).trim();
+    return RegExp(r'^(?:نعم|اي|إي|ايه|أي|تمام|موافق|زين|زین)$').hasMatch(n);
+  }
+
+  bool _isSuggestionFresh(SmartBrainSuggestedAction action) {
+    if (action.conversationGeneration != 0 &&
+        action.conversationGeneration != _conversation.conversationGeneration) {
+      return false;
+    }
+    if (action.resultTurnId != 0) {
+      final liveTurn = _conversation.currentResultContext?.turnId ?? 0;
+      if (liveTurn != 0 && action.resultTurnId != liveTurn) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// يلحق رد مساعد واحد من حالة الدماغ الحالية — بلا تكرار بانر/فقاعة.
   void _commitAssistantTurn() {
     if (!mounted) return;
@@ -304,18 +372,42 @@ class _SmartSearchPageState extends State<SmartSearchPage>
 
     final attached = List<SmartSearchResult>.from(presented);
     final urgent = _assistantReply?.source == AssistantReplySource.urgentCare;
-    final suggestions = attached.isEmpty
-        ? const <SmartBrainSuggestedAction>[]
-        : SmartBrainSuggestedActionsBuilder.forResults(attached);
+    final plan = _lastPlan;
+    final patientSignedIn =
+        Supabase.instance.client.auth.currentUser != null;
+    final bundle = SmartBrainSuggestedActionsBuilder.suggest(
+      context: _conversation,
+      presented: attached,
+      lastIntent: plan?.intentResult.intent ?? _conversation.lastIntent,
+      planKind: plan?.kind,
+      lastQuery: _lastUserQuery,
+      lastMessage: text,
+      alreadyShownInfo: _shownInfoTags,
+      justExecuted: _justExecutedSuggestionKind,
+      patientSignedIn: patientSignedIn,
+      modifiers: _lastModifiers,
+      maxActions: 3,
+    );
+    _justExecutedSuggestionKind = null;
+    var display = text;
+    final lead = (bundle.leadText ?? '').trim();
+    if (lead.isNotEmpty && !display.contains(lead)) {
+      display = display.isEmpty ? lead : '$display\n$lead';
+    }
+    _lastOfferedSuggestions = bundle.actions;
+    _pendingSingleSuggestion =
+        bundle.awaitsSingleYes && bundle.actions.length == 1
+            ? bundle.actions.first
+            : null;
 
     setState(() {
       _chatTurns.removeWhere((t) => t.isThinking);
       _chatTurns.add(
         SmartBrainChatTurn.assistant(
           id: _nextTurnId('assistant'),
-          text: text,
+          text: display,
           results: attached,
-          suggestedActions: suggestions,
+          suggestedActions: bundle.actions,
           isUrgent: urgent,
         ),
       );
@@ -431,12 +523,51 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     _beginUserTurn(trimmed);
     // امسح الحقل بعد تثبيت رسالة المستخدم في السجل.
     _setFieldText('');
+    _lastUserQuery = trimmed;
+
+    // «نعم» تنفّذ اقتراحًا واحدًا واضحًا فقط؛ مع عدة اقتراحات نطلب توضيحًا.
+    if (_isBareAffirmation(trimmed)) {
+      final single = _pendingSingleSuggestion;
+      if (single != null && _isSuggestionFresh(single)) {
+        _pendingSingleSuggestion = null;
+        await _onSuggestedAction(single);
+        return;
+      }
+      if (_lastOfferedSuggestions.length > 1) {
+        if (!mounted || epoch != _searchEpoch) return;
+        setState(() {
+          _assistantReply = AssistantReply(
+            query: trimmed,
+            text: 'تقصد أي خطوة؟ اختر من الاقتراحات أو اكتب رقم/اسم أوضح.',
+            spoken: false,
+            source: AssistantReplySource.localSearch,
+            searchResults: _results,
+          );
+          _loading = false;
+        });
+        _commitAssistantTurn();
+        return;
+      }
+    }
+
+    // بحث جديد مستقل يصفّر وسوم المعلومات المعروضة (ليس تصفية نفس القائمة).
+    final previewIntent = _intentResolver.resolve(trimmed).intent;
+    if (previewIntent == AssistantIntent.specialtySearch ||
+        previewIntent == AssistantIntent.doctorSearch ||
+        previewIntent == AssistantIntent.generalSearch ||
+        previewIntent == AssistantIntent.findLab ||
+        previewIntent == AssistantIntent.findPharmacy ||
+        previewIntent == AssistantIntent.findRadiology) {
+      _shownInfoTags.clear();
+    }
 
     // Phase 2 Step 4: مسار نية موحّد (نص = صوت) ثم تخطيط فعل آمن.
     final plan = await _brainPlanner.plan(
       query: trimmed,
       context: _conversation,
     );
+    _lastPlan = plan;
+    _lastModifiers = plan.modifiers;
     if (!mounted || epoch != _searchEpoch) {
       if (showVoiceUi && mounted) {
         _voiceInput.setIdle();
@@ -1080,6 +1211,22 @@ class _SmartSearchPageState extends State<SmartSearchPage>
           showLoading: showLoading,
         );
         return true;
+
+      case AssistantActionKind.openPatientHealth:
+        await _showPlanMessage(
+          plan,
+          query: query,
+          epoch: epoch,
+          announce: announce,
+          showLoading: showLoading,
+        );
+        if (!mounted || epoch != _searchEpoch || !plan.canExecute) {
+          return true;
+        }
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const PatientHealthGate()),
+        );
+        return true;
     }
   }
 
@@ -1121,7 +1268,13 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       }
       _loading = false;
       _searchError =
-          plan.kind == AssistantActionKind.showMessage ? displayMessage : null;
+          plan.kind == AssistantActionKind.showMessage &&
+                  plan.intentResult.intent !=
+                      AssistantIntent.doctorAvailability &&
+                  plan.intentResult.intent != AssistantIntent.showLocation &&
+                  plan.intentResult.intent != AssistantIntent.bookAppointment
+              ? displayMessage
+              : null;
       _assistantReply = AssistantReply(
         query: query,
         text: displayMessage,
@@ -1139,6 +1292,9 @@ class _SmartSearchPageState extends State<SmartSearchPage>
   bool _shouldOfferDoctorNameTypo(AssistantActionPlan plan, String query) {
     if (plan.target != null || plan.candidates.isNotEmpty) return false;
     if (query.trim().isEmpty) return false;
+    if (plan.intentResult.intent == AssistantIntent.doctorAvailability) {
+      return false;
+    }
     final msg = plan.message;
     if (msg.contains('لم أجد طبيب') ||
         msg.contains('طبيباً مطابقاً') ||
@@ -2243,49 +2399,139 @@ class _SmartSearchPageState extends State<SmartSearchPage>
   }
 
   Future<void> _onSuggestedAction(SmartBrainSuggestedAction action) async {
-    final result = action.result;
-    switch (action.kind) {
-      case SmartBrainSuggestedActionKind.openDetails:
-      case SmartBrainSuggestedActionKind.showPackages:
-      case SmartBrainSuggestedActionKind.showOffers:
-        if (result == null) return;
-        await _openResultFromList(result);
-        return;
-      case SmartBrainSuggestedActionKind.call:
-        if (result == null) return;
-        await _launchContactForResult(
-          result,
-          VoiceContactKind.call,
-          announce: false,
-        );
-        return;
-      case SmartBrainSuggestedActionKind.whatsapp:
-        if (result == null) return;
-        await _launchContactForResult(
-          result,
-          VoiceContactKind.whatsapp,
-          announce: false,
-        );
-        return;
-      case SmartBrainSuggestedActionKind.showLocation:
-        if (result == null || !mounted) return;
-        final loc = (result.clinicLocation ?? result.subtitle).trim();
-        if (loc.isEmpty) {
+    if (_suggestionInFlight || _loading || _navigating) return;
+    if (!_isSuggestionFresh(action)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'هذا الاقتراح من نتائج سابقة. حدّث البحث أو اختر من الرد الأخير.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    _suggestionInFlight = true;
+    _justExecutedSuggestionKind = action.kind;
+    final tag = action.infoTag;
+    if (tag != null && tag.isNotEmpty) {
+      _shownInfoTags.add(tag);
+    }
+    try {
+      // ثبّت الاختيار بالمعرّف قبل مسار النص — لا تعتمد على عنوان الزر.
+      final eid = (action.entityId ?? '').trim();
+      if (eid.isNotEmpty) {
+        final pool = <SmartSearchResult>[
+          ...?_conversation.currentResultContext?.items,
+          if (_conversation.activeEntityType != ConversationEntityType.none)
+            ..._conversation
+                .authoritativeItemsFor(_conversation.activeEntityType),
+        ];
+        SmartSearchResult? match;
+        for (final r in pool) {
+          if (_entityIdOfResult(r) == eid) {
+            match = r;
+            break;
+          }
+        }
+        match ??= action.result != null &&
+                _entityIdOfResult(action.result!) == eid
+            ? action.result
+            : null;
+        if (match == null) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ماكو موقع محفوظ لهذه النتيجة.')),
+            const SnackBar(
+              content: Text(
+                'هذا الكيان مو متاح بنفس النتائج الحالية. سوّ بحث جديد.',
+              ),
+            ),
           );
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc)),
-        );
+        _conversation.selectEntity(match);
+      }
+
+      final q = (action.executionQuery ?? '').trim();
+      if (q.isNotEmpty) {
+        await _runSearch(q, source: QueryInputSource.system);
         return;
-      case SmartBrainSuggestedActionKind.showMoreResults:
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('النتائج معروضة أعلاه.')),
-        );
-        return;
+      }
+
+      // احتياطي منظم دون نص — نفس مسارات الأزرار الأصلية.
+      final result = action.result;
+      switch (action.kind) {
+        case SmartBrainSuggestedActionKind.openDetails:
+        case SmartBrainSuggestedActionKind.showPackages:
+        case SmartBrainSuggestedActionKind.showOffers:
+        case SmartBrainSuggestedActionKind.selectOrdinal:
+          if (result == null) return;
+          await _openResultFromList(result);
+          return;
+        case SmartBrainSuggestedActionKind.call:
+          if (result == null) return;
+          await _runSearch('اتصل بيه', source: QueryInputSource.system);
+          return;
+        case SmartBrainSuggestedActionKind.whatsapp:
+          if (result == null) return;
+          await _runSearch('دزله واتساب', source: QueryInputSource.system);
+          return;
+        case SmartBrainSuggestedActionKind.showLocation:
+          await _runSearch('وين عيادته', source: QueryInputSource.system);
+          return;
+        case SmartBrainSuggestedActionKind.showAvailability:
+          await _runSearch('شنو دوامه', source: QueryInputSource.system);
+          return;
+        case SmartBrainSuggestedActionKind.bookingGuidance:
+          await _runSearch('شلون أحجز', source: QueryInputSource.system);
+          return;
+        case SmartBrainSuggestedActionKind.showPhone:
+          await _runSearch('وريني رقمه', source: QueryInputSource.system);
+          return;
+        case SmartBrainSuggestedActionKind.openPatientHealth:
+          await _runSearch('ملفي الصحي', source: QueryInputSource.system);
+          return;
+        case SmartBrainSuggestedActionKind.showAnalyses:
+          await _runSearch('شنو التحاليل', source: QueryInputSource.system);
+          return;
+        case SmartBrainSuggestedActionKind.showPackagePrice:
+          await _runSearch('شنو سعرها', source: QueryInputSource.system);
+          return;
+        case SmartBrainSuggestedActionKind.relaxFilter:
+        case SmartBrainSuggestedActionKind.showMoreResults:
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('اكتب طلبك أو حدّث البحث.')),
+          );
+          return;
+      }
+    } finally {
+      _suggestionInFlight = false;
+    }
+  }
+
+  static String _entityIdOfResult(SmartSearchResult r) {
+    switch (r.type) {
+      case SmartSearchResultType.doctor:
+        return (r.doctorId ?? '').trim();
+      case SmartSearchResultType.lab:
+        return (r.labId ?? '').trim();
+      case SmartSearchResultType.radiology:
+        return (r.radiologyId ?? '').trim();
+      case SmartSearchResultType.pharmacy:
+        return (r.pharmacyId ?? '').trim();
+      case SmartSearchResultType.physio:
+        return (r.physioId ?? '').trim();
+      case SmartSearchResultType.supply:
+        return (r.supplyId ?? '').trim();
+      case SmartSearchResultType.package:
+      case SmartSearchResultType.offer:
+        return (r.packageId ?? '').trim();
+      case SmartSearchResultType.analysis:
+        return (r.analysisId ?? '').trim();
+      case SmartSearchResultType.specialty:
+        return '';
     }
   }
 
@@ -2443,6 +2689,8 @@ class _SmartSearchPageState extends State<SmartSearchPage>
   void dispose() {
     debugPrint('[SMART_SEARCH] dispose hash=$hashCode');
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_authSub?.cancel());
+    _authSub = null;
     _debounce?.cancel();
     _voiceLiveDebounce?.cancel();
     _controller.removeListener(_onQueryChanged);

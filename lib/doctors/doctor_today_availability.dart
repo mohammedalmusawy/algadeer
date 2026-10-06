@@ -165,37 +165,47 @@ class DoctorTodayAvailability {
   }
 
   /// جواب قصير من الحالة الحقيقية فقط.
+  /// لا نستنتج «موجود الآن» من جدول الدوام — نقول حسب الدوام المسجّل.
   String describe({required String doctorName, String gender = ''}) {
     final name = _label(doctorName);
     final female = DoctorGender.isFemale(gender);
-    final present = female ? 'متواجدة' : 'متواجد';
     final hers = female ? 'دوامها' : 'دوامه';
 
     switch (state) {
       case DoctorTodayState.onLeave:
-        return '$name اليوم في إجازة.';
+        return '$name اليوم في إجازة حسب البيانات المسجّلة.';
       case DoctorTodayState.dayOff:
         return female
-            ? '$name ما عندها دوام اليوم حسب الجدول.'
-            : '$name ما عنده دوام اليوم حسب الجدول.';
+            ? '$name ما عندها دوام اليوم حسب الدوام المسجّل.'
+            : '$name ما عنده دوام اليوم حسب الدوام المسجّل.';
       case DoctorTodayState.presentBookable:
         return period == null
-            ? 'نعم، $name $present اليوم، وحالة الحجز متاحة.'
-            : 'نعم، $name $present اليوم. $hers $period، وحالة الحجز متاحة.';
+            ? (female
+                ? 'حسب الدوام المسجّل، $name عندها دوام اليوم وحالة الحجز متاحة.'
+                : 'حسب الدوام المسجّل، $name عنده دوام اليوم وحالة الحجز متاحة.')
+            : 'حسب الدوام المسجّل، $hers $period اليوم وحالة الحجز متاحة.';
       case DoctorTodayState.presentFull:
-        return '$name $present اليوم لكن الحجز مكتمل.';
+        return period == null
+            ? (female
+                ? 'حسب الدوام المسجّل، $name عندها دوام اليوم لكن الحجز مكتمل.'
+                : 'حسب الدوام المسجّل، $name عنده دوام اليوم لكن الحجز مكتمل.')
+            : 'حسب الدوام المسجّل، $hers $period اليوم لكن الحجز مكتمل.';
       case DoctorTodayState.presentWalkIn:
         return period == null
-            ? 'نعم، $name $present اليوم، والاستقبال حضور مباشر فقط.'
-            : 'نعم، $name $present اليوم. $hers $period، والاستقبال حضور مباشر فقط.';
+            ? (female
+                ? 'حسب الدوام المسجّل، $name عندها دوام اليوم والاستقبال حضور مباشر فقط.'
+                : 'حسب الدوام المسجّل، $name عنده دوام اليوم والاستقبال حضور مباشر فقط.')
+            : 'حسب الدوام المسجّل، $hers $period اليوم والاستقبال حضور مباشر فقط.';
       case DoctorTodayState.presentBookingUnknown:
         return period == null
-            ? '$name $present اليوم حسب الجدول.'
-            : '$name $present اليوم حسب الجدول. $hers $period.';
+            ? (female
+                ? 'حسب الدوام المسجّل، $name عندها دوام اليوم.'
+                : 'حسب الدوام المسجّل، $name عنده دوام اليوم.')
+            : 'حسب الدوام المسجّل، $hers $period اليوم.';
       case DoctorTodayState.bookingUnavailable:
         return female
-            ? '$name غير متاحة حالياً حسب حالة الحجز.'
-            : '$name غير متاح حالياً حسب حالة الحجز.';
+            ? '$name غير متاحة للحجز حسب حالة الحجز المسجّلة.'
+            : '$name غير متاح للحجز حسب حالة الحجز المسجّلة.';
       case DoctorTodayState.unknown:
         return 'لا توجد لدي معلومة مؤكدة عن دوام $name اليوم.';
     }

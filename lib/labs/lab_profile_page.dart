@@ -11,10 +11,10 @@ import '../utils/contact_launch.dart';
 import '../services/app_stats_service.dart';
 import '../voice/lab_packages_speech.dart';
 import '../voice/voice_response_controller.dart';
-import '../services/entity_access_pin_service.dart';
-import '../widgets/entity_access_pin_gate.dart';
+import '../doctors/doctor_card_gate.dart';
+import '../doctors/doctor_card_tap.dart';
 import '../widgets/entity_contact_actions.dart';
-import 'admin/packages_admin_page.dart';
+import 'lab_owner_editor_page.dart';
 import 'lab_card_links.dart';
 import 'lab_default_images.dart';
 import 'lab_package_detail_page.dart';
@@ -566,7 +566,8 @@ class _LabProfilePageState extends State<LabProfilePage> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  StaffTripleTap(
+                                  DoctorCardTripleTap(
+                                    tapCount: 5,
                                     onTripleTap: _openLabPackagesManage,
                                     child: _LabHeroNameSpecialty(
                                       name: _lab.name.trim().isEmpty
@@ -794,19 +795,17 @@ class _LabProfilePageState extends State<LabProfilePage> {
   }
 
   Future<void> _openLabPackagesManage() async {
-    final ok = await openEntityAccessPinGate(
+    final session = await showEntityOwnerSession(
       context,
-      entityKey: EntityAccessPinService.labKey(_lab.id),
-      entityTitle: _lab.name,
+      entityType: 'lab',
+      entityId: _lab.id,
+      title: _lab.name,
     );
-    if (!ok || !mounted) return;
+    if (session == null || !mounted) return;
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => PackagesAdminPage(
-          lockedLabId: _lab.id,
-          lockedLabName: _lab.name,
-        ),
+        builder: (_) => LabOwnerEditorPage(lab: _lab, session: session),
       ),
     );
   }
@@ -1200,7 +1199,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
                   ),
                 ),
               ),
-              if (trailing != null) trailing,
+              ?trailing,
             ],
           ),
           const SizedBox(height: 8),

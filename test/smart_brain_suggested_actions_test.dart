@@ -21,29 +21,33 @@ SmartSearchResult _doctor({
 
 void main() {
   group('SmartBrainSuggestedActionsBuilder', () {
-    test('بدون رقم — لا يظهر اتصال ولا واتساب', () {
+    test('طبيب واحد — تفاصيل وحجز ودوام ضمن الحد', () {
       final actions = SmartBrainSuggestedActionsBuilder.forResults([
-        _doctor(),
+        _doctor(phone: '07701234567', clinicLocation: 'الكرادة'),
       ]);
+      expect(actions.length, lessThanOrEqualTo(3));
       final kinds = actions.map((a) => a.kind).toSet();
       expect(kinds.contains(SmartBrainSuggestedActionKind.openDetails), isTrue);
-      expect(kinds.contains(SmartBrainSuggestedActionKind.call), isFalse);
-      expect(kinds.contains(SmartBrainSuggestedActionKind.whatsapp), isFalse);
+      expect(
+        kinds.contains(SmartBrainSuggestedActionKind.bookingGuidance),
+        isTrue,
+      );
     });
 
-    test('مع هاتف فقط — اتصال بلا واتساب (phone ≠ WhatsApp)', () {
+    test('واتساب لا يظهر بلا رقم واتساب صريح', () {
       final actions = SmartBrainSuggestedActionsBuilder.forResults([
         _doctor(phone: '07701234567'),
-      ]);
-      final kinds = actions.map((a) => a.kind).toSet();
-      expect(kinds.contains(SmartBrainSuggestedActionKind.call), isTrue);
-      expect(kinds.contains(SmartBrainSuggestedActionKind.whatsapp), isFalse);
+      ], maxActions: 6);
+      expect(
+        actions.any((a) => a.kind == SmartBrainSuggestedActionKind.whatsapp),
+        isFalse,
+      );
     });
 
-    test('موقع حقيقي فقط يظهر زر الموقع', () {
+    test('موقع حقيقي فقط يظهر زر الموقع عند اتساع الحد', () {
       final without = SmartBrainSuggestedActionsBuilder.forResults([
         _doctor(phone: '0770'),
-      ]);
+      ], maxActions: 6);
       expect(
         without.any((a) => a.kind == SmartBrainSuggestedActionKind.showLocation),
         isFalse,
@@ -51,14 +55,14 @@ void main() {
 
       final withLoc = SmartBrainSuggestedActionsBuilder.forResults([
         _doctor(phone: '0770', clinicLocation: 'الكرادة'),
-      ]);
+      ], maxActions: 6);
       expect(
         withLoc.any((a) => a.kind == SmartBrainSuggestedActionKind.showLocation),
         isTrue,
       );
     });
 
-    test('مختبر → اقتراح باقات ضمن الحد الأقصى', () {
+    test('مختبر → اقتراح باقات', () {
       final lab = SmartSearchResult(
         type: SmartSearchResultType.lab,
         title: 'مختبر الحياة',
@@ -77,19 +81,20 @@ void main() {
       );
     });
 
-    test('نتائج متعددة → المزيد إن بقي مكان', () {
+    test('نتائج متعددة → أسماء مرقّمة لا زر المزيد القديم', () {
       final actions = SmartBrainSuggestedActionsBuilder.forResults(
         [
           _doctor(phone: '0770'),
           _doctor(phone: '0771'),
         ],
-        maxActions: 5,
+        maxActions: 3,
       );
+      expect(actions.first.label, startsWith('1.'));
       expect(
         actions.any(
           (a) => a.kind == SmartBrainSuggestedActionKind.showMoreResults,
         ),
-        isTrue,
+        isFalse,
       );
     });
   });

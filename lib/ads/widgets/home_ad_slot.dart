@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import '../../branding/ghadeer_brand_mark.dart';
 import '../../utils/contact_launch.dart';
 import '../ad_campaign.dart';
+import '../ads_catalog_refresh.dart';
+import '../ads_local_preview.dart';
 import '../ads_service.dart';
 
 /// فتحة إعلان خفيفة — إن لا توجد حملة مؤهلة لا ترسم شيئًا.
+/// تُعاد الجلب عند [AdsCatalogRefresh] (تعديل/إيقاف من الإدارة أو سحب للتحديث).
 class HomeAdSlot extends StatefulWidget {
   const HomeAdSlot({super.key, this.placement = 'home'});
 
@@ -24,44 +27,84 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
   bool _loading = true;
   bool _hidden = false;
   Timer? _autoHide;
+  String? _impressionCountedId;
 
   @override
   void initState() {
     super.initState();
+    AdsCatalogRefresh.tick.addListener(_onCatalogRefresh);
     _load();
   }
 
   @override
   void dispose() {
+    AdsCatalogRefresh.tick.removeListener(_onCatalogRefresh);
     _autoHide?.cancel();
     super.dispose();
   }
 
+  void _onCatalogRefresh() {
+    _load();
+  }
+
   Future<void> _load() async {
     try {
-      final has = await _service.hasTable();
-      if (!has) {
-        if (mounted) setState(() => _loading = false);
-        return;
+      AdCampaign? campaign;
+      final local = AdsLocalPreview.eligibleFor(widget.placement);
+      if (local != null) {
+        campaign = local;
+      } else if (AdsLocalPreview.enabled) {
+        campaign = null;
+      } else {
+        final has = await _service.hasTable();
+        if (!has) {
+          if (mounted) {
+            setState(() {
+              _campaign = null;
+              _loading = false;
+              _hidden = false;
+            });
+          }
+          return;
+        }
+        campaign = await _service.fetchEligibleForPlacement(widget.placement);
       }
-      final campaign = await _service.fetchEligibleForPlacement(widget.placement);
       if (!mounted) return;
       if (campaign == null) {
+        _autoHide?.cancel();
         setState(() {
           _campaign = null;
           _loading = false;
+          _hidden = false;
+          _impressionCountedId = null;
         });
         return;
       }
+
+      final previousId = _campaign?.id;
+      final same = previousId == campaign.id;
+      final localPreview = AdsLocalPreview.isLocalCampaignId(campaign.id);
       setState(() {
         _campaign = campaign;
         _loading = false;
+        // حملة جديدة، أو معاينة محلية بعد إعادة التأهيل، تظهر من جديد.
+        if (!same || localPreview) _hidden = false;
       });
-      await _freq.markShown(campaign);
-      await _service.recordImpression(campaign.id);
+
+      final shouldCount = !localPreview &&
+          (!same || _impressionCountedId != campaign.id);
+      if (shouldCount) {
+        await _freq.markShown(campaign);
+        await _service.recordImpression(campaign.id);
+        _impressionCountedId = campaign.id;
+      } else if (localPreview) {
+        _impressionCountedId = campaign.id;
+      }
+
+      _autoHide?.cancel();
+      _autoHide = null;
       final seconds = campaign.displaySeconds;
       if (seconds > 0) {
-        _autoHide?.cancel();
         _autoHide = Timer(Duration(seconds: seconds), () {
           if (mounted) setState(() => _hidden = true);
         });
@@ -73,7 +116,9 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
 
   Future<void> _dismiss() async {
     final c = _campaign;
-    if (c != null) await _freq.markDismissedToday(c);
+    if (c != null && !AdsLocalPreview.isLocalCampaignId(c.id)) {
+      await _freq.markDismissedToday(c);
+    }
     if (mounted) setState(() => _hidden = true);
   }
 
@@ -84,7 +129,9 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
         ? c.clickUrl.trim()
         : (c.isVideo ? c.videoUrl.trim() : '');
     if (raw.isEmpty) return;
-    await _service.recordClick(c.id);
+    if (!AdsLocalPreview.isLocalCampaignId(c.id)) {
+      await _service.recordClick(c.id);
+    }
     await launchExternalHttpUrl(raw);
   }
 
@@ -98,7 +145,10 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Material(
+      child: Semantics(
+        button: true,
+        label: c.title.trim().isEmpty ? 'إعلان' : 'إعلان ${c.title.trim()}',
+        child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
@@ -216,6 +266,7 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/doctor_item.dart';
+import '../services/content_conflict.dart';
 import 'doctor_gender.dart';
 
 /// سجل إجازة لطبيب.
@@ -304,23 +305,20 @@ class DoctorAvailabilityService {
 
       final chosen = current ?? upcoming;
       if (chosen == null) {
-        await client
-            .from('doctors')
-            .update({'absence_from': null, 'absence_to': null})
-            .eq('id', doctorId);
+        await _patchDoctorColumns(doctorId, {
+          'absence_from': null,
+          'absence_to': null,
+        });
         return;
       }
 
       String ymd(DateTime d) =>
           '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-      await client
-          .from('doctors')
-          .update({
-            'absence_from': ymd(chosen.startDate),
-            'absence_to': ymd(chosen.endDate),
-          })
-          .eq('id', doctorId);
+      await _patchDoctorColumns(doctorId, {
+        'absence_from': ymd(chosen.startDate),
+        'absence_to': ymd(chosen.endDate),
+      });
     } catch (e) {
       debugPrint('syncDoctorAbsenceMirror failed: $e');
     }
@@ -337,10 +335,10 @@ class DoctorAvailabilityService {
     if (!isAuthenticated) throw StateError('يجب تسجيل دخول الإدارة');
 
     if (from == null || to == null) {
-      await client
-          .from('doctors')
-          .update({'absence_from': null, 'absence_to': null})
-          .eq('id', doctorId);
+      await _patchDoctorColumns(doctorId, {
+        'absence_from': null,
+        'absence_to': null,
+      });
       return;
     }
 
@@ -353,13 +351,35 @@ class DoctorAvailabilityService {
     String ymd(DateTime d) =>
         '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-    await client
-        .from('doctors')
-        .update({
-          'absence_from': ymd(start),
-          'absence_to': ymd(end),
-        })
-        .eq('id', doctorId);
+    await _patchDoctorColumns(doctorId, {
+      'absence_from': ymd(start),
+      'absence_to': ymd(end),
+    });
+  }
+
+  Future<void> _patchDoctorColumns(
+    String doctorId,
+    Map<String, dynamic> patch,
+  ) async {
+    final client = _client;
+    if (client == null) throw StateError('Supabase غير جاهز');
+    for (var attempt = 0; attempt < 2; attempt++) {
+      final row = await client
+          .from('doctors')
+          .select('content_revision')
+          .eq('id', doctorId)
+          .maybeSingle();
+      if (row == null) return;
+      final base = (row['content_revision'] as num?)?.toInt() ?? 1;
+      final updated = await client
+          .from('doctors')
+          .update({...patch, 'content_revision': base + 1})
+          .eq('id', doctorId)
+          .eq('content_revision', base)
+          .select('id');
+      if ((updated as List).isNotEmpty) return;
+    }
+    throw const ContentConflictException();
   }
 
   Future<({DateTime? from, DateTime? to})> fetchDoctorLeaveMirror(

@@ -194,9 +194,16 @@ class SmartBrainAssistantBubble extends StatelessWidget {
                         for (final action in turn.suggestedActions)
                           ActionChip(
                             key: Key(
-                              'smart_brain_suggested_action_${action.kind.name}',
+                              'smart_brain_suggested_action_${action.id}',
                             ),
-                            label: Text(action.label),
+                            label: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 280),
+                              child: Text(
+                                action.label,
+                                softWrap: true,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                             onPressed: () => onSuggestedAction!(action),
                             backgroundColor: Colors.white,
                             side: const BorderSide(color: Color(0xFFB6E5E0)),
@@ -204,6 +211,7 @@ class SmartBrainAssistantBubble extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                               color: _kNavy,
                               fontSize: 13,
+                              height: 1.25,
                             ),
                           ),
                       ],

@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../doctors/doctor_card_gate.dart';
+import '../doctors/doctor_card_tap.dart';
 import '../branding/ghadeer_brand_mark.dart';
 import '../home/ghadeer_home_colors.dart';
 import '../labs/labs_page.dart';
 import '../widgets/entity_contact_actions.dart';
+import 'pharmacy_owner_editor_page.dart';
 import 'pharmacies_store.dart';
 import 'pharmacy_distance.dart';
 import 'pharmacy_models.dart';
@@ -95,6 +100,19 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
           .toList();
     }
     return list;
+  }
+
+  String _emptyCatalogMessage() {
+    final store = PharmaciesStore.instance;
+    if (store.sharedCatalogReady && !store.hasSharedCatalog) {
+      return 'لا توجد صيدليات منشورة للزوار حالياً.\n'
+          'النسخة على الجهاز أو الكتالوج المضمّن لا تُعرض بعد أول جلب مشترك.\n'
+          'للإدارة: افتح «إدارة الصيدليات» ثم «نشر النسخة المحفوظة على هذا الجهاز».';
+    }
+    if (store.sharedCatalogReady) {
+      return 'لا توجد صيدليات ظاهرة في الكتالوج المنشور.';
+    }
+    return 'لا توجد صيدليات مطابقة';
   }
 
   Future<void> _onChipSelected(String id) async {
@@ -213,12 +231,19 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : items.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'لا توجد صيدليات مطابقة',
-                        style: TextStyle(
-                          color: GhadeerHomeColors.muted,
-                          fontWeight: FontWeight.w700,
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          _all.isEmpty
+                              ? _emptyCatalogMessage()
+                              : 'لا توجد صيدليات مطابقة للبحث أو التصفية',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: GhadeerHomeColors.muted,
+                            fontWeight: FontWeight.w700,
+                            height: 1.45,
+                          ),
                         ),
                       ),
                     )
@@ -231,6 +256,25 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
                         return _PharmacyCard(
                           pharmacy: p,
                           onDetails: () => _openProfile(p),
+                          onOwnerAccess: () async {
+                            final host = context;
+                            final session = await showEntityOwnerSession(
+                              host,
+                              entityType: 'pharmacy',
+                              entityId: p.id,
+                              title: p.name,
+                            );
+                            if (session == null || !host.mounted) return;
+                            await Navigator.push(
+                              host,
+                              MaterialPageRoute(
+                                builder: (_) => PharmacyOwnerEditorPage(
+                                  pharmacy: p,
+                                  session: session,
+                                ),
+                              ),
+                            );
+                          },
                           onCall: () => _call(p.phone),
                           onWhatsapp: () => _whatsapp(p.whatsapp),
                         );
@@ -644,18 +688,47 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
   }
 }
 
-class _PharmacyCard extends StatelessWidget {
+class _PharmacyCard extends StatefulWidget {
   const _PharmacyCard({
     required this.pharmacy,
     required this.onDetails,
+    required this.onOwnerAccess,
     required this.onCall,
     required this.onWhatsapp,
   });
 
   final PharmacyItem pharmacy;
   final VoidCallback onDetails;
+  final VoidCallback onOwnerAccess;
   final VoidCallback onCall;
   final VoidCallback onWhatsapp;
+
+  @override
+  State<_PharmacyCard> createState() => _PharmacyCardState();
+}
+
+class _PharmacyCardState extends State<_PharmacyCard> {
+  final _taps = RapidTapMachine(requiredTaps: 5);
+  Timer? _openTimer;
+
+  @override
+  void dispose() {
+    _openTimer?.cancel();
+    super.dispose();
+  }
+
+  void _handleOpenTap() {
+    final secret = _taps.register(DateTime.now());
+    _openTimer?.cancel();
+    if (secret) {
+      widget.onOwnerAccess();
+      return;
+    }
+    _openTimer = Timer(RapidTapMachine.openDelay, () {
+      if (!mounted) return;
+      widget.onDetails();
+    });
+  }
 
   /// أخضر هادئ ظاهر — مو صارخ ومو مختفي.
   static const _openSoft = Color(0xFF6BAF84);
@@ -663,7 +736,7 @@ class _PharmacyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = pharmacy;
+    final p = widget.pharmacy;
     final open = p.isOpenNow;
     final statusColor = open ? _openSoft : _closedSoft;
     final statusText = open ? 'مفتوحة الآن' : 'مغلقة الآن';
@@ -678,9 +751,9 @@ class _PharmacyCard extends StatelessWidget {
         child: Column(
           children: [
             EntityListContactRow(
-              onCall: onCall,
-              onWhatsapp: onWhatsapp,
-              onDetails: onDetails,
+              onCall: widget.onCall,
+              onWhatsapp: widget.onWhatsapp,
+              onDetails: widget.onDetails,
             ),
             const SizedBox(height: 10),
             // عكس الموكاب الظاهر في اللقطة حتى لا ينعكس على الجهاز:
@@ -694,7 +767,7 @@ class _PharmacyCard extends StatelessWidget {
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: onDetails,
+                      onTap: _handleOpenTap,
                       borderRadius: BorderRadius.circular(14),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(14),
@@ -732,7 +805,7 @@ class _PharmacyCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         InkWell(
-                          onTap: onDetails,
+                          onTap: _handleOpenTap,
                           borderRadius: BorderRadius.circular(6),
                           child: Text(
                             p.name,

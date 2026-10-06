@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../branding/ghadeer_brand_mark.dart';
 import '../../widgets/clinic_app_bar.dart';
 import '../ad_campaign.dart';
+import '../ads_catalog_refresh.dart';
 import '../ads_notify.dart';
 import '../ads_service.dart';
 
@@ -215,6 +216,7 @@ class _AdCampaignFormPageState extends State<AdCampaignFormPage> {
       if (becameActive && _notifyOnActivate) {
         await AdsNotify.notifyCampaignActivated(saved);
       }
+      AdsCatalogRefresh.bump();
 
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -393,6 +395,17 @@ class _AdCampaignFormPageState extends State<AdCampaignFormPage> {
                 'الوقت والحدود',
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
               ),
+              const SizedBox(height: 4),
+              const Text(
+                'تواريخ البداية/النهاية = مدة الحملة (بتوقيت جهازك، تُحفظ UTC).\n'
+                'مدة الظهور بالثواني = كم تبقى الشريحة ظاهرة في الجلسة — مستقلة عن مدة الحملة.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.4,
+                  color: Color(0xFF708084),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -401,7 +414,7 @@ class _AdCampaignFormPageState extends State<AdCampaignFormPage> {
                       onPressed: () => _pickDate(start: true),
                       child: Text(
                         _startsAt == null
-                            ? 'بداية الإعلان'
+                            ? 'بداية الحملة'
                             : 'بداية: ${_startsAt!.toLocal()}',
                       ),
                     ),
@@ -412,7 +425,7 @@ class _AdCampaignFormPageState extends State<AdCampaignFormPage> {
                       onPressed: () => _pickDate(start: false),
                       child: Text(
                         _endsAt == null
-                            ? 'نهاية الإعلان'
+                            ? 'نهاية الحملة (اختياري)'
                             : 'نهاية: ${_endsAt!.toLocal()}',
                       ),
                     ),
@@ -424,7 +437,7 @@ class _AdCampaignFormPageState extends State<AdCampaignFormPage> {
                   _startsAt = null;
                   _endsAt = null;
                 }),
-                child: const Text('مسح التواريخ (بلا حد زمني)'),
+                child: const Text('مسح التواريخ (بلا نهاية تلقائية)'),
               ),
               const SizedBox(height: 8),
               TextFormField(
@@ -432,7 +445,8 @@ class _AdCampaignFormPageState extends State<AdCampaignFormPage> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(
-                  labelText: 'مدة الظهور بالثواني (0 = حتى يغلقها المستخدم)',
+                  labelText: 'مدة عرض الشريحة بالثواني',
+                  helperText: '0 = تبقى حتى يغلقها المستخدم أو يحدّها الجهاز',
                   border: OutlineInputBorder(),
                 ),
               ),

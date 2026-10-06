@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'dart:async';
+
 import '../branding/ghadeer_brand_mark.dart';
 import '../models/doctor_item.dart';
 import 'doctor_availability_service.dart';
+import 'doctor_card_gate.dart';
+import 'doctor_card_tap.dart';
 import 'doctor_gender.dart';
 
 /// بطاقة قائمة الأطباء — Design Target (Compact Discovery Card).
@@ -14,12 +18,16 @@ class ClinicDoctorListCard extends StatelessWidget {
     required this.isFavorite,
     required this.onToggleFavorite,
     required this.onOpenProfile,
+    this.onTripleTap,
   });
 
   final DoctorItem doctor;
   final bool isFavorite;
   final VoidCallback onToggleFavorite;
   final VoidCallback onOpenProfile;
+
+  /// إن تُرك فارغًا تُفتح نافذة كلمة مرور البطاقة.
+  final VoidCallback? onTripleTap;
 
   static const _navy = Color(0xFF123B42);
   static const _teal = Color(0xFF0FAFA3);
@@ -77,8 +85,12 @@ class ClinicDoctorListCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         elevation: 0,
-        child: InkWell(
-          onTap: onOpenProfile,
+        child: DoctorCardOpenSurface(
+          onOpen: onOpenProfile,
+          onTripleTap: onTripleTap ??
+              () {
+                unawaited(openDoctorCardAccess(context, doctor));
+              },
           borderRadius: BorderRadius.circular(20),
           child: Container(
           width: double.infinity,

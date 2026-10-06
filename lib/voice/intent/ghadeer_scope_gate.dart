@@ -46,6 +46,7 @@ class GhadeerScopeGate {
       case AssistantIntent.repeatResponse:
       case AssistantIntent.stopSpeaking:
       case AssistantIntent.help:
+      case AssistantIntent.openPatientHealth:
         return true;
       case AssistantIntent.generalSearch:
       case AssistantIntent.unknown:

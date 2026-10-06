@@ -169,7 +169,7 @@ class PlatformGrounding {
     required List<SmartSearchResult> results,
     PlatformGroundedResultType resultType =
         PlatformGroundedResultType.messageOnly,
-    int maxActions = 4,
+    int maxActions = 3,
   }) {
     if (results.isEmpty) {
       return GroundedResponse(

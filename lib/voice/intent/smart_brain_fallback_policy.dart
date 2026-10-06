@@ -206,6 +206,8 @@ class SmartBrainFallbackPolicy {
       case AssistantIntent.showLocation:
       case AssistantIntent.showProfile:
       case AssistantIntent.selectResult:
+      case AssistantIntent.doctorAvailability:
+      case AssistantIntent.bookAppointment:
         return true;
       default:
         return false;
@@ -263,6 +265,8 @@ class SmartBrainFallbackPolicy {
         intent == AssistantIntent.showLocation ||
         intent == AssistantIntent.showProfile ||
         intent == AssistantIntent.selectResult ||
+        intent == AssistantIntent.doctorAvailability ||
+        intent == AssistantIntent.bookAppointment ||
         intent == AssistantIntent.unknown;
   }
 }

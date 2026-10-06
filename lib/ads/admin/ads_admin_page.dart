@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/clinic_app_bar.dart';
 import '../ad_campaign.dart';
+import '../ads_catalog_refresh.dart';
 import '../ads_notify.dart';
 import '../ads_service.dart';
 import 'ad_campaign_form_page.dart';
@@ -65,7 +66,10 @@ class _AdsAdminPageState extends State<AdsAdminPage> {
         builder: (_) => AdCampaignFormPage(campaign: campaign),
       ),
     );
-    if (changed == true) _load();
+    if (changed == true) {
+      AdsCatalogRefresh.bump();
+      _load();
+    }
   }
 
   Future<void> _toggle(AdCampaign c, bool value) async {
@@ -74,6 +78,7 @@ class _AdsAdminPageState extends State<AdsAdminPage> {
       if (value && !c.isActive) {
         await AdsNotify.notifyCampaignActivated(c.copyWith(isActive: true));
       }
+      AdsCatalogRefresh.bump();
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -103,6 +108,7 @@ class _AdsAdminPageState extends State<AdsAdminPage> {
     );
     if (ok != true) return;
     await _service.delete(c.id);
+    AdsCatalogRefresh.bump();
     _load();
   }
 

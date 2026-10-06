@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../doctors/doctor_card_tap.dart';
 import '../../models/lab_models.dart';
 import '../lab_default_images.dart';
 import 'lab_network_or_asset_image.dart';
@@ -11,12 +12,14 @@ class ClinicLabCard extends StatelessWidget {
     super.key,
     required this.lab,
     required this.onOpenPackages,
+    this.onOwnerAccess,
     this.isFavorite = false,
     this.onToggleFavorite,
   });
 
   final LabItem lab;
   final VoidCallback onOpenPackages;
+  final VoidCallback? onOwnerAccess;
   final bool isFavorite;
   final VoidCallback? onToggleFavorite;
 
@@ -67,8 +70,10 @@ class ClinicLabCard extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(20),
       elevation: 0,
-      child: InkWell(
-        onTap: onOpenPackages,
+      child: DoctorCardOpenSurface(
+        tapCount: 5,
+        onOpen: onOpenPackages,
+        onTripleTap: onOwnerAccess ?? () {},
         borderRadius: BorderRadius.circular(20),
         child: Container(
           width: double.infinity,

@@ -12,14 +12,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'branding/ghadeer_brand_mark.dart';
 import 'branding/app_icons_admin_page.dart';
 import 'ads/admin/ads_admin_page.dart';
+import 'ads/ads_catalog_refresh.dart';
+import 'ads/ads_local_preview.dart';
+import 'ads/widgets/home_ad_slot.dart';
 import 'core/app_config.dart';
 import 'doctors/all_specialties_page.dart';
 import 'doctors/app_stats_admin_page.dart';
 import 'doctors/clinic_doctor_list_card.dart';
 import 'doctors/doctor_absences_admin_page.dart';
 import 'doctors/doctor_admin_persist.dart';
+import 'services/content_conflict.dart';
 import 'doctors/doctor_availability_service.dart';
 import 'doctors/doctor_card_links.dart';
+import 'doctors/doctor_card_password_admin_section.dart';
 import 'doctors/doctor_gender.dart';
 import 'doctors/doctor_image_bg_remover.dart';
 import 'doctors/doctor_profile_page.dart';
@@ -57,6 +62,9 @@ import 'voice/assistant_integration_page.dart';
 import 'voice/speech_recognition_service.dart';
 import 'voice/voice_settings_page.dart';
 import 'voice/startup_voice_greeting_coordinator.dart';
+import 'patient_health/patient_auth.dart';
+import 'patient_health/patient_auth_page.dart';
+import 'patient_health/patient_health_gate.dart';
 import 'settings/settings_page.dart';
 import 'utils/app_pid.dart';
 import 'onboarding/app_entry_gate.dart';
@@ -93,13 +101,34 @@ class _GhadeerClinicAppState extends State<GhadeerClinicApp> {
       if (data.event == AuthChangeEvent.passwordRecovery) {
         final nav = _navKey.currentState;
         if (nav == null) return;
+        final email = data.session?.user.email;
         nav.push(
           MaterialPageRoute(
-            builder: (_) => const AdminPasswordChangePage(recoveryMode: true),
+            builder: (_) => isClinicAdminEmail(email)
+                ? const AdminPasswordChangePage(recoveryMode: true)
+                : const PatientPasswordUpdatePage(),
           ),
         );
+        return;
+      }
+      if (data.event == AuthChangeEvent.signedIn) {
+        final email = data.session?.user.email;
+        if (isClinicAdminEmail(email)) return;
+        if (kIsWeb && isPatientHealthReturnUri(Uri.base)) {
+          _openPatientHealthReturn();
+        }
       }
     });
+  }
+
+  void _openPatientHealthReturn() {
+    final nav = _navKey.currentState;
+    if (nav == null) return;
+    nav.push(
+      MaterialPageRoute<void>(
+        builder: (_) => const PatientHealthGate(),
+      ),
+    );
   }
 
   @override
@@ -321,7 +350,19 @@ class _HomePageState extends State<HomePage> {
   Future<void> _initDeepLinks() async {
     try {
       if (kIsWeb) {
-        final id = DoctorCardLinks.parseDoctorId(Uri.base);
+        final uri = Uri.base;
+        if (isPatientHealthReturnUri(uri)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PatientHealthGate(),
+              ),
+            );
+          });
+          return;
+        }
+        final id = DoctorCardLinks.parseDoctorId(uri);
         if (id != null && id.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _openDoctorById(id, fromDeepLink: true);
@@ -331,19 +372,27 @@ class _HomePageState extends State<HomePage> {
       }
 
       final appLinks = AppLinks();
-      final initial = await appLinks.getInitialLink();
-      if (initial != null) {
-        final id = DoctorCardLinks.parseDoctorId(initial);
-        if (id != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _openDoctorById(id, fromDeepLink: true);
-          });
+      Future<void> openFromUri(Uri uri) async {
+        if (isPatientHealthReturnUri(uri)) {
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const PatientHealthGate(),
+            ),
+          );
+          return;
         }
-      }
-      appLinks.uriLinkStream.listen((uri) {
         final id = DoctorCardLinks.parseDoctorId(uri);
         if (id != null) _openDoctorById(id, fromDeepLink: true);
-      });
+      }
+
+      final initial = await appLinks.getInitialLink();
+      if (initial != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          openFromUri(initial);
+        });
+      }
+      appLinks.uriLinkStream.listen(openFromUri);
     } catch (e) {
       debugPrint('deep link init failed: $e');
     }
@@ -710,6 +759,7 @@ class _HomePageState extends State<HomePage> {
           loadDoctors(),
           _loadTodayMessage(),
         ]);
+        AdsCatalogRefresh.bump();
       },
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -738,6 +788,8 @@ class _HomePageState extends State<HomePage> {
               onTalk: () => _openSmartSearch(voice: true),
             ),
           ),
+          const SliverToBoxAdapter(child: HomeAdSlot(placement: 'home')),
+          const SliverToBoxAdapter(child: AdsLocalPreviewBar()),
           SliverToBoxAdapter(
             child: HomePhase1ServicesGrid(onOpen: _onHomeServiceTap),
           ),
@@ -1571,17 +1623,26 @@ class _DoctorsAdminPageState extends State<DoctorsAdminPage> {
     bool value,
   ) async {
     try {
-      await _supabase
+      final base = int.tryParse('${doctor['content_revision']}') ?? 1;
+      final rows = await _supabase
           .from('doctors')
-          .update({field: value})
-          .eq('id', doctor['id']);
+          .update({field: value, 'content_revision': base + 1})
+          .eq('id', doctor['id'])
+          .eq('content_revision', base)
+          .select('id');
+      if ((rows as List).isEmpty) {
+        throw const ContentConflictException();
+      }
 
       await _loadDoctors();
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('تعذر حفظ التغيير: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(messageForSaveError(e, 'تعذر حفظ التغيير: $e')),
+        ),
+      );
     }
   }
 
@@ -2495,8 +2556,13 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
 
       setState(() => _saving = false);
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('تعذر حفظ بيانات الطبيب: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            messageForSaveError(e, 'تعذر حفظ بيانات الطبيب: $e'),
+          ),
+        ),
+      );
     }
   }
 
@@ -2532,14 +2598,33 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
     for (var attempt = 0; attempt < 8; attempt++) {
       try {
         if (editingId != null && editingId.isNotEmpty) {
-          await _supabase.from('doctors').update(payload).eq('id', editingId);
+          final base = int.tryParse(
+                '${widget.doctor?['content_revision']}',
+              ) ??
+              1;
+          payload['content_revision'] = base + 1;
+          final rows = await _supabase
+              .from('doctors')
+              .update(payload)
+              .eq('id', editingId)
+              .eq('content_revision', base)
+              .select('id');
+          if ((rows as List).isEmpty) {
+            throw const ContentConflictException();
+          }
         } else {
+          payload['content_revision'] = 1;
           await _supabase.from('doctors').insert(payload);
         }
         return;
       } on PostgrestException catch (e) {
         if (e.code != 'PGRST204') rethrow;
         final missing = missingDoctorColumnFromPostgrest(e.message);
+        if (missing == 'content_revision') {
+          throw StateError(
+            'عمود نسخة الحفظ غير موجود. نفّذ entity_content_revision.sql',
+          );
+        }
         if (missing == null || !payload.containsKey(missing)) {
           rethrow;
         }
@@ -3236,6 +3321,14 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
                 },
               ),
               const SizedBox(height: 16),
+              if (_isEditing &&
+                  (widget.doctor?['id']?.toString().trim().isNotEmpty ??
+                      false)) ...[
+                DoctorCardPasswordAdminSection(
+                  doctorId: widget.doctor!['id'].toString(),
+                ),
+                const SizedBox(height: 16),
+              ],
               const SizedBox(height: 20),
 
               SizedBox(

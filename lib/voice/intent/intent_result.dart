@@ -55,6 +55,7 @@ class IntentResult {
       intent == AssistantIntent.showLocation ||
       intent == AssistantIntent.showProfile ||
       intent == AssistantIntent.bookAppointment ||
+      intent == AssistantIntent.doctorAvailability ||
       intent == AssistantIntent.stopSpeaking ||
       intent == AssistantIntent.repeatResponse ||
       intent == AssistantIntent.findPackage ||

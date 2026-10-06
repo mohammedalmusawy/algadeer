@@ -106,7 +106,8 @@ void main() {
   group('DoctorPresenceQuestion', () {
     test('متابعة قصيرة فقط، بلا اسم جديد أو طلب خدمة أو موعد آخر', () {
       for (final q in ['وهي موجودة اليوم؟', 'هو متوفر هسه؟',
-        'الدكتور موجود اليوم؟', 'الثاني متواجد اليوم؟', 'موجود اليوم؟']) {
+        'الدكتور موجود اليوم؟', 'الثاني متواجد اليوم؟', 'موجود اليوم؟',
+        'شنو دوامه', 'دوامه', 'وريني دوامه']) {
         expect(DoctorPresenceQuestion.isContextual(q), isTrue, reason: q);
       }
       for (final q in ['دكتورة ميعاد موجودة اليوم؟', 'اريد طبيب متوفر اليوم',
@@ -165,7 +166,7 @@ void main() {
       expect(a.period, 'مساءً');
       expect(
         a.describe(doctorName: 'د. ميعاد', gender: 'female'),
-        'نعم، د. ميعاد متواجدة اليوم. دوامها مساءً، وحالة الحجز متاحة.',
+        'حسب الدوام المسجّل، دوامها مساءً اليوم وحالة الحجز متاحة.',
       );
     });
 
@@ -173,7 +174,7 @@ void main() {
       expect(
         at(_sunday, status: 'full')
             .describe(doctorName: 'د. ميعاد', gender: 'female'),
-        'د. ميعاد متواجدة اليوم لكن الحجز مكتمل.',
+        'حسب الدوام المسجّل، دوامها مساءً اليوم لكن الحجز مكتمل.',
       );
     });
 
@@ -182,7 +183,7 @@ void main() {
       expect(a.state, DoctorTodayState.onLeave);
       expect(
         a.describe(doctorName: 'د. ميعاد', gender: 'female'),
-        'د. ميعاد اليوم في إجازة.',
+        'د. ميعاد اليوم في إجازة حسب البيانات المسجّلة.',
       );
     });
 
@@ -226,7 +227,7 @@ void main() {
       expect(a.state, DoctorTodayState.presentBookable);
       expect(a.period, isNull);
       expect(a.describe(doctorName: 'د. ميعاد', gender: 'female'),
-          'نعم، د. ميعاد متواجدة اليوم، وحالة الحجز متاحة.');
+          'حسب الدوام المسجّل، د. ميعاد عندها دوام اليوم وحالة الحجز متاحة.');
     });
 
     test('عطلة صريحة تتقدم على قائمة أيام الدوام', () {
@@ -359,7 +360,7 @@ void main() {
       expect(plan.target?.doctorId, 'miaad');
       expect(
         plan.message,
-        'نعم، د. ميعاد متواجدة اليوم. دوامها مساءً، وحالة الحجز متاحة.',
+        'حسب الدوام المسجّل، دوامها مساءً اليوم وحالة الحجز متاحة.',
       );
       // نص واحد يُعرض ويُنطق كما هو (لا مصدر ثانٍ للنطق).
       expect(plan.textFirstOnly, isFalse);
@@ -381,14 +382,17 @@ void main() {
         query: 'هل دكتورة ميعاد متواجدة اليوم؟',
         context: ConversationContext(),
       );
-      expect(plan.message, 'د. ميعاد اليوم في إجازة.');
+      expect(plan.message, 'د. ميعاد اليوم في إجازة حسب البيانات المسجّلة.');
 
       doctorRow = _doctor('miaad', status: 'full');
       plan = await scoped().plan(
         query: 'هل دكتورة ميعاد متواجدة اليوم؟',
         context: ConversationContext(),
       );
-      expect(plan.message, 'د. ميعاد متواجدة اليوم لكن الحجز مكتمل.');
+      expect(
+        plan.message,
+        'حسب الدوام المسجّل، دوامها مساءً اليوم لكن الحجز مكتمل.',
+      );
 
       doctorRow = _doctor('miaad', hours: '');
       plan = await scoped().plan(
@@ -424,7 +428,7 @@ void main() {
         final plan = await brain.plan(query: q, context: ctx);
         expect(plan.intentResult.intent, AssistantIntent.doctorAvailability);
         expect(plan.target?.doctorId, 'miaad');
-        expect(plan.message, contains('متواجدة اليوم'));
+        expect(plan.message, contains('حسب الدوام المسجّل'));
         expect(plan.canExecute, isFalse);
         expect(brain.lastMatcherQueryForTest, isNull);
       }
@@ -456,7 +460,10 @@ void main() {
           AssistantIntent.doctorAvailability);
       final answer = await brain.plan(query: 'الثاني', context: ctx);
       expect(answer.target?.doctorId, 'ali');
-      expect(answer.message, 'د. علي متواجد اليوم لكن الحجز مكتمل.');
+      expect(
+        answer.message,
+        'حسب الدوام المسجّل، دوامه مساءً اليوم لكن الحجز مكتمل.',
+      );
       expect(answer.canExecute, isFalse);
       expect(ctx.pendingClarification, isNull);
     });

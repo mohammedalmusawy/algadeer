@@ -78,6 +78,15 @@ class DoctorTargetResolver {
     final entities = intentResult.entities;
     final normalized = intentResult.normalizedText;
 
+    // اختيار ترتيبي صريح يسبق أي اسم مستخرَج بالخطأ («افتح الثاني»).
+    final ordinalEarly = entities.resultIndex ??
+        ContextResolver.extractOrdinal(normalized);
+    if (intentResult.intent == AssistantIntent.selectResult &&
+        ordinalEarly != null &&
+        _ordinalApplies(intentResult, normalized)) {
+      return _resolveOrdinal(ordinalEarly, context);
+    }
+
     // 1) اسم صريح — نتائج ResultContext الحالية أولاً، ثم بحث إن لزم.
     final explicit = _explicitRealName(entities.doctorName);
     if (explicit != null) {
@@ -94,8 +103,7 @@ class DoctorTargetResolver {
     }
 
     // 2) ترتيب على نتائج سابقة (مع أو بدون فعل إجراء).
-    final ordinal = entities.resultIndex ??
-        ContextResolver.extractOrdinal(normalized);
+    final ordinal = ordinalEarly;
     if (ordinal != null && _ordinalApplies(intentResult, normalized)) {
       return _resolveOrdinal(ordinal, context);
     }

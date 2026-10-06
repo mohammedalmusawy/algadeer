@@ -1,3 +1,5 @@
+import 'ads_eligibility.dart';
+
 class AdCampaign {
   const AdCampaign({
     required this.id,
@@ -43,12 +45,11 @@ class AdCampaign {
   bool get hasImage => imageUrl.trim().isNotEmpty;
   bool get hasVideo => videoUrl.trim().isNotEmpty;
 
-  bool get isWithinSchedule {
-    final now = DateTime.now().toUtc();
-    if (startsAt != null && now.isBefore(startsAt!.toUtc())) return false;
-    if (endsAt != null && now.isAfter(endsAt!.toUtc())) return false;
-    return true;
-  }
+  bool get isWithinSchedule => AdsEligibility.isWithinSchedule(
+        nowUtc: DateTime.now().toUtc(),
+        startsAt: startsAt,
+        endsAt: endsAt,
+      );
 
   bool get hasReachedGlobalCap {
     final max = maxTotalImpressions;

@@ -27,7 +27,7 @@
 | Dart SDK | `^3.13.2` |
 | Git remote | `origin` → `https://github.com/mohammedalmusawy/algadeer.git` |
 | Current branch | `release-prep-2026-10-06` (local; **do not merge `main` without explicit order**) |
-| Committed HEAD on this branch | `953d3f5` — `Release prep - local snapshot of current working tree` |
+| Committed HEAD on this branch | `714e7f3` — `Release prep - isolate contact destinations, ads preview, and health PDF pages` (rollback still `953d3f5`) |
 | `main` last known | `58494ff` — `Preserve working tree - add PROJECT_CONTEXT.md canonical handoff` (tracks `origin/main` for that history) |
 | Author/date (HEAD) | Mohammed Almusawy — Sun Sep 20 16:03:44 2026 +0300 |
 | Stable baseline (do not rewrite) | `ea648ec` — `Phase 3D Step 4 - follow-up regression fixes` (2026-09-20) |
@@ -875,13 +875,19 @@ Fix (local only; no production SQL, no deploy, no `main` merge):
 
 Verification (2026-10-06): `smart_brain_conversation_ui_test` (including search → tap suggestion → open → back → hours, and hours-before-select then chip answers pending) + `smart_brain_open_select_parity_test` + `smart_brain_search_scope_test` + `smart_brain_next_step_suggestions_test` + `smart_brain_suggested_actions_test` — **90 passed**. Touched-path `flutter analyze`: no issues. Full `flutter test` not run. Updated local web-server served `lib/main.dart` at `http://127.0.0.1:7362` (onboarding gate «تخطي الآن» visible). Interactive hours sequence in that agent browser was **not** completed (Flutter web canvas has no usable accessibility tree; coordinate click missed skip). Tabs on `:7357` / `:7358` may be stale. Booking remains contact guidance only; patient health / privacy paths unchanged.
 
-### Release preparation started (2026-10-06)
+### Release preparation (2026-10-06, branch `release-prep-2026-10-06`)
 
-Moved from feature work to launch prep on local branch `release-prep-2026-10-06`. Snapshot `953d3f5` is the rollback point (review zips/tmp/secrets excluded; not pushed; `main` not merged). Single work list: `RELEASE_CHECKLIST.md`.
+Work list: `RELEASE_CHECKLIST.md` (grouped manual sessions A–F with آلي / محلي / جهاز). Rollback snapshot `953d3f5`. Not pushed; `main` not merged.
 
-Code inspection of browse/booking/admin then brain/ads/health: **no confirmed launch-blocking defect** besides profile contact being disabled for `walk_in_only` (call/WhatsApp now stay on; booking button still explains walk-in). Automated: `doctor_booking_no_login_test` passed after the fix. Device/browser confirmation of live numbers, admin gestures, ads-on-production-rows, and patient-health SMTP/isolation remains **required** — not inferred from unit tests.
+Local hardening this pass:
 
-Suggested hide-without-delete if still unready at publish: «ملفي الصحي» (until login/save/attachments/export/privacy pass on device), physio/supplies home tiles, keep «مواعيدي» as coming-soon. Pharmacies visitor list stays empty until admin publishes the shared catalog.
+- Contact destinations: `clinicTelUri` / `clinicWhatsAppUri` (`964…`) / `clinicMapUri` (address → Google search). Radiology location no longer treats Arabic address as a relative URI.
+- Doctor card: walk-in keeps call/WhatsApp; `unavailable` disables contact without a login prompt.
+- Isolated home ad slot: `testCampaign` skips Supabase; eligibility still hides inactive/expired; 360px badge test.
+- Follow-up PDF: wait a frame before `toImage`; multi-page PDF (card + each image). Patient health entry is **not** hidden; remaining gaps are SMTP, live two-account Storage, and on-device share.
+- Conversation UI: hours after tap/open/back; hours then select; «افتح الأول» does not wipe pediatrics results.
+
+Verification run (2026-10-06, this pass): `contact_launch_test`, `entity_contact_row_test`, `home_ad_slot_preview_test`, `doctor_booking_no_login_test`, `follow_up_card_visual_test`, Hours group in `smart_brain_conversation_ui_test` — **passed**. Touched-path analyze: no issues. Full `flutter test` not run. Interactive phone call/WhatsApp and live ad rows **not** claimed.
 
 ### Pharmacy persistence (2026-10-02)
 
@@ -975,9 +981,7 @@ Default shipping brain = **local search-and-execute over platform entities**, wi
 
 ## 16. NEXT MILESTONE
 
-**Release preparation** (started 2026-10-06). Work list: `RELEASE_CHECKLIST.md`. No new features. No production change, live SQL, deploy, or `main` merge until explicit publish approval after review.
-
-Rollback: branch `release-prep-2026-10-06`, snapshot `953d3f5`.
+**Release preparation** (in progress on `release-prep-2026-10-06`). Single list: `RELEASE_CHECKLIST.md`. Next: user device sessions A (call/WhatsApp) and B (admin). No production SQL, deploy, or `main` merge.
 
 ---
 

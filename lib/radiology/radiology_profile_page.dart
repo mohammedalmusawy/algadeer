@@ -2,7 +2,6 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
 import '../models/radiology_models.dart';
@@ -110,11 +109,7 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
     final address = _center.address.trim();
     final target = map.isNotEmpty ? map : address;
     if (target.isEmpty) return;
-    final uri = Uri.tryParse(target) ??
-        Uri.parse(
-          'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(target)}',
-        );
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await launchClinicMap(target);
   }
 
   Widget _circleIconBtn({

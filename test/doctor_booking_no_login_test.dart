@@ -141,6 +141,61 @@ void main() {
     await tester.pump();
     expect(find.textContaining('حضور'), findsWidgets);
   });
+
+  testWidgets('غير متاح للحجز يعطّل الاتصال ولا يطلب حساباً', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const doctor = DoctorItem(
+      id: 'off-1',
+      name: 'الدكتور سامي',
+      specialty: 'باطنية',
+      location: 'الشطرة',
+      available: false,
+      phone: '07800000000',
+      whatsapp: '07800000000',
+      imageUrl: '',
+      ghadeerBadge: false,
+      bio: '',
+      shortDescription: '',
+      workingDays: 'السبت',
+      workingHours: 'مساءً',
+      bookingStatus: 'unavailable',
+      absenceFrom: '',
+      absenceTo: '',
+      showBookingButton: true,
+      showCallButton: true,
+      showWhatsAppButton: true,
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: DoctorProfilePage(
+            doctor: doctor,
+            isFavorite: false,
+            onToggleFavorite: _noop,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final call = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byKey(const Key('doctor-call-button')),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(call.onTap, isNull);
+    expect(find.text('سجّل الدخول'), findsNothing);
+
+    await tester.ensureVisible(find.byKey(const Key('doctor-booking-button')));
+    await tester.tap(find.byKey(const Key('doctor-booking-button')));
+    await tester.pump();
+    expect(find.textContaining('غير متاح'), findsWidgets);
+  });
 }
 
 void _noop() {}

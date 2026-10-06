@@ -118,6 +118,10 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
     setState(() => _busy = true);
     try {
       final images = await _readyImages();
+      await WidgetsBinding.instance.endOfFrame;
+      if (boundary.debugNeedsPaint) {
+        await Future<void>.delayed(Duration.zero);
+      }
       final png = await captureCardPng(boundary);
       if (pdf) {
         final bytes = await followUpExportPdf(

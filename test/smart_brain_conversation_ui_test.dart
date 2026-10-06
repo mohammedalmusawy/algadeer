@@ -460,6 +460,45 @@ void main() {
         expect(session.conversation.pendingClarification, isNull);
       },
     );
+
+    testWidgets('نتائج أطفال ثم افتح الأول لا تصفّر القائمة', (tester) async {
+      final session = ConversationUiSession(
+        clinicalEnabled: false,
+        doctors: [
+          ConversationUiFixtures.aliNasser,
+          ConversationUiFixtures.secondDoctor,
+        ],
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: _ConversationUiShell(session: session),
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const Key('smart_brain_composer_field')),
+        'أريد طبيب أطفال',
+      );
+      await tester.tap(find.byKey(const Key('smart_brain_send')));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+      expect(session.conversation.currentResultContext?.items.length, 2);
+
+      await tester.enterText(
+        find.byKey(const Key('smart_brain_composer_field')),
+        'افتح الأول',
+      );
+      await tester.tap(find.byKey(const Key('smart_brain_send')));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      expect(session.turns.last.text.contains('ما لقيت'), isFalse);
+      expect(session.openedProfileIds, isNotEmpty);
+      expect(
+        session.conversation.currentResultContext?.items.length,
+        2,
+      );
+    });
   });
 }
 

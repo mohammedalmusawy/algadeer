@@ -6,22 +6,31 @@ import '../../branding/ghadeer_brand_mark.dart';
 import '../../utils/contact_launch.dart';
 import '../ad_campaign.dart';
 import '../ads_catalog_refresh.dart';
+import '../ads_eligibility.dart';
 import '../ads_local_preview.dart';
 import '../ads_service.dart';
 
 /// فتحة إعلان خفيفة — إن لا توجد حملة مؤهلة لا ترسم شيئًا.
 /// تُعاد الجلب عند [AdsCatalogRefresh] (تعديل/إيقاف من الإدارة أو سحب للتحديث).
 class HomeAdSlot extends StatefulWidget {
-  const HomeAdSlot({super.key, this.placement = 'home'});
+  const HomeAdSlot({
+    super.key,
+    this.placement = 'home',
+    this.testCampaign,
+  });
 
   final String placement;
+
+  /// حملة وهمية للاختبار/المعاينة المحلية — لا تُجلب من سوبربيس.
+  final AdCampaign? testCampaign;
 
   @override
   State<HomeAdSlot> createState() => _HomeAdSlotState();
 }
 
 class _HomeAdSlotState extends State<HomeAdSlot> {
-  final _service = AdsService();
+  AdsService? _adsService;
+  AdsService get _ads => _adsService ??= AdsService();
   final _freq = AdsFrequencyStore();
   AdCampaign? _campaign;
   bool _loading = true;
@@ -49,25 +58,35 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
 
   Future<void> _load() async {
     try {
-      AdCampaign? campaign;
-      final local = AdsLocalPreview.eligibleFor(widget.placement);
-      if (local != null) {
-        campaign = local;
-      } else if (AdsLocalPreview.enabled) {
-        campaign = null;
-      } else {
-        final has = await _service.hasTable();
-        if (!has) {
-          if (mounted) {
-            setState(() {
-              _campaign = null;
-              _loading = false;
-              _hidden = false;
-            });
+      AdCampaign? campaign = widget.testCampaign;
+      if (campaign == null) {
+        final local = AdsLocalPreview.eligibleFor(widget.placement);
+        if (local != null) {
+          campaign = local;
+        } else if (AdsLocalPreview.enabled) {
+          campaign = null;
+        } else {
+          final has = await _ads.hasTable();
+          if (!has) {
+            if (mounted) {
+              setState(() {
+                _campaign = null;
+                _loading = false;
+                _hidden = false;
+              });
+            }
+            return;
           }
-          return;
+          campaign = await _ads.fetchEligibleForPlacement(widget.placement);
         }
-        campaign = await _service.fetchEligibleForPlacement(widget.placement);
+      }
+      if (campaign != null) {
+        final eligible = AdsEligibility.catalogEligible(
+          campaigns: [campaign],
+          placement: widget.placement,
+          nowUtc: DateTime.now().toUtc(),
+        );
+        campaign = eligible.isEmpty ? null : eligible.first;
       }
       if (!mounted) return;
       if (campaign == null) {
@@ -83,21 +102,22 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
 
       final previousId = _campaign?.id;
       final same = previousId == campaign.id;
-      final localPreview = AdsLocalPreview.isLocalCampaignId(campaign.id);
+      final isolated = widget.testCampaign != null ||
+          AdsLocalPreview.isLocalCampaignId(campaign.id);
       setState(() {
         _campaign = campaign;
         _loading = false;
         // حملة جديدة، أو معاينة محلية بعد إعادة التأهيل، تظهر من جديد.
-        if (!same || localPreview) _hidden = false;
+        if (!same || isolated) _hidden = false;
       });
 
-      final shouldCount = !localPreview &&
+      final shouldCount = !isolated &&
           (!same || _impressionCountedId != campaign.id);
       if (shouldCount) {
         await _freq.markShown(campaign);
-        await _service.recordImpression(campaign.id);
+        await _ads.recordImpression(campaign.id);
         _impressionCountedId = campaign.id;
-      } else if (localPreview) {
+      } else if (isolated) {
         _impressionCountedId = campaign.id;
       }
 
@@ -116,7 +136,9 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
 
   Future<void> _dismiss() async {
     final c = _campaign;
-    if (c != null && !AdsLocalPreview.isLocalCampaignId(c.id)) {
+    if (c != null &&
+        widget.testCampaign == null &&
+        !AdsLocalPreview.isLocalCampaignId(c.id)) {
       await _freq.markDismissedToday(c);
     }
     if (mounted) setState(() => _hidden = true);
@@ -129,8 +151,9 @@ class _HomeAdSlotState extends State<HomeAdSlot> {
         ? c.clickUrl.trim()
         : (c.isVideo ? c.videoUrl.trim() : '');
     if (raw.isEmpty) return;
-    if (!AdsLocalPreview.isLocalCampaignId(c.id)) {
-      await _service.recordClick(c.id);
+    if (widget.testCampaign == null &&
+        !AdsLocalPreview.isLocalCampaignId(c.id)) {
+      await _ads.recordClick(c.id);
     }
     await launchExternalHttpUrl(raw);
   }

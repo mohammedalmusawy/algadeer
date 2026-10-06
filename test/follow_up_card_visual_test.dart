@@ -80,6 +80,18 @@ void main() {
     expect(pdf.length, greaterThan(100));
   });
 
+  test('PDF يضم صفحة البطاقة ثم صفحة لكل مرفق', () async {
+    final pdf = await followUpExportPdf(
+      cardPng: _onePixelPng,
+      images: [_onePixelPng, _onePixelPng],
+    );
+    expect(String.fromCharCodes(pdf.take(4)), '%PDF');
+    expect(
+      RegExp(r'/Type\s*/Page\b').allMatches(String.fromCharCodes(pdf)).length,
+      greaterThanOrEqualTo(3),
+    );
+  });
+
   testWidgets('بطاقة عربية تُصدَّر PNG ثم PDF', (tester) async {
     tester.view.physicalSize = const Size(390, 1600);
     tester.view.devicePixelRatio = 1;

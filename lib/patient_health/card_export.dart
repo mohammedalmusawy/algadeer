@@ -100,8 +100,10 @@ Future<Uint8List> followUpExportPdf({
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(18),
-        build: (context) => pw.Center(
+        // هامش علوي أقل يقلّل الفراغ الكبير فوق البطاقة.
+        margin: const pw.EdgeInsets.fromLTRB(22, 14, 22, 22),
+        build: (context) => pw.Align(
+          alignment: pw.Alignment.topCenter,
           child: pw.Image(image, fit: pw.BoxFit.contain),
         ),
       ),

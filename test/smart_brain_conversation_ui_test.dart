@@ -461,6 +461,94 @@ void main() {
       },
     );
 
+    testWidgets(
+      'اختيار طبيب ← دوام ← شلون أحجز والنص والشريحة يحفظان الهوية',
+      (tester) async {
+        final session = ConversationUiSession(
+          clinicalEnabled: false,
+          doctors: [
+            ConversationUiFixtures.aliNasser,
+            ConversationUiFixtures.secondDoctor,
+          ],
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: _ConversationUiShell(session: session),
+            ),
+          ),
+        );
+
+        await tester.enterText(
+          find.byKey(const Key('smart_brain_composer_field')),
+          'أريد طبيب أطفال',
+        );
+        await tester.tap(find.byKey(const Key('smart_brain_send')));
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        final aliChip = find.byWidgetPredicate(
+          (w) =>
+              w is ActionChip &&
+              w.key is ValueKey<String> &&
+              (w.key! as ValueKey<String>).value.contains('doc-ali-nasser'),
+        );
+        expect(aliChip, findsOneWidget);
+        await tester.tap(aliChip);
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+        expect(session.conversation.selectedDoctor?.doctorId, 'doc-ali-nasser');
+
+        await tester.enterText(
+          find.byKey(const Key('smart_brain_composer_field')),
+          'شنو دوامه',
+        );
+        await tester.tap(find.byKey(const Key('smart_brain_send')));
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+        expect(session.turns.last.text.contains('ما لقيت'), isFalse);
+        expect(session.conversation.selectedDoctor?.doctorId, 'doc-ali-nasser');
+
+        final beforeResults =
+            session.conversation.currentResultContext?.items.length ?? 0;
+
+        await tester.enterText(
+          find.byKey(const Key('smart_brain_composer_field')),
+          'شلون أحجز',
+        );
+        await tester.tap(find.byKey(const Key('smart_brain_send')));
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        final typed = session.turns.last.text;
+        expect(typed.contains('ما لقيت'), isFalse, reason: typed);
+        expect(typed.contains('ما أحجز موعداً تلقائياً') || typed.contains('حجز'),
+            isTrue,
+            reason: typed);
+        expect(session.conversation.selectedDoctor?.doctorId, 'doc-ali-nasser');
+        expect(
+          session.conversation.currentResultContext?.items.length ?? 0,
+          greaterThanOrEqualTo(beforeResults > 0 ? 1 : 0),
+        );
+
+        final bookingChipAction = session.lastSuggestions.firstWhere(
+          (a) => a.kind == SmartBrainSuggestedActionKind.bookingGuidance,
+          orElse: () => session.lastSuggestions.firstWhere(
+            (a) => (a.executionQuery ?? '').contains('حجز'),
+          ),
+        );
+        await session.tapSuggestion(bookingChipAction);
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+
+        final chipTurn = session.turns.last.text;
+        expect(chipTurn.contains('ما لقيت'), isFalse, reason: chipTurn);
+        expect(
+          chipTurn.contains('ما أحجز موعداً تلقائياً') ||
+              chipTurn.contains('حجز'),
+          isTrue,
+          reason: chipTurn,
+        );
+        expect(session.conversation.selectedDoctor?.doctorId, 'doc-ali-nasser');
+      },
+    );
+
     testWidgets('نتائج أطفال ثم افتح الأول لا تصفّر القائمة', (tester) async {
       final session = ConversationUiSession(
         clinicalEnabled: false,

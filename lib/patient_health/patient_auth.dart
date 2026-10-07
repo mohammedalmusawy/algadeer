@@ -14,12 +14,12 @@ class PatientAuthResult {
 }
 
 const patientConfirmationPendingMessage =
-    'طُلب إنشاء الحساب. إذا كان تأكيد البريد مفعّلاً في Supabase ستصلك رسالة، '
-    'ولم نتحقق من وصولها إلى صندوقك. افتح الرابط ثم ارجع وسجّل الدخول.';
+    'طُلب إرسال رسالة تأكيد إلى بريدك. لم نتحقق من وصولها. '
+    'إن وصلتك، افتح الرابط ثم ارجع وسجّل الدخول.';
 
 const patientResetRequestedMessage =
-    'طُلب إرسال رابط الاستعادة من Supabase. وصول الرسالة يعتمد على إعداد SMTP '
-    'وقائمة Redirect URLs في لوحة المشروع، ولم نتحقق من صندوق الوارد.';
+    'طُلب إرسال رابط استعادة كلمة المرور إلى بريدك. '
+    'لم نتحقق من وصول الرسالة إلى صندوق الوارد.';
 
 const patientAdminEmailRejectedMessage =
     'هذا البريد لحساب الإدارة. الملف الصحي يحتاج بريداً آخر، '
@@ -75,8 +75,7 @@ String arabicAuthFailure(String raw) {
     return 'البريد أو كلمة المرور غير صحيحة.';
   }
   if (lower.contains('rate') && lower.contains('limit')) {
-    return 'تعذر إرسال الرسالة الآن بسبب حد الإرسال. '
-        'إعداد SMTP في Supabase هو اللي يوصّل البريد.';
+    return 'تعذر إرسال الرسالة الآن. حاول بعد قليل.';
   }
   if (lower.contains('user already registered') ||
       lower.contains('already been registered')) {

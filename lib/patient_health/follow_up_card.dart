@@ -132,7 +132,7 @@ class FollowUpCardView extends StatelessWidget {
       child: ColoredBox(
         color: Colors.white,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -142,24 +142,24 @@ class FollowUpCardView extends StatelessWidget {
                 style: TextStyle(
                   color: GhadeerHomeColors.pharmacyAccent,
                   fontWeight: FontWeight.w900,
-                  fontSize: 14,
+                  fontSize: 13,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               const Text(
                 'بطاقة متابعة',
                 style: TextStyle(
                   color: GhadeerHomeColors.secondary,
                   fontWeight: FontWeight.w900,
-                  fontSize: 22,
+                  fontSize: 20,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 content.conditionTitle,
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 18,
+                  fontSize: 17,
                   height: 1.3,
                 ),
               ),
@@ -170,7 +170,7 @@ class FollowUpCardView extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ],
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               const Text(
                 patientDataAttribution,
                 style: TextStyle(
@@ -178,7 +178,7 @@ class FollowUpCardView extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               if (content.emptyNote.isNotEmpty)
                 Text(
                   content.emptyNote,
@@ -191,9 +191,9 @@ class FollowUpCardView extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(line.detail, style: const TextStyle(height: 1.45)),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
               ],
-              const Divider(),
+              const Divider(height: 16),
               Text(
                 'تاريخ الإصدار: ${formatHealthStamp(content.issuedAt)}',
                 style: const TextStyle(
@@ -201,7 +201,7 @@ class FollowUpCardView extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               const Text(
                 'المعلومات أعلاه أدخلها صاحب الحساب لمشاركتها مع من يختاره. '
                 'ليست تقريراً طبياً من عيادة الغدير.',

@@ -7,10 +7,10 @@ import 'package:ghadeer_clinic/settings/whatsapp_message_settings_page.dart';
 import 'package:ghadeer_clinic/utils/clinic_contact_message.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _defaultText = 'السلام عليكم 🌿\n'
+const _defaultText = 'السلام عليكم\n'
     'أني {اسم} — أتواصل وياكم من تطبيق الغدير\n'
     'أريد أستفسر عن موعد عند {طبيب}\n'
-    'الله يعطيكم العافية 🙏';
+    'الله يعطيكم العافية';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -26,10 +26,10 @@ void main() {
           patientFullName: 'محمد عبد الحسن',
           providerTitle: 'ناجي السعيدي',
         ),
-        'السلام عليكم 🌿\n'
+        'السلام عليكم\n'
         'أني محمد عبد الحسن — أتواصل وياكم من تطبيق الغدير\n'
         'أريد أستفسر عن موعد عند د. ناجي السعيدي\n'
-        'الله يعطيكم العافية 🙏',
+        'الله يعطيكم العافية',
       );
     });
 
@@ -39,10 +39,10 @@ void main() {
       );
       expect(
         msg,
-        'السلام عليكم 🌿\n'
+        'السلام عليكم\n'
         'أتواصل وياكم من تطبيق الغدير\n'
         'أريد أستفسر عن موعد عند د. ناجي السعيدي\n'
-        'الله يعطيكم العافية 🙏',
+        'الله يعطيكم العافية',
       );
     });
 

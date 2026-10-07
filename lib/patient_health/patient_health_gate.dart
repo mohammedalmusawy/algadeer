@@ -34,6 +34,10 @@ class _PatientHealthGateState extends State<PatientHealthGate> {
           AdminLaunchSession.clear();
           setState(() {});
         },
+        onAdminSignedOut: () {
+          AdminLaunchSession.clear();
+          setState(() {});
+        },
       );
     }
     return _file(user.id);

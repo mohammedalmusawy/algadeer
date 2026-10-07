@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/admin_launch_session.dart';
 import '../widgets/clinic_app_bar.dart';
 import 'patient_auth.dart';
 
@@ -10,11 +11,15 @@ class PatientAuthPage extends StatefulWidget {
     required this.auth,
     required this.onSignedIn,
     this.adminSessionActive = false,
+    this.onAdminSignedOut,
   });
 
   final PatientAuthApi auth;
   final VoidCallback onSignedIn;
   final bool adminSessionActive;
+
+  /// بعد تسجيل خروج حساب الإدارة من Auth — لإعادة بناء البوابة.
+  final VoidCallback? onAdminSignedOut;
 
   @override
   State<PatientAuthPage> createState() => _PatientAuthPageState();
@@ -34,6 +39,30 @@ class _PatientAuthPageState extends State<PatientAuthPage> {
     _password.dispose();
     _confirm.dispose();
     super.dispose();
+  }
+
+  Future<void> _signOutAdmin() async {
+    setState(() {
+      _busy = true;
+      _notice = null;
+    });
+    try {
+      await widget.auth.signOut();
+      AdminLaunchSession.clear();
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _notice =
+            'تم تسجيل الخروج من الإدارة. تقدر الآن تدخل ببريد مريض للملف الصحي.';
+      });
+      widget.onAdminSignedOut?.call();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _notice = 'تعذر تسجيل الخروج من الإدارة. حاول مرة أخرى.';
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -94,9 +123,18 @@ class _PatientAuthPageState extends State<PatientAuthPage> {
             if (widget.adminSessionActive) ...[
               const SizedBox(height: 12),
               const Text(
-                'جلسة الإدارة مفتوحة حالياً. الملف الصحي ما يستخدم حساب الإدارة. '
-                'اخرج من الإدارة إذا تريد تدخل بحساب مريض.',
+                'حساب الإدارة مسجّل دخوله الآن. الملف الصحي يحتاج حساب مريض منفصل. '
+                'قفل لوحة الإدارة وحده ما يكفي — اضغط تسجيل الخروج أدناه ثم ادخل ببريد مريض.',
                 style: TextStyle(height: 1.4, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton(
+                key: const Key('patient_admin_sign_out'),
+                onPressed: _busy ? null : _signOutAdmin,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: const Text('تسجيل الخروج من الإدارة'),
               ),
             ],
             const SizedBox(height: 12),
@@ -152,8 +190,8 @@ class _PatientAuthPageState extends State<PatientAuthPage> {
               const Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
-                  'الاستعادة ترسل رابطاً عبر Supabase. إذا ما وصل البريد، '
-                  'السبب يكون إعداد SMTP أو Redirect URLs، مو نجاح وهمي من التطبيق.',
+                  'سنطلب إرسال رابط استعادة إلى بريدك. '
+                  'هذا يعني أن الطلب أُرسل، وليس تأكيداً أن الرسالة وصلت.',
                   style: TextStyle(height: 1.35),
                 ),
               ),

@@ -307,6 +307,12 @@ void main() {
     expect(patientConfirmationPendingMessage, contains('لم نتحقق'));
     expect(patientResetRequestedMessage, contains('لم نتحقق'));
     expect(patientConfirmationPendingMessage, isNot(contains('تم الدخول')));
+    expect(patientConfirmationPendingMessage, isNot(contains('SMTP')));
+    expect(patientConfirmationPendingMessage, isNot(contains('Supabase')));
+    expect(patientResetRequestedMessage, isNot(contains('SMTP')));
+    expect(patientResetRequestedMessage, isNot(contains('Redirect')));
+    expect(patientResetRequestedMessage, isNot(contains('Supabase')));
+    expect(arabicAuthFailure('rate limit'), isNot(contains('SMTP')));
     expect(validatePatientCredentials(kAdminEmail, '12345678'), isNotNull);
     expect(arabicAuthFailure('Email not confirmed'), contains('غير مؤكد'));
     expect(

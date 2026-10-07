@@ -94,6 +94,18 @@ void main() {
       expect(plan.message, contains('B'));
       expect(h.context.selectedDoctor?.doctorId, 'b');
     });
+
+    test('شلون أحجز after selection keeps Doctor B (chip query parity)', () async {
+      final h = _Harness();
+      h.seedDoctors();
+      await h.turn('الثاني');
+      final plan = await h.turn('شلون أحجز');
+      expect(plan.target?.doctorId, 'b');
+      expect(plan.kind, AssistantActionKind.showMessage);
+      expect(plan.canExecute, isFalse);
+      expect(plan.message, contains('ما أحجز موعداً تلقائياً'));
+      expect(h.context.selectedDoctor?.doctorId, 'b');
+    });
   });
 
   group('35 — Social interruption preserves results', () {

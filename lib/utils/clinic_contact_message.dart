@@ -16,11 +16,12 @@ class ClinicContactMessage {
   /// متغيّر اسم الطبيب/المختبر/المركز داخل القالب.
   static const String providerVariable = '{طبيب}';
 
+  /// بلا رموز تعبيرية: بعضها يظهر كـ � في مسودة واتساب/ويب حسب الترميز.
   static const String defaultTemplate =
-      'السلام عليكم 🌿\n'
+      'السلام عليكم\n'
       'أني $nameVariable — أتواصل وياكم من تطبيق الغدير\n'
       'أريد أستفسر عن موعد عند $providerVariable\n'
-      'الله يعطيكم العافية 🙏';
+      'الله يعطيكم العافية';
 
   static final RegExp _hasDoctorTitle = RegExp(
     r'^(?:(?:ال)?(?:دكتور|دكتورة|طبيب|طبيبة)|د\.?)(?:\s|$)',
@@ -81,7 +82,8 @@ class ClinicContactMessage {
 
       out.add(line);
     }
-    return out.join('\n').trim();
+    // أزل حرف الاستبدال إن وُجد من قالب محفوظ قديم أو ترميز ناقص.
+    return out.join('\n').trim().replaceAll('\uFFFD', '');
   }
 
   /// الرسالة الافتراضية لفتح واتساب (طبيب/مختبر/مركز) — تروح للسكرتير.

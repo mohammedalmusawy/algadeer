@@ -34,7 +34,6 @@ import 'doctors/specialty_catalog.dart';
 import 'doctors/specialty_doctors_page.dart';
 import 'home/home_phase1_sections.dart';
 import 'home/ghadeer_home_colors.dart';
-import 'home/service_coming_soon_page.dart';
 import 'pharmacies/pharmacies_page.dart';
 import 'pharmacies/pharmacies_admin_page.dart';
 import 'supplies/supplies_admin_page.dart';
@@ -207,8 +206,9 @@ class _HomePageState extends State<HomePage> {
   bool _todayMessageLoading = true;
   Timer? _doctorsReloadDebounce;
   String? _specialtyFilter; // null = الكل
-  int _bottomNavIndex = 0; // 0 رئيسية · 1 بحث · 2 مواعيدي · 3 المفضلة · 4 حسابي
-  int _shellIndex = 0; // 0 رئيسية · 1 مواعيدي · 2 المفضلة · 3 حسابي
+  // مواعيدي مخفي مؤقتاً للإطلاق (صفحة «قريباً» فقط). الاتصال/واتساب يبقيان.
+  int _bottomNavIndex = 0; // 0 رئيسية · 1 بحث · 2 المفضلة · 3 حسابي
+  int _shellIndex = 0; // 0 رئيسية · 1 المفضلة · 2 حسابي
 
   @override
   void initState() {
@@ -321,7 +321,7 @@ class _HomePageState extends State<HomePage> {
     ).then((_) {
       if (!mounted) return;
       if (_bottomNavIndex == 1) {
-        setState(() => _bottomNavIndex = previousNav.clamp(0, 4));
+        setState(() => _bottomNavIndex = previousNav.clamp(0, 3));
       }
     });
   }
@@ -335,13 +335,10 @@ class _HomePageState extends State<HomePage> {
           _specialtyFilter = null;
           break;
         case 2:
-          _shellIndex = 1;
+          _shellIndex = 1; // المفضلة
           break;
         case 3:
-          _shellIndex = 2;
-          break;
-        case 4:
-          _shellIndex = 3;
+          _shellIndex = 2; // حسابي
           break;
       }
     });
@@ -576,10 +573,9 @@ class _HomePageState extends State<HomePage> {
             child: ColoredBox(
               color: Colors.white,
               child: IndexedStack(
-                index: _shellIndex.clamp(0, 3),
+                index: _shellIndex.clamp(0, 2),
                 children: [
                   _buildHomeShell(),
-                  _buildAppointmentsTab(),
                   _buildFavoritesTab(),
                   const SettingsPage(),
                 ],
@@ -675,20 +671,13 @@ class _HomePageState extends State<HomePage> {
             ),
             item(
               index: 2,
-              icon: Icons.calendar_month_outlined,
-              activeIcon: Icons.calendar_month_rounded,
-              label: 'مواعيدي',
-              navSlot: 'appointments',
-            ),
-            item(
-              index: 3,
               icon: Icons.favorite_border_rounded,
               activeIcon: Icons.favorite_rounded,
               label: 'المفضلة',
               navSlot: 'favorites',
             ),
             item(
-              index: 4,
+              index: 3,
               icon: Icons.person_outline_rounded,
               activeIcon: Icons.person_rounded,
               label: 'حسابي',
@@ -739,15 +728,6 @@ class _HomePageState extends State<HomePage> {
                 ),
         ),
       ],
-    );
-  }
-
-  Widget _buildAppointmentsTab() {
-    return const ServiceComingSoonPage(
-      title: 'مواعيدي',
-      subtitle: 'متابعة مواعيدك القادمة من مكان واحد',
-      accent: GhadeerHomeColors.primary,
-      icon: Icons.calendar_month_rounded,
     );
   }
 
@@ -1456,7 +1436,8 @@ class AdminPage extends StatelessWidget {
             _adminTile(
               icon: Icons.lock_outline_rounded,
               title: 'قفل لوحة الإدارة',
-              subtitle: 'يطلب كلمة السر مرة أخرى حتى نهاية التشغيل الحالي',
+              subtitle:
+                  'يغلق لوحة التشغيل فقط. لا ينهي دخول الإدارة في الملف الصحي',
               onTap: () {
                 AdminLaunchSession.clear();
                 Navigator.pop(context);

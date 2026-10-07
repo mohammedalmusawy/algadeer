@@ -27,7 +27,7 @@
 | Dart SDK | `^3.13.2` |
 | Git remote | `origin` → `https://github.com/mohammedalmusawy/algadeer.git` |
 | Current branch | `release-prep-2026-10-06` (local; **do not merge `main` without explicit order**) |
-| Committed HEAD on this branch | `714e7f3` — `Release prep - isolate contact destinations, ads preview, and health PDF pages` (rollback still `953d3f5`) |
+| Committed HEAD on this branch | انظر `git log -1` على `release-prep-2026-10-06` (rollback قبل دفعة القبول: وسم `acceptance-pre-fixes-2026-10-07` = `6509102`) |
 | `main` last known | `58494ff` — `Preserve working tree - add PROJECT_CONTEXT.md canonical handoff` (tracks `origin/main` for that history) |
 | Author/date (HEAD) | Mohammed Almusawy — Sun Sep 20 16:03:44 2026 +0300 |
 | Stable baseline (do not rewrite) | `ea648ec` — `Phase 3D Step 4 - follow-up regression fixes` (2026-09-20) |
@@ -252,7 +252,7 @@ Status labels are based **only on repository evidence** in the working tree.
 ### Home Phase 1 shell — **IMPLEMENTED** (working tree)
 
 - Header, search row, «اسأل الغدير», 6-service grid, health tip
-- Bottom nav: رئيسية / بحث (opens Smart Search) / مواعيدي (coming soon) / المفضلة / حسابي
+- Bottom nav: رئيسية / بحث (opens Smart Search) / المفضلة / حسابي — «مواعيدي» مخفي مؤقتاً للإطلاق
 - Older `home_welcome_banner.dart` / trending section not driving current home composition
 
 ### Onboarding / settings / profile — **IMPLEMENTED**
@@ -981,7 +981,7 @@ Default shipping brain = **local search-and-execute over platform entities**, wi
 
 ## 16. NEXT MILESTONE
 
-**Release preparation** (in progress on `release-prep-2026-10-06`). Single list: `RELEASE_CHECKLIST.md`. Next: user device sessions A (call/WhatsApp) and B (admin). No production SQL, deploy, or `main` merge.
+**Acceptance-session fixes** (2026-10-07 on `release-prep-2026-10-06`): conversation booking after hours (`شلون أحجز` / chip), hide مواعيدي tab, admin Auth sign-out vs panel lock, RTL back on the right, follow-up PDF top align, patient-facing auth copy without SMTP jargon, WhatsApp default template without emoji. Rollback tag `acceptance-pre-fixes-2026-10-07`. See `RELEASE_CHECKLIST.md`. No production SQL, deploy, or `main` merge.
 
 ---
 

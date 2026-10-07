@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 /// شريط علوي موحّد للتطبيق:
-/// - زر الرجوع على **يسار** الشاشة (نفس جهة هوية الطبيب)
-/// - الإجراءات (تفضيل / مشاركة / غيره) على **اليمين**
-/// مع الإبقاء على عنوان عربي باتجاه RTL.
+/// - زر الرجوع أعلى **اليمين** في الواجهة العربية (RTL)
+/// - الإجراءات (تفضيل / مشاركة / غيره) على اليسار
+/// - لا يظهر الرجوع إن لم يكن هناك صفحة للرجوع إليها (مثل تبويبات الشريط السفلي)
 class ClinicAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ClinicAppBar({
     super.key,
@@ -41,8 +41,9 @@ class ClinicAppBar extends StatelessWidget implements PreferredSizeWidget {
     final canPop = ModalRoute.of(context)?.canPop ?? false;
     final showBack = automaticallyImplyLeading && canPop && leading == null;
 
+    // RTL: leading على اليمين = زر الرجوع أعلى اليمين.
     return Directionality(
-      textDirection: TextDirection.ltr,
+      textDirection: TextDirection.rtl,
       child: AppBar(
         backgroundColor: backgroundColor,
         foregroundColor: foregroundColor,
@@ -53,16 +54,14 @@ class ClinicAppBar extends StatelessWidget implements PreferredSizeWidget {
         leading: leading ??
             (showBack
                 ? IconButton(
+                    key: const Key('clinic_app_bar_back'),
                     tooltip:
                         MaterialLocalizations.of(context).backButtonTooltip,
-                    icon: const Icon(Icons.chevron_right_rounded, size: 26),
+                    icon: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
                     onPressed: () => Navigator.maybePop(context),
                   )
                 : null),
-        title: Directionality(
-          textDirection: TextDirection.rtl,
-          child: title,
-        ),
+        title: title,
         actions: actions,
         bottom: bottom,
       ),

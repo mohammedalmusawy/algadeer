@@ -137,6 +137,10 @@ class SmartBrainSuggestedActionsBuilder {
     if (justExecuted != null) {
       shown.add(_tagForKind(justExecuted));
     }
+    // بعد شرح طريقة الحجز لا نعيد اقتراح نفس الشريحة في نفس الجلسة.
+    if (lastIntent == AssistantIntent.bookAppointment) {
+      shown.add('booking');
+    }
 
     // غموض / توضيح: خيارات تمييز بالاسم (حتى 3).
     if (planKind == AssistantActionKind.showClarification && items.length >= 2) {
@@ -259,7 +263,9 @@ class SmartBrainSuggestedActionsBuilder {
           type == SmartSearchResultType.lab ||
           type == SmartSearchResultType.pharmacy ||
           type == SmartSearchResultType.radiology ||
-          type == SmartSearchResultType.physio) {
+          type == SmartSearchResultType.physio ||
+          type == SmartSearchResultType.optics ||
+          type == SmartSearchResultType.beauty) {
         final lead = type == SmartSearchResultType.doctor
             ? 'تريد تفاصيل أي طبيب؟ اضغط اسمه أو اكتب رقمه.'
             : 'أي نتيجة تريد تفاصيلها؟ اضغط اسمها أو اكتب رقمها.';
@@ -397,6 +403,10 @@ class SmartBrainSuggestedActionsBuilder {
         return (r.physioId ?? '').trim();
       case SmartSearchResultType.supply:
         return (r.supplyId ?? '').trim();
+      case SmartSearchResultType.optics:
+        return (r.opticsId ?? '').trim();
+      case SmartSearchResultType.beauty:
+        return (r.beautyId ?? '').trim();
       case SmartSearchResultType.package:
       case SmartSearchResultType.offer:
         return (r.packageId ?? '').trim();
@@ -666,10 +676,22 @@ class SmartBrainSuggestedActionsBuilder {
     }
 
     // بعد الدوام: طريقة الحجز ثم موقع العيادة (ثم واتساب إن متاح).
+    // بعد شرح الحجز: اتصال/واتساب أولاً بدون إعادة شريحة الحجز.
     final afterAvailability = lastIntent == AssistantIntent.doctorAvailability ||
         shown.contains('availability');
+    final afterBooking = shown.contains('booking');
     final List<SmartBrainSuggestedAction> ordered;
-    if (afterAvailability) {
+    if (afterBooking) {
+      int rank(SmartBrainSuggestedActionKind k) => switch (k) {
+            SmartBrainSuggestedActionKind.call => 0,
+            SmartBrainSuggestedActionKind.whatsapp => 1,
+            SmartBrainSuggestedActionKind.showPhone => 2,
+            SmartBrainSuggestedActionKind.showLocation => 3,
+            SmartBrainSuggestedActionKind.openDetails => 4,
+            _ => 9,
+          };
+      ordered = [...candidates]..sort((a, b) => rank(a.kind).compareTo(rank(b.kind)));
+    } else if (afterAvailability) {
       int rank(SmartBrainSuggestedActionKind k) => switch (k) {
             SmartBrainSuggestedActionKind.bookingGuidance => 0,
             SmartBrainSuggestedActionKind.showLocation => 1,
@@ -686,8 +708,12 @@ class SmartBrainSuggestedActionsBuilder {
     String? lead;
     if (afterAvailability) {
       lead = null;
-    } else if (goal == SmartBrainNextStepGoal.booking) {
+    } else if (goal == SmartBrainNextStepGoal.booking &&
+        !shown.contains('booking')) {
       lead = 'تقدر تكمل بطريقة الحجز أو واتساب إن متوفر.';
+    } else if (shown.contains('booking') &&
+        (doctor.canCall || doctor.canWhatsApp)) {
+      lead = null;
     }
 
     return SmartBrainNextStepBundle(

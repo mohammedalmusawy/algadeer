@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../doctors/doctor_card_links.dart';
@@ -64,21 +64,30 @@ String? validatePatientCredentials(String email, String password) {
   return null;
 }
 
-String arabicAuthFailure(String raw) {
+String arabicAuthFailure(String raw, {String? code, String? status}) {
   final lower = raw.toLowerCase();
+  final codeLower = (code ?? '').toLowerCase();
+  final statusCode = (status ?? '').trim();
   if (lower.contains('email not confirmed') ||
-      lower.contains('not confirmed')) {
+      lower.contains('not confirmed') ||
+      codeLower == 'email_not_confirmed') {
     return 'البريد غير مؤكد بعد. افتح رسالة التأكيد إن وصلت، ثم سجّل الدخول. '
         'ما نتحقق من صندوق الوارد من داخل التطبيق.';
   }
   if (lower.contains('invalid login') || lower.contains('invalid credentials')) {
     return 'البريد أو كلمة المرور غير صحيحة.';
   }
-  if (lower.contains('rate') && lower.contains('limit')) {
+  // وثائق Supabase Auth: مزوّد البريد المدمج ≈ 2 رسالة/ساعة لكل مشروع.
+  // الرسالة العربية هنا تطابق استجابة over_email_send_rate_limit / 429.
+  if (statusCode == '429' ||
+      codeLower.contains('rate_limit') ||
+      codeLower == 'over_email_send_rate_limit' ||
+      (lower.contains('rate') && lower.contains('limit'))) {
     return 'تعذر إرسال الرسالة الآن. حاول بعد قليل.';
   }
   if (lower.contains('user already registered') ||
-      lower.contains('already been registered')) {
+      lower.contains('already been registered') ||
+      codeLower == 'user_already_exists') {
     return 'هذا البريد مسجّل. جرّب الدخول أو استعادة كلمة المرور.';
   }
   return 'تعذر الطلب: $raw';
@@ -175,7 +184,11 @@ class SupabasePatientAuthApi implements PatientAuthApi {
     } on AuthException catch (error) {
       return PatientAuthResult(
         PatientAuthStatus.failed,
-        arabicAuthFailure(error.message),
+        arabicAuthFailure(
+          error.message,
+          code: error.code,
+          status: error.statusCode,
+        ),
       );
     }
   }
@@ -188,10 +201,17 @@ class SupabasePatientAuthApi implements PatientAuthApi {
     final local = validatePatientCredentials(email, password);
     if (local != null) return PatientAuthResult(PatientAuthStatus.failed, local);
     try {
+      final redirect = patientAuthRedirectTo();
       final response = await _client.auth.signUp(
         email: email.trim(),
         password: password,
-        emailRedirectTo: patientAuthRedirectTo(),
+        emailRedirectTo: redirect,
+      );
+      // لا نسجّل بريداً ولا كلمة مرور — فقط حالة الاستجابة للتشخيص المحلي.
+      debugPrint(
+        '[patient_auth.signUp] session=${response.session != null} '
+        'user=${response.user != null} redirectHost='
+        '${Uri.tryParse(redirect)?.host ?? '?'}',
       );
       if (response.session == null) {
         return const PatientAuthResult(
@@ -208,9 +228,13 @@ class SupabasePatientAuthApi implements PatientAuthApi {
       }
       return const PatientAuthResult(PatientAuthStatus.signedIn, 'تم إنشاء الحساب.');
     } on AuthException catch (error) {
+      debugPrint(
+        '[patient_auth.signUp] AuthException status=${error.statusCode} '
+        'code=${error.code}',
+      );
       return PatientAuthResult(
         PatientAuthStatus.failed,
-        arabicAuthFailure(error.message),
+        arabicAuthFailure(error.message, code: error.code, status: error.statusCode),
       );
     }
   }
@@ -240,9 +264,17 @@ class SupabasePatientAuthApi implements PatientAuthApi {
         patientResetRequestedMessage,
       );
     } on AuthException catch (error) {
+      debugPrint(
+        '[patient_auth.reset] AuthException status=${error.statusCode} '
+        'code=${error.code}',
+      );
       return PatientAuthResult(
         PatientAuthStatus.failed,
-        arabicAuthFailure(error.message),
+        arabicAuthFailure(
+          error.message,
+          code: error.code,
+          status: error.statusCode,
+        ),
       );
     }
   }
@@ -270,7 +302,11 @@ class SupabasePatientAuthApi implements PatientAuthApi {
     } on AuthException catch (error) {
       return PatientAuthResult(
         PatientAuthStatus.failed,
-        arabicAuthFailure(error.message),
+        arabicAuthFailure(
+          error.message,
+          code: error.code,
+          status: error.statusCode,
+        ),
       );
     }
   }

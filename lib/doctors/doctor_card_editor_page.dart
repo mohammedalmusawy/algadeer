@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
+import '../widgets/entity_optional_logo.dart';
 import '../models/doctor_item.dart';
 import 'doctor_card_access_client.dart';
 import 'owner_password_change_dialog.dart';
@@ -41,6 +42,7 @@ class _DoctorCardEditorPageState extends State<DoctorCardEditorPage> {
 
   Uint8List? _imageBytes;
   String _imageUrl = '';
+  String _logoUrl = '';
   bool _scheduleTouched = false;
   bool _active = true;
   bool _metaReady = false;
@@ -62,6 +64,7 @@ class _DoctorCardEditorPageState extends State<DoctorCardEditorPage> {
     _whatsapp = TextEditingController(text: doctor.whatsapp);
     _order = TextEditingController();
     _imageUrl = doctor.imageUrl;
+    _logoUrl = doctor.logoUrl;
     _periods = doctorWeekEditorValues(
       workingDays: doctor.workingDays,
       workingHours: doctor.workingHours,
@@ -138,6 +141,9 @@ class _DoctorCardEditorPageState extends State<DoctorCardEditorPage> {
       }
       final bio = _bio.text.trim();
       final fields = <String, dynamic>{};
+      if (_admin || widget.session.allows('image')) {
+        fields['logo_url'] = _logoUrl.trim();
+      }
       if (_admin || widget.session.allows('bio')) {
         fields['bio'] = bio;
         fields['short_description'] = bio;
@@ -201,6 +207,7 @@ class _DoctorCardEditorPageState extends State<DoctorCardEditorPage> {
         workingDays: week.days,
         workingHours: week.hours,
         imageUrl: GhadeerBranding.normalizeEntityImageUrl(imageUrl),
+        logoUrl: _logoUrl,
         available: _booking == 'available',
       );
       _toast('تم حفظ التعديلات');
@@ -394,6 +401,18 @@ class _DoctorCardEditorPageState extends State<DoctorCardEditorPage> {
                         onPressed: _saving ? null : _pickImage,
                         icon: const Icon(Icons.photo_outlined),
                         label: const Text('تغيير الصورة'),
+                      ),
+                      EntityLogoAdminField(
+                        logoUrl: _logoUrl,
+                        folder: 'doctors',
+                        entityId: widget.doctor.id,
+                        onChanged: (value) => setState(() => _logoUrl = value),
+                        upload: (bytes, _) => _client.uploadPhoto(
+                          session: widget.session,
+                          bytes: bytes,
+                          baseRevision: widget.doctor.contentRevision,
+                          logo: true,
+                        ),
                       ),
                     ],
                   ),

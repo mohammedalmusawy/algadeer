@@ -154,6 +154,10 @@ class PlatformGrounding {
         return r.physioId;
       case SmartSearchResultType.supply:
         return r.supplyId;
+      case SmartSearchResultType.optics:
+        return r.opticsId;
+      case SmartSearchResultType.beauty:
+        return r.beautyId;
       case SmartSearchResultType.package:
       case SmartSearchResultType.offer:
         return r.packageId;

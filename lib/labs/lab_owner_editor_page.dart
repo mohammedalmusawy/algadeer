@@ -7,6 +7,7 @@ import '../doctors/doctor_card_access_client.dart';
 import '../doctors/owner_password_change_dialog.dart';
 import '../models/lab_models.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../widgets/entity_optional_logo.dart';
 import 'admin/packages_admin_page.dart';
 
 /// حقول المختبر التي سمح بها المدير. الحفظ يمر عبر Edge Function.
@@ -32,6 +33,7 @@ class _LabOwnerEditorPageState extends State<LabOwnerEditorPage> {
   late final TextEditingController _phone;
   late final TextEditingController _whatsapp;
   Uint8List? _imageBytes;
+  String _logoUrl = '';
   bool _saving = false;
 
   bool get _admin => widget.session.isAdmin;
@@ -45,6 +47,7 @@ class _LabOwnerEditorPageState extends State<LabOwnerEditorPage> {
     _hours = TextEditingController(text: lab.workingHours);
     _phone = TextEditingController(text: lab.phone);
     _whatsapp = TextEditingController(text: lab.whatsapp);
+    _logoUrl = lab.logoUrl;
   }
 
   @override
@@ -81,6 +84,9 @@ class _LabOwnerEditorPageState extends State<LabOwnerEditorPage> {
         revision += 1;
       }
       final fields = <String, dynamic>{};
+      if (_admin || widget.session.allows('image')) {
+        fields['logo_url'] = _logoUrl.trim();
+      }
       if (_admin || widget.session.allows('bio')) {
         fields['description'] = _description.text.trim();
         fields['slogan'] = _slogan.text.trim();
@@ -128,12 +134,25 @@ class _LabOwnerEditorPageState extends State<LabOwnerEditorPage> {
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 12),
-            if (_admin || widget.session.allows('image'))
+            if (_admin || widget.session.allows('image')) ...[
               TextButton.icon(
                 onPressed: _saving ? null : _pickImage,
                 icon: const Icon(Icons.photo_outlined),
                 label: Text(_imageBytes == null ? 'تغيير الصورة' : 'تم اختيار صورة'),
               ),
+              EntityLogoAdminField(
+                logoUrl: _logoUrl,
+                folder: 'labs',
+                entityId: widget.lab.id,
+                onChanged: (value) => setState(() => _logoUrl = value),
+                upload: (bytes, _) => _client.uploadPhoto(
+                  session: widget.session,
+                  bytes: bytes,
+                  baseRevision: widget.lab.contentRevision,
+                  logo: true,
+                ),
+              ),
+            ],
             if (_admin || widget.session.allows('bio')) ...[
               TextField(
                 controller: _description,

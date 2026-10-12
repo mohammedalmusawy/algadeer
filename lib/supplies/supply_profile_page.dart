@@ -8,6 +8,7 @@ import '../home/ghadeer_home_colors.dart';
 import '../voice/entity_profile_speech.dart';
 import '../voice/voice_response_controller.dart';
 import '../widgets/entity_contact_actions.dart';
+import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_speak_button.dart';
 import 'supply_models.dart';
 
@@ -165,6 +166,10 @@ class _SupplyProfilePageState extends State<SupplyProfilePage> {
                         ),
                 ),
               ),
+              if (_v.logoUrl.trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                EntityOptionalLogo(url: _v.logoUrl),
+              ],
               const SizedBox(height: 14),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -567,6 +567,8 @@ class ConversationReferenceResolver {
       ConversationEntityType.pharmacy => (selected.pharmacyId ?? '').trim(),
       ConversationEntityType.physio => (selected.physioId ?? '').trim(),
       ConversationEntityType.supply => (selected.supplyId ?? '').trim(),
+      ConversationEntityType.optics => (selected.opticsId ?? '').trim(),
+      ConversationEntityType.beauty => (selected.beautyId ?? '').trim(),
       ConversationEntityType.none => '',
     };
     if (id.isEmpty || id != selectedId) return null;
@@ -595,6 +597,10 @@ class ConversationReferenceResolver {
         return 'ما عندي مركز علاج طبيعي محفوظ بالسياق. ابحث عن العلاج الطبيعي أولاً.';
       case ConversationEntityType.supply:
         return 'ما عندي محل مستلزمات محفوظ بالسياق. ابحث عن المستلزمات أولاً.';
+      case ConversationEntityType.optics:
+        return 'ما عندي مركز بصريات محفوظ بالسياق. ابحث عن العوينات أولاً.';
+      case ConversationEntityType.beauty:
+        return 'ما عندي مركز تجميل محفوظ بالسياق. ابحث عن مراكز التجميل أولاً.';
       case ConversationEntityType.none:
         return 'ما عندي كيان محفوظ للعودة إليه.';
     }

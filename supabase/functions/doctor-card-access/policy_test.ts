@@ -68,6 +68,7 @@ function memoryDeps(options?: {
   const labs = new Map<string, Record<string, unknown>>();
   const packages = new Map<string, Record<string, unknown>>();
   const pharmacies = new Map<string, Record<string, unknown>>();
+  const centers = new Map<string, Record<string, unknown>>();
   const uploads: string[] = [];
   let adminChecks = 0;
   const now = options?.now ?? 1_700_000_000_000;
@@ -167,6 +168,14 @@ function memoryDeps(options?: {
       pharmacies.set(id, { ...prev, ...patch, content_revision: next });
       return Promise.resolve("ok");
     },
+    saveServiceCenter: (id, patch, expected) => {
+      const prev = centers.get(id);
+      if (!prev) return Promise.resolve("missing");
+      const next = bump(`center:${id}`, expected);
+      if (next == null) return Promise.resolve("conflict");
+      centers.set(id, { ...prev, ...patch, content_revision: next });
+      return Promise.resolve("ok");
+    },
     uploadImage: (path) => {
       uploads.push(path);
       return Promise.resolve(`https://cdn.example/clinic-media/${path}`);
@@ -184,6 +193,7 @@ function memoryDeps(options?: {
     labs,
     packages,
     pharmacies,
+    centers,
     uploads,
     hashes,
     access,
@@ -1455,4 +1465,259 @@ Deno.test("pharmacy owner package CRUD permissions and mid-session revoke", asyn
     null,
   );
   assertEquals(assetRevoked.status, 403);
+});
+
+Deno.test("service center owner edits only that center and a visitor cannot write", async () => {
+  const box = memoryDeps({ adminJwt: true });
+  const opticsId = "sc_optics_local";
+  const beautyId = "sc_beauty_local";
+  box.centers.set(opticsId, {
+    name: "مركز تجريبي — للفحص",
+    bio: "قبل",
+    content_revision: 1,
+  });
+  box.centers.set(beautyId, {
+    name: "مركز تجريبي — للفحص",
+    bio: "تجميل",
+    content_revision: 1,
+  });
+
+  const visitor = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      entity_type: "optics",
+      entity_id: opticsId,
+      fields: { bio: "من زائر" },
+    },
+    box.deps,
+    "10.21.0.1",
+    null,
+  );
+  assertEquals(visitor.status, 403);
+  assertEquals(box.centers.get(opticsId)?.bio, "قبل");
+
+  const issued = await handleDoctorCardAccess(
+    {
+      action: "admin_configure",
+      entity_type: "optics",
+      entity_id: opticsId,
+      enabled: true,
+      permissions: ["bio", "services", "hours", "location"],
+    },
+    box.deps,
+    "10.21.0.2",
+    "Bearer admin",
+  );
+  const verify = await handleDoctorCardAccess(
+    {
+      action: "verify_code",
+      entity_type: "optics",
+      entity_id: opticsId,
+      code: String(issued.body.activation_code),
+    },
+    box.deps,
+    "10.21.0.3",
+    null,
+  );
+  const done = await handleDoctorCardAccess(
+    {
+      action: "complete_activation",
+      entity_type: "optics",
+      entity_id: opticsId,
+      token: String(verify.body.activation_token),
+      new_password: "optics-owner-1",
+    },
+    box.deps,
+    "10.21.0.3",
+    null,
+  );
+  const token = String(done.body.token);
+  const saved = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      entity_type: "optics",
+      entity_id: opticsId,
+      token,
+      fields: {
+        bio: "بعد التعديل",
+        services: ["فحص نظر محلي"],
+        hours: "٩ صباحاً حتى ١ ظهراً",
+        address: "عنوان فحص محلي",
+        name: "اسم مسروق",
+      },
+    },
+    box.deps,
+    "10.21.0.3",
+    null,
+  );
+  assertEquals(saved.status, 403);
+  assertEquals(box.centers.get(opticsId)?.bio, "قبل");
+
+  const allowed = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      entity_type: "optics",
+      entity_id: opticsId,
+      token,
+      fields: {
+        bio: "بعد التعديل",
+        services: ["فحص نظر محلي"],
+        hours: "٩ صباحاً حتى ١ ظهراً",
+        address: "عنوان فحص محلي",
+      },
+    },
+    box.deps,
+    "10.21.0.3",
+    null,
+  );
+  assertEquals(allowed.status, 200);
+  const reopened = box.centers.get(opticsId);
+  assertEquals(reopened?.bio, "بعد التعديل");
+  assertEquals(reopened?.name, "مركز تجريبي — للفحص");
+  assertEquals(reopened?.content_revision, 2);
+
+  const other = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      entity_type: "beauty",
+      entity_id: beautyId,
+      token,
+      fields: { bio: "تعديل مركز آخر" },
+    },
+    box.deps,
+    "10.21.0.4",
+    null,
+  );
+  assertEquals(other.status, 403);
+  assertEquals(box.centers.get(beautyId)?.bio, "تجميل");
+
+  await handleDoctorCardAccess(
+    {
+      action: "admin_configure",
+      entity_type: "optics",
+      entity_id: opticsId,
+      enabled: false,
+      permissions: ["bio"],
+    },
+    box.deps,
+    "10.21.0.5",
+    "Bearer admin",
+  );
+  const afterRevoke = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 2,
+      entity_type: "optics",
+      entity_id: opticsId,
+      token,
+      fields: { bio: "بعد الإلغاء" },
+    },
+    box.deps,
+    "10.21.0.3",
+    null,
+  );
+  assertEquals(afterRevoke.status, 403);
+  assertEquals(box.centers.get(opticsId)?.bio, "بعد التعديل");
+});
+
+Deno.test("logo object path matches admin client folder/id/logos pattern", () => {
+  const root = "doctors";
+  const id = doctorA;
+  const folder = `${root}/${id}/logos`;
+  const path = `${folder}/logo-file.png`;
+  assertEquals(path.startsWith(`${folder}/`), true);
+  assertEquals(path, `doctors/${doctorA}/logos/logo-file.png`);
+});
+
+Deno.test("logo upload does not replace the portrait and needs image permission", async () => {
+  const hashA = await hashPassword("secret-a-111", 2);
+  const box = memoryDeps({ hashes: { [doctorA]: hashA } });
+  box.doctors.set(doctorA, {
+    image_url: "https://cdn.example/face.jpg",
+    content_revision: 1,
+  });
+  box.access.set(`doctor:${doctorA}`, {
+    ...box.access.get(`doctor:${doctorA}`)!,
+    permissions: ["bio"],
+  });
+  const login = await handleDoctorCardAccess(
+    { action: "login", doctor_id: doctorA, password: "secret-a-111" },
+    box.deps,
+    "10.22.0.1",
+    null,
+  );
+  const token = String(login.body.token);
+  const denied = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      doctor_id: doctorA,
+      token,
+      fields: { logo_url: "https://cdn.example/logo.png" },
+    },
+    box.deps,
+    "10.22.0.1",
+    null,
+  );
+  assertEquals(denied.status, 403);
+  assertEquals(box.doctors.get(doctorA)?.image_url, "https://cdn.example/face.jpg");
+  assertEquals(box.doctors.get(doctorA)?.logo_url, undefined);
+
+  box.access.set(`doctor:${doctorA}`, {
+    ...box.access.get(`doctor:${doctorA}`)!,
+    permissions: ["image"],
+  });
+  const saved = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      doctor_id: doctorA,
+      token,
+      fields: { logo_url: "https://cdn.example/logo.png" },
+    },
+    box.deps,
+    "10.22.0.1",
+    null,
+  );
+  assertEquals(saved.status, 200);
+  assertEquals(box.doctors.get(doctorA)?.image_url, "https://cdn.example/face.jpg");
+  assertEquals(box.doctors.get(doctorA)?.logo_url, "https://cdn.example/logo.png");
+
+  const uploaded = await handleDoctorCardAccess(
+    {
+      action: "upload_photo",
+      doctor_id: doctorA,
+      token,
+      logo: true,
+      image_base64: btoa(String.fromCharCode(...jpeg(48))),
+    },
+    box.deps,
+    "10.22.0.1",
+    null,
+  );
+  assertEquals(uploaded.status, 200);
+  assertEquals(
+    box.uploads.some((p) => p.startsWith(`doctors/${doctorA}/logos/`)),
+    true,
+  );
+  assertEquals(box.doctors.get(doctorA)?.image_url, "https://cdn.example/face.jpg");
+
+  const other = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      entity_type: "doctor",
+      entity_id: doctorB,
+      token,
+      fields: { logo_url: "https://cdn.example/other.png" },
+    },
+    box.deps,
+    "10.22.0.2",
+    null,
+  );
+  assertEquals(other.status, 403);
 });

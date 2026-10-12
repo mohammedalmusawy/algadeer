@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/entity_logos_store.dart';
 import 'supply_models.dart';
 
 /// تخزين محلي لمحلات المستلزمات — لا يكسر التطبيق بدون جدول.
@@ -42,6 +43,16 @@ class SuppliesStore {
     }
     // دمج الكتالوج الافتراضي: محلات جديدة تظهر دون مسح تعديلات الإدارة.
     _items = _mergeWithCatalog(_items);
+    final logos =
+        await EntityLogosStore.instance.loadKind(EntityLogosStore.supplies);
+    _items = EntityLogosStore.applyLogos(
+      items: _items,
+      logos: logos,
+      idOf: (p) => p.id,
+      withLogo: (p, url) => p.copyWith(logoUrl: url),
+      clearMissing:
+          EntityLogosStore.instance.isKindLoaded(EntityLogosStore.supplies),
+    );
     _loaded = true;
   }
 
@@ -84,6 +95,16 @@ class SuppliesStore {
       next.add(item);
     }
     await saveAll(next);
+    try {
+      await EntityLogosStore.instance.upsert(
+        kind: EntityLogosStore.supplies,
+        entityId: item.id,
+        logoUrl: item.logoUrl,
+      );
+    } catch (e) {
+      debugPrint('supplies shared logo save failed: $e');
+      rethrow;
+    }
   }
 
   Future<void> setActive(String id, bool active) async {

@@ -193,6 +193,18 @@ Status labels are based **only on repository evidence** in the working tree.
 - No Supabase backend; no favorites persistence found
 - Smart Brain M4 coverage
 
+### Optics and beauty centers — **PARTIAL** (2026-10-09)
+
+- Home grid, public lists, profile cards, and admin CRUD for `optics` and `beauty`.
+- Visitors read `public.service_centers` only. There is no built-in catalog and no device-only publish path. An empty table shows an empty state.
+- Admin writes require an authenticated clinic admin (`is_clinic_admin()`). Hiding the admin screen is not the access control.
+- **Live (owner-reported 2026-10-09):** `service_centers_public_schema.sql` applied; both sections show the empty state instead of the load-error message. No test centers were inserted.
+- **Not live yet:** `service_centers_owner_access.sql` (extends `entity_owner_access` / `entity_owner_attempts` to `optics`/`beauty` while keeping doctor/lab/pharmacy rows), and deploy of Edge Function `doctor-card-access` with the local optics/beauty + logo changes.
+- Smart Brain can search, open the card, show location, and prepare call/WhatsApp only after the live row is revalidated. Optical centers are not eye-doctor searches. Beauty centers are not cosmetic-surgery specialties.
+- Optional logo (shape accepted): shared UI `EntityOptionalLogo`. Storage path unified for admin and owner: `{folder}/{entityId}/logos/{file}`. Doctors/labs/radiology use column `logo_url`; pharmacies and service centers use `profile`; physio/supplies keep local content but shared logos via `entity_logos` (see `entity_logo_url.sql`, not applied live).
+- No product store, payment, or new booking flow.
+- Physiotherapy stays. The earlier plan to remove pharmacies and medical supplies was reversed on 2026-10-09: both sections stay, with their current lists, cards, admin, search, and Smart Brain behavior.
+
 ### Medical supplies — **PARTIAL**
 
 - Same local pattern as physio (`supplies_local_v1`)
@@ -940,8 +952,8 @@ Default shipping brain = **local search-and-execute over platform entities**, wi
 - Patient email confirm/reset: app redirects are coded; custom SMTP + Redirect URLs `#/patient-health` and `#/admin-recovery` are still external
 - `patient_health_hardening.sql` / `patient-account`: do not blindly re-run SQL; SMTP and live delete-acceptance still untested
 - Pharmacies: `public.pharmacies` is applied on live Supabase and starts empty until the administrator publishes the device copy. Physio/supplies remain device-local
-- Pharmacy product filter / offers snackbars «قريباً»
-- Pharmacy favorite not persisted
+- ~~Pharmacy product filter / offers snackbars «قريباً»~~ — 2026-10-12: search submit, filter sheet (offers / popular / categories present) and offers button open `PharmacyAllBundlesPage` filtered (`pharmacy_bundle_filter.dart`; tests `pharmacy_bundle_filter_test`, `pharmacy_profile_search_offers_test`)
+- ~~Pharmacy favorite not persisted~~ — 2026-10-12: saved under `favoritePharmacyIds` (`pharmacy_favorite_persist_test`); not yet listed in the Favorites tab
 - Ads: home slot wired; other placement keys in admin have no list-page UI yet
 - Push notifications absent
 - README still template

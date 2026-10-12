@@ -1,3 +1,4 @@
+import '../../centers/service_center_kind.dart';
 import 'analysis_target_resolver.dart';
 import 'assistant_intent.dart';
 import 'doctor_target_resolver.dart';
@@ -148,6 +149,43 @@ class EntityTargetResolver {
       }
     }
     return false;
+  }
+
+  /// هل النية/السياق يميلان لمركز بصريات أو تجميل، لا لطبيب؟
+  static bool prefersServiceCenter({
+    required IntentResult intent,
+    required ConversationContext context,
+  }) {
+    if (prefersPackage(intent: intent, context: context)) return false;
+    if (prefersAnalysis(intent: intent, context: context)) return false;
+    if (ServiceCenterQuery.kindFor(intent.normalizedText) != null) return true;
+    switch (intent.intent) {
+      case AssistantIntent.findOptics:
+      case AssistantIntent.callOptics:
+      case AssistantIntent.messageOptics:
+      case AssistantIntent.findBeauty:
+      case AssistantIntent.callBeauty:
+      case AssistantIntent.messageBeauty:
+        return true;
+      default:
+        break;
+    }
+    final active = context.activeEntityType;
+    if (active != ConversationEntityType.optics &&
+        active != ConversationEntityType.beauty) {
+      return false;
+    }
+    switch (intent.intent) {
+      case AssistantIntent.callDoctor:
+      case AssistantIntent.messageDoctor:
+        return (intent.entities.doctorName ?? '').trim().isEmpty;
+      case AssistantIntent.showLocation:
+      case AssistantIntent.showProfile:
+      case AssistantIntent.doctorAvailability:
+        return true;
+      default:
+        return false;
+    }
   }
 
   /// هل النية/السياق يميلان للعلاج الطبيعي؟

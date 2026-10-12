@@ -21,10 +21,17 @@ class AppSlotIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // بدون تهيئة Supabase (اختبارات/إقلاع مبكر) نرجع الرمز الافتراضي.
+    late final AppIconsService service;
+    try {
+      service = AppIconsService.instance;
+    } catch (_) {
+      return Icon(fallback, size: size, color: color);
+    }
     return ListenableBuilder(
-      listenable: AppIconsService.instance,
+      listenable: service,
       builder: (context, _) {
-        final url = AppIconsService.instance.urlFor(slotId);
+        final url = service.urlFor(slotId);
         if (url == null || url.isEmpty) {
           return Icon(fallback, size: size, color: color);
         }

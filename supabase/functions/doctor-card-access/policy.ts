@@ -22,6 +22,7 @@ export const DOCTOR_FIELDS = [
   "phone",
   "whatsapp",
   "booking_status",
+  "logo_url",
 ] as const;
 
 export const ADMIN_FIELDS = [
@@ -52,13 +53,14 @@ const TEXT_LIMITS: Record<string, number> = {
   doctor_name: 200,
   specialty: 200,
   clinic_location: 300,
+  logo_url: 2000,
 };
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type Role = "owner" | "admin";
-export type EntityType = "doctor" | "lab" | "pharmacy";
+export type EntityType = "doctor" | "lab" | "pharmacy" | "optics" | "beauty";
 export type AttemptKind = "password" | "activation";
 
 export const OWNER_PERMISSIONS: Record<EntityType, readonly string[]> = {
@@ -74,6 +76,8 @@ export const OWNER_PERMISSIONS: Record<EntityType, readonly string[]> = {
     "packages_edit",
     "packages_delete",
   ],
+  optics: ["image", "bio", "services", "hours", "contacts", "location"],
+  beauty: ["image", "bio", "services", "hours", "contacts", "location"],
 };
 
 export type OwnerAccess = {
@@ -111,6 +115,7 @@ export type AccessBody = {
   package_id?: string;
   package_image?: boolean;
   asset_only?: boolean;
+  logo?: boolean;
   base_revision?: number;
 };
 
@@ -177,6 +182,11 @@ export type CardDeps = {
     patch: Record<string, unknown>,
     expectedRevision: number,
     permissions?: readonly string[],
+  ): Promise<"ok" | "missing" | "conflict" | "forbidden">;
+  saveServiceCenter(
+    centerId: string,
+    patch: Record<string, unknown>,
+    expectedRevision: number,
   ): Promise<"ok" | "missing" | "conflict" | "forbidden">;
   uploadImage(path: string, bytes: Uint8Array, contentType: string): Promise<string>;
   verifyAdminPassword(password: string): Promise<boolean>;
@@ -390,9 +400,7 @@ export async function readToken(
     if (!ok) return null;
     const json = JSON.parse(new TextDecoder().decode(b64urlDecode(parts[0])));
     const entityType = json?.y;
-    if (entityType !== "doctor" && entityType !== "lab" && entityType !== "pharmacy") {
-      return null;
-    }
+    if (!isEntityType(entityType)) return null;
     if (json?.r !== "owner" && json?.r !== "admin") return null;
     if (json?.p !== "session" && json?.p !== "activation") return null;
     if (typeof json.d !== "string" || !isEntityId(entityType, json.d)) return null;
@@ -411,8 +419,15 @@ export async function readToken(
   }
 }
 
+export function isEntityType(value: string): value is EntityType {
+  return value === "doctor" || value === "lab" || value === "pharmacy" ||
+    value === "optics" || value === "beauty";
+}
+
 export function isEntityId(type: EntityType, id: string): boolean {
-  if (type === "pharmacy") return /^[A-Za-z0-9_-]{1,64}$/.test(id);
+  if (type === "pharmacy" || type === "optics" || type === "beauty") {
+    return /^[A-Za-z0-9_-]{1,64}$/.test(id);
+  }
   return isUuid(id);
 }
 
@@ -567,7 +582,7 @@ export function waitMessage(now: number, lockedUntil: number): string {
 function resolveTarget(body: AccessBody): { type: EntityType; id: string } | null {
   const type = body.entity_type ?? (body.doctor_id ? "doctor" : "");
   const id = (body.entity_id ?? body.doctor_id ?? "").trim();
-  if (type !== "doctor" && type !== "lab" && type !== "pharmacy") return null;
+  if (!isEntityType(type)) return null;
   if (!isEntityId(type, id)) return null;
   return { type, id };
 }
@@ -578,6 +593,7 @@ function doctorPermission(key: string): string | null {
   if (key === "working_days" || key === "working_hours") return "schedule";
   if (key === "phone" || key === "whatsapp") return "contacts";
   if (key === "booking_status") return "booking_status";
+  if (key === "logo_url") return "image";
   return null;
 }
 
@@ -587,12 +603,14 @@ const LAB_OWNER_FIELDS = new Set([
   "working_hours",
   "phone",
   "whatsapp",
+  "logo_url",
 ]);
 
 function labPermission(key: string): string | null {
   if (key === "description" || key === "slogan") return "bio";
   if (key === "working_hours") return "hours";
   if (key === "phone" || key === "whatsapp") return "contacts";
+  if (key === "logo_url") return "image";
   return null;
 }
 
@@ -608,6 +626,55 @@ const PHARMACY_FIELDS: Record<string, string> = {
   offerImageUrl: "products",
   offerIconUrl: "products",
 };
+
+const CENTER_FIELDS: Record<string, string> = {
+  imageUrl: "image",
+  logoUrl: "image",
+  bio: "bio",
+  services: "services",
+  hours: "hours",
+  phone: "contacts",
+  whatsapp: "contacts",
+  address: "location",
+  mapUrl: "location",
+  latitude: "location",
+  longitude: "location",
+};
+
+function acceptCenterFields(
+  fields: Record<string, unknown>,
+  permissions: readonly string[],
+): Record<string, unknown> | null {
+  const patch: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    const perm = CENTER_FIELDS[key];
+    if (!perm || !permissions.includes(perm)) return null;
+    if (key === "services") {
+      if (!Array.isArray(value) || value.length > 40) return null;
+      const services: string[] = [];
+      for (const item of value) {
+        if (typeof item !== "string") return null;
+        const text = item.trim();
+        if (!text || text.length > 120) return null;
+        services.push(text);
+      }
+      patch.services = services;
+      continue;
+    }
+    if (key === "latitude" || key === "longitude") {
+      if (typeof value !== "number" || !Number.isFinite(value)) return null;
+      const limit = key === "latitude" ? 90 : 180;
+      if (value < -limit || value > limit) return null;
+      patch[key] = value;
+      continue;
+    }
+    if (typeof value !== "string") return null;
+    const text = value.trim();
+    if (text.length > 4000 || text.startsWith("data:")) return null;
+    patch[key] = text;
+  }
+  return Object.keys(patch).length === 0 ? null : patch;
+}
 
 function pharmacyCanTouchBundles(permissions: readonly string[]): boolean {
   return permissions.includes("products") ||
@@ -1116,6 +1183,26 @@ export async function handleDoctorCardAccess(
       if (revision == null) return conflict();
       return { status: 200, body: { ok: true, content_revision: revision } };
     }
+    if (target.type === "optics" || target.type === "beauty") {
+      const patch = acceptCenterFields(fields, owner.access.permissions);
+      if (!patch) return forbidden();
+      const expected = expectedRevision(body);
+      if (typeof expected !== "number") return expected;
+      const published = await deps.saveServiceCenter(target.id, patch, expected);
+      if (published === "missing") {
+        return {
+          status: 409,
+          body: {
+            ok: false,
+            code: "unpublished",
+            error: "هذا المركز غير منشور في الدليل المشترك بعد. راجع الإدارة.",
+          },
+        };
+      }
+      if (published === "forbidden") return forbidden();
+      if (published === "conflict") return conflict();
+      return { status: 200, body: { ok: true, content_revision: expected + 1 } };
+    }
     const patch: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(fields)) {
       if (key === "bundles") {
@@ -1170,6 +1257,7 @@ export async function handleDoctorCardAccess(
     }
     const packageImage = body.package_image === true;
     const assetOnly = body.asset_only === true;
+    const logoOnly = body.logo === true;
     if (session.role === "owner") {
       const owner = await ownerContext(deps, session);
       if (isHandler(owner)) return owner;
@@ -1192,7 +1280,8 @@ export async function handleDoctorCardAccess(
       return forbidden();
     }
     if (packageImage && target.type !== "lab") return forbidden();
-    if (assetOnly && target.type !== "pharmacy") return forbidden();
+    if (logoOnly && packageImage) return forbidden();
+    if (assetOnly && !logoOnly && target.type !== "pharmacy") return forbidden();
     if (!body.image_base64) return badImage();
     let bytes: Uint8Array;
     try {
@@ -1202,12 +1291,29 @@ export async function handleDoctorCardAccess(
     }
     const image = inspectImage(bytes);
     if (!image.ok) return badImage();
+    if (logoOnly) {
+      // مسار موحّد مع عميل الإدارة: {folder}/{entityId}/logos/{file}
+      const root = target.type === "lab"
+        ? "labs"
+        : target.type === "pharmacy"
+        ? "pharmacies"
+        : target.type === "optics" || target.type === "beauty"
+        ? "service-centers"
+        : "doctors";
+      const folder = `${root}/${target.id}/logos`;
+      const path = `${folder}/${crypto.randomUUID()}.${image.ext}`;
+      if (!path.startsWith(`${folder}/`)) return badImage();
+      const url = await deps.uploadImage(path, bytes, image.contentType);
+      return { status: 200, body: { ok: true, image_url: url } };
+    }
     const folder = packageImage
       ? `labs/${target.id}/packages`
       : target.type === "lab"
       ? `labs/${target.id}`
       : target.type === "pharmacy"
       ? `pharmacies/${target.id}`
+      : target.type === "optics" || target.type === "beauty"
+      ? `service-centers/${target.id}`
       : `doctors/${target.id}`;
     const path = `${folder}/${crypto.randomUUID()}.${image.ext}`;
     if (!path.startsWith(`${folder}/`)) return badImage();
@@ -1239,6 +1345,29 @@ export async function handleDoctorCardAccess(
             ok: false,
             code: "unpublished",
             error: "الكتالوج المشترك لهذه الصيدلية غير منشور بعد. راجع الإدارة.",
+          },
+        };
+      }
+      if (published === "forbidden") return forbidden();
+      if (published === "conflict") return conflict();
+      return {
+        status: 200,
+        body: { ok: true, image_url: url, content_revision: expected + 1 },
+      };
+    }
+    if (target.type === "optics" || target.type === "beauty") {
+      const published = await deps.saveServiceCenter(
+        target.id,
+        { imageUrl: url },
+        expected,
+      );
+      if (published === "missing") {
+        return {
+          status: 409,
+          body: {
+            ok: false,
+            code: "unpublished",
+            error: "هذا المركز غير منشور في الدليل المشترك بعد. راجع الإدارة.",
           },
         };
       }

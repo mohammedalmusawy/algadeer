@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../doctors/doctor_card_access_client.dart';
 import '../doctors/owner_password_change_dialog.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../widgets/entity_optional_logo.dart';
 import 'pharmacies_store.dart';
 import 'pharmacy_bundles_manage_page.dart';
 import 'pharmacy_models.dart';
@@ -183,12 +184,16 @@ class _PharmacyOwnerEditorPageState extends State<PharmacyOwnerEditorPage> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _logo,
-                decoration: const InputDecoration(
-                  labelText: 'رابط الشعار',
-                  border: OutlineInputBorder(),
+              EntityLogoAdminField(
+                logoUrl: _logo.text,
+                folder: 'pharmacies',
+                entityId: widget.pharmacy.id,
+                onChanged: (value) => setState(() => _logo.text = value),
+                upload: (bytes, _) => _client.uploadPhoto(
+                  session: widget.session,
+                  bytes: bytes,
+                  baseRevision: _revision,
+                  logo: true,
                 ),
               ),
             ],

@@ -14,6 +14,7 @@ import '../voice/voice_response_controller.dart';
 import '../doctors/doctor_card_gate.dart';
 import '../doctors/doctor_card_tap.dart';
 import '../widgets/entity_contact_actions.dart';
+import '../widgets/entity_optional_logo.dart';
 import 'lab_owner_editor_page.dart';
 import 'lab_card_links.dart';
 import 'lab_default_images.dart';
@@ -566,6 +567,10 @@ class _LabProfilePageState extends State<LabProfilePage> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
+                                  if (_lab.logoUrl.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    EntityOptionalLogo(url: _lab.logoUrl),
+                                  ],
                                   DoctorCardTripleTap(
                                     tapCount: 5,
                                     onTripleTap: _openLabPackagesManage,

@@ -528,23 +528,26 @@ void main() {
           greaterThanOrEqualTo(beforeResults > 0 ? 1 : 0),
         );
 
-        final bookingChipAction = session.lastSuggestions.firstWhere(
-          (a) => a.kind == SmartBrainSuggestedActionKind.bookingGuidance,
-          orElse: () => session.lastSuggestions.firstWhere(
-            (a) => (a.executionQuery ?? '').contains('حجز'),
-          ),
-        );
-        await session.tapSuggestion(bookingChipAction);
-        await tester.pumpAndSettle(const Duration(seconds: 3));
-
-        final chipTurn = session.turns.last.text;
-        expect(chipTurn.contains('ما لقيت'), isFalse, reason: chipTurn);
+        // بعد الجواب: لا نعيد شريحة طريقة الحجز؛ الشرائح من نفس المسار للاتصال/واتساب.
         expect(
-          chipTurn.contains('ما أحجز موعداً تلقائياً') ||
-              chipTurn.contains('حجز'),
-          isTrue,
-          reason: chipTurn,
+          session.lastSuggestions.any(
+            (a) => a.kind == SmartBrainSuggestedActionKind.bookingGuidance,
+          ),
+          isFalse,
+          reason: session.lastSuggestions.map((a) => a.kind).join(','),
         );
+        SmartBrainSuggestedAction? contactChip;
+        for (final a in session.lastSuggestions) {
+          if (a.kind == SmartBrainSuggestedActionKind.call ||
+              a.kind == SmartBrainSuggestedActionKind.whatsapp) {
+            contactChip = a;
+            break;
+          }
+        }
+        if (contactChip != null) {
+          await session.tapSuggestion(contactChip);
+          await tester.pumpAndSettle(const Duration(seconds: 3));
+        }
         expect(session.conversation.selectedDoctor?.doctorId, 'doc-ali-nasser');
       },
     );

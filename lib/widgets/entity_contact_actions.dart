@@ -57,12 +57,13 @@ class EntityContactActionBtn extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                maxLines: 1,
+                maxLines: title.length > 8 ? 2 : 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: filled ? Colors.white : const Color(0xFF123B42),
                   fontWeight: FontWeight.w900,
-                  fontSize: fontSize,
+                  fontSize: title.length > 8 ? fontSize - 1.5 : fontSize,
+                  height: 1.15,
                 ),
               ),
             ],
@@ -125,7 +126,7 @@ class EntityContactActionsRow extends StatelessWidget {
     buttons.add(
       EntityContactActionBtn(
         icon: Icons.public_rounded,
-        title: 'مواقع',
+        title: 'مواقع التواصل',
         filled: true,
         color: kEntityActionTeal,
         onTap: () => showEntitySocialSheet(

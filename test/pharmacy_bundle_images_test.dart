@@ -106,7 +106,7 @@ void main() {
       expect(msg, contains('باقة دعم المناعة'));
       expect(msg, contains('Vitamin D3'));
       expect(msg, contains('Magnesium'));
-      expect(msg, contains('تفاصيل المكملات'));
+      expect(msg, contains('المنتجات المشمولة'));
       expect(msg, contains('حسب تقييم الصيدلي'));
     });
 

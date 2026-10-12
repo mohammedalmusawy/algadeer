@@ -271,11 +271,11 @@ void main() {
       ),
     );
     expect(month.patientName, isNull);
-    expect(month.lines.map((line) => line.detail).join('\n'), contains('128/82'));
-    expect(month.lines.map((line) => line.detail).join('\n'), isNot(contains('150/95')));
-    expect(month.lines.map((line) => line.detail).join('\n'), isNot(contains('140')));
-    expect(month.lines.map((line) => line.detail).join('\n'), isNot(contains('200/100')));
-    expect(month.lines.join(), isNot(contains('أحمد')));
+    expect(month.readings.map((r) => r.valueLabel).join('\n'), contains('128/82'));
+    expect(month.readings.map((r) => r.valueLabel).join('\n'), isNot(contains('150/95')));
+    expect(month.readings.map((r) => r.valueLabel).join('\n'), isNot(contains('140')));
+    expect(month.readings.map((r) => r.valueLabel).join('\n'), isNot(contains('200/100')));
+    expect(month.readings.join(), isNot(contains('أحمد')));
 
     final named = buildFollowUpCard(
       userId: 'user-a',
@@ -288,7 +288,7 @@ void main() {
       ),
     );
     expect(named.patientName, 'أحمد');
-    expect(named.lines.single.detail, contains('ملغ/دل'));
+    expect(named.readings.single.unitLabel, contains('ملغ/دل'));
     expect(
       () => buildFollowUpCard(
         userId: 'user-a',
@@ -313,6 +313,10 @@ void main() {
     expect(patientResetRequestedMessage, isNot(contains('Redirect')));
     expect(patientResetRequestedMessage, isNot(contains('Supabase')));
     expect(arabicAuthFailure('rate limit'), isNot(contains('SMTP')));
+    expect(
+      arabicAuthFailure('x', code: 'over_email_send_rate_limit', status: '429'),
+      contains('حاول بعد قليل'),
+    );
     expect(validatePatientCredentials(kAdminEmail, '12345678'), isNotNull);
     expect(arabicAuthFailure('Email not confirmed'), contains('غير مؤكد'));
     expect(

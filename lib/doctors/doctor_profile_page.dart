@@ -12,6 +12,7 @@ import '../companion/personal_companion_profile_service.dart';
 import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import '../voice/voice_response_controller.dart';
+import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_social_sheet.dart';
 import 'doctor_availability_service.dart';
 import 'doctor_card_gate.dart';
@@ -484,6 +485,10 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                                   color: Color(0xFF1A4F58),
                                 ),
                               ),
+                              if (doctor.logoUrl.trim().isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                EntityOptionalLogo(url: doctor.logoUrl),
+                              ],
                               DoctorCardTripleTap(
                                 onTripleTap: () => unawaited(_openCardAccess()),
                                 child: _HeroDoctorNameSpecialty(
@@ -768,8 +773,8 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       Expanded(
         child: _CompactContactAction(
           icon: Icons.public_rounded,
-          title: 'مواقع',
-          subtitle: 'تواصل',
+          title: 'مواقع التواصل',
+          subtitle: '',
           color: unified,
           onTap: () => showEntitySocialSheet(
             context,
@@ -1412,26 +1417,28 @@ class _CompactContactAction extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  maxLines: 1,
+                  maxLines: title.length > 8 ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 9.5,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: title.length > 8 ? 10.5 : 12,
+                    height: 1.15,
                   ),
                 ),
+                if (subtitle.trim().isNotEmpty)
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 9.5,
+                    ),
+                  ),
               ],
             ),
           ),

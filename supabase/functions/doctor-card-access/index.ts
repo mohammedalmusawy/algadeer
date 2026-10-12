@@ -328,6 +328,39 @@ function buildDeps(): CardDeps | null {
       const updated = await res.json();
       return Array.isArray(updated) && updated.length === 1 ? "ok" : "conflict";
     },
+    saveServiceCenter: async (centerId, patch, expectedRevision) => {
+      const current = await rest(
+        `/rest/v1/service_centers?id=eq.${encodeURIComponent(centerId)}&select=profile,content_revision`,
+        { headers: restHeaders(serviceKey) },
+      );
+      if (!current.ok) throw new Error("service center read failed");
+      const rows = await current.json();
+      if (!Array.isArray(rows) || rows.length !== 1) return "missing";
+      const currentRevision = Number(rows[0]?.content_revision ?? 1) || 1;
+      if (currentRevision !== expectedRevision) return "conflict";
+      const prev = rows[0]?.profile && typeof rows[0].profile === "object"
+        ? rows[0].profile
+        : {};
+      const profile = { ...prev, ...patch };
+      const res = await rest(
+        `/rest/v1/service_centers?id=eq.${encodeURIComponent(centerId)}&content_revision=eq.${expectedRevision}`,
+        {
+          method: "PATCH",
+          headers: restHeaders(serviceKey, {
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          }),
+          body: JSON.stringify({
+            profile,
+            content_revision: expectedRevision + 1,
+            updated_at: new Date().toISOString(),
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("service center publish failed");
+      const updated = await res.json();
+      return Array.isArray(updated) && updated.length === 1 ? "ok" : "conflict";
+    },
     uploadImage: async (path, bytes, contentType) => {
       const payload = new Uint8Array(bytes.byteLength);
       payload.set(bytes);

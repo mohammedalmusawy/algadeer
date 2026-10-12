@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../home/app_shell_bottom_nav.dart';
 import '../models/lab_models.dart';
 import '../services/app_stats_service.dart';
 import '../utils/contact_launch.dart';
 import '../voice/lab_packages_speech.dart';
 import '../voice/voice_response_controller.dart';
 import '../widgets/clinic_app_bar.dart';
-import '../widgets/entity_contact_actions.dart';
 import 'lab_package_order_message.dart';
 import 'labs_service.dart';
 import 'widgets/package_hero_image.dart';
@@ -223,43 +223,10 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
     );
   }
 
-  Widget _whatsappBar() {
-    final canSend = _whatsappTarget.isNotEmpty;
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
-        ),
-        child: SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: FilledButton.icon(
-            onPressed: canSend ? () => unawaited(_sendPackageWhatsApp()) : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: kEntityWhatsAppGreen,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: const Color(0xFFB7DCC4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            icon: const Icon(Icons.chat_rounded),
-            label: const Text(
-              'أرسل تفاصيل الباقة عبر واتساب',
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final package = _package;
+    final canSend = _whatsappTarget.isNotEmpty;
 
     return PopScope(
       canPop: false,
@@ -274,13 +241,13 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
             title: Text(package?.name ?? 'تفاصيل الباقة'),
             backgroundColor: const Color(0xFF0FAFA3),
             foregroundColor: Colors.white,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => unawaited(_stopSpeechAndPop()),
-            ),
           ),
-          bottomNavigationBar:
-              !_loading && _error == null && package != null ? _whatsappBar() : null,
+          bottomNavigationBar: !_loading && _error == null && package != null
+              ? PackageWhatsAppAboveShell(
+                  enabled: canSend,
+                  onPressed: () => unawaited(_sendPackageWhatsApp()),
+                )
+              : const AppShellBottomNav(activeIndex: -1),
           body: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null

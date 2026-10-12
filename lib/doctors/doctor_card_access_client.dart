@@ -204,6 +204,7 @@ class DoctorCardAccessClient {
     required DoctorCardSession session,
     required Uint8List bytes,
     required int baseRevision,
+    bool logo = false,
   }) async {
     final data = await _call({
       'action': 'upload_photo',
@@ -212,6 +213,7 @@ class DoctorCardAccessClient {
       'token': session.token,
       'base_revision': baseRevision,
       'image_base64': base64Encode(bytes),
+      if (logo) 'logo': true,
     });
     final url = data['image_url']?.toString() ?? '';
     if (url.isEmpty) {

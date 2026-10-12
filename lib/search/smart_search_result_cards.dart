@@ -29,6 +29,8 @@ class SmartSearchResultCard extends StatelessWidget {
       case SmartSearchResultType.physio:
         return _LabCard(result: result, onTap: onTap);
       case SmartSearchResultType.supply:
+      case SmartSearchResultType.optics:
+      case SmartSearchResultType.beauty:
         return _LabCard(result: result, onTap: onTap);
       case SmartSearchResultType.package:
       case SmartSearchResultType.offer:

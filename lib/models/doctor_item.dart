@@ -11,6 +11,7 @@ class DoctorItem {
   final String phone;
   final String whatsapp;
   final String imageUrl;
+  final String logoUrl;
   final String id;
   final bool ghadeerBadge;
   final String bio;
@@ -46,6 +47,7 @@ class DoctorItem {
     required this.phone,
     required this.whatsapp,
     required this.imageUrl,
+    this.logoUrl = '',
     required this.id,
     required this.ghadeerBadge,
     required this.bio,
@@ -83,6 +85,7 @@ class DoctorItem {
     String? phone,
     String? whatsapp,
     String? imageUrl,
+    String? logoUrl,
     String? bio,
     String? services,
     String? shortDescription,
@@ -100,6 +103,7 @@ class DoctorItem {
       phone: phone ?? this.phone,
       whatsapp: whatsapp ?? this.whatsapp,
       imageUrl: imageUrl ?? this.imageUrl,
+      logoUrl: logoUrl ?? this.logoUrl,
       id: id,
       ghadeerBadge: ghadeerBadge,
       bio: bio ?? this.bio,
@@ -139,6 +143,7 @@ class DoctorItem {
       imageUrl: GhadeerBranding.normalizeEntityImageUrl(
         data['image_url']?.toString() ?? '',
       ),
+      logoUrl: data['logo_url']?.toString() ?? '',
       id: data['id']?.toString() ?? '',
       ghadeerBadge: readBoolFlag(data['ghadeer_badge']),
       bio: data['bio']?.toString() ?? '',

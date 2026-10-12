@@ -55,7 +55,7 @@ void main() {
     );
     expect(find.text('اتصال'), findsNothing);
     expect(find.text('واتساب'), findsNothing);
-    expect(find.text('مواقع'), findsOneWidget);
+    expect(find.text('مواقع التواصل'), findsOneWidget);
   });
 }
 

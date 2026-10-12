@@ -10,6 +10,7 @@ import 'package:app_links/app_links.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'branding/ghadeer_brand_mark.dart';
+import 'widgets/entity_optional_logo.dart';
 import 'branding/app_icons_admin_page.dart';
 import 'ads/admin/ads_admin_page.dart';
 import 'ads/ads_catalog_refresh.dart';
@@ -32,8 +33,13 @@ import 'doctors/notifications_admin_page.dart';
 import 'doctors/notifications_inbox_page.dart';
 import 'doctors/specialty_catalog.dart';
 import 'doctors/specialty_doctors_page.dart';
+import 'home/app_shell_bottom_nav.dart';
+import 'home/app_shell_bridge.dart';
 import 'home/home_phase1_sections.dart';
 import 'home/ghadeer_home_colors.dart';
+import 'centers/service_center_kind.dart';
+import 'centers/service_centers_admin_page.dart';
+import 'centers/service_centers_page.dart';
 import 'pharmacies/pharmacies_page.dart';
 import 'pharmacies/pharmacies_admin_page.dart';
 import 'supplies/supplies_admin_page.dart';
@@ -54,7 +60,6 @@ import 'services/dynamic_message_service.dart';
 import 'utils/responsive.dart';
 import 'utils/dom_input_value.dart'
     if (dart.library.html) 'utils/dom_input_value_web.dart' as dom_input;
-import 'widgets/app_slot_icon.dart';
 import 'widgets/clinic_app_bar.dart';
 import 'search/smart_search_page.dart';
 import 'voice/assistant_integration_page.dart';
@@ -96,6 +101,7 @@ class _GhadeerClinicAppState extends State<GhadeerClinicApp> {
   @override
   void initState() {
     super.initState();
+    AppShellBridge.bindNavigator(_navKey);
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (data.event == AuthChangeEvent.passwordRecovery) {
         final nav = _navKey.currentState;
@@ -214,6 +220,12 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     debugPrint('[HOME] initState');
+    AppShellBridge.bindHomeHandlers(
+      selectTab: _selectShellNav,
+      openSearch: ({bool voice = false}) async {
+        _openSmartSearch(voice: voice);
+      },
+    );
     _loadFavorites();
 
     loadDoctors();
@@ -431,6 +443,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     debugPrint('[HOME] dispose');
+    AppShellBridge.unbindHomeHandlers();
     _doctorsReloadDebounce?.cancel();
     if (_doctorsChannel != null) {
       supabase.removeChannel(_doctorsChannel!);
@@ -589,103 +602,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildBottomNav() {
-    const teal = GhadeerHomeColors.primary;
-    const muted = Color(0xFF8A9A9E);
-
-    Widget item({
-      required int index,
-      required IconData icon,
-      required IconData activeIcon,
-      required String label,
-      required String navSlot,
-      VoidCallback? onTapOverride,
-    }) {
-      final active = _bottomNavIndex == index;
-      return Expanded(
-        child: InkWell(
-          onTap: onTapOverride ?? () => _selectShellNav(index),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: active
-                        ? teal.withValues(alpha: 0.12)
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: AppSlotIcon(
-                    slotId: 'nav.$navSlot',
-                    fallback: active ? activeIcon : icon,
-                    size: 22,
-                    color: active ? teal : muted,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                    color: active ? teal : muted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     // مهم: لا تستخدم Center داخل bottomNavigationBar —
     // Center يتمدد لارتفاع الشاشة فيسرق مساحة الـ body → شاشة بيضاء.
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            item(
-              index: 0,
-              icon: Icons.home_outlined,
-              activeIcon: Icons.home_rounded,
-              label: 'الرئيسية',
-              navSlot: 'home',
-            ),
-            item(
-              index: 1,
-              icon: Icons.search_rounded,
-              activeIcon: Icons.search_rounded,
-              label: 'البحث',
-              navSlot: 'search',
-              onTapOverride: () => _openSmartSearch(voice: false),
-            ),
-            item(
-              index: 2,
-              icon: Icons.favorite_border_rounded,
-              activeIcon: Icons.favorite_rounded,
-              label: 'المفضلة',
-              navSlot: 'favorites',
-            ),
-            item(
-              index: 3,
-              icon: Icons.person_outline_rounded,
-              activeIcon: Icons.person_rounded,
-              label: 'حسابي',
-              navSlot: 'account',
-            ),
-          ],
-        ),
-      ),
+    return AppShellBottomNav(
+      activeIndex: _bottomNavIndex,
+      onSelect: (index) {
+        if (index == 1) {
+          _openSmartSearch(voice: false);
+          return;
+        }
+        _selectShellNav(index);
+      },
     );
   }
 
@@ -819,6 +746,26 @@ class _HomePageState extends State<HomePage> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const PharmaciesPage()),
+        );
+        return;
+      case 'optics':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ServiceCentersPage(
+              kind: ServiceCenterKind.optics,
+            ),
+          ),
+        );
+        return;
+      case 'beauty':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ServiceCentersPage(
+              kind: ServiceCenterKind.beauty,
+            ),
+          ),
         );
         return;
     }
@@ -1319,6 +1266,36 @@ class AdminPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const SuppliesAdminPage(),
+                  ),
+                );
+              },
+            ),
+            _adminTile(
+              icon: Icons.visibility_outlined,
+              title: 'إدارة العوينات وفحص البصر',
+              subtitle: 'إضافة وتعديل وحذف وترتيب وإظهار المراكز',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ServiceCentersAdminPage(
+                      kind: ServiceCenterKind.optics,
+                    ),
+                  ),
+                );
+              },
+            ),
+            _adminTile(
+              icon: Icons.spa_outlined,
+              title: 'إدارة مراكز التجميل',
+              subtitle: 'إضافة وتعديل وحذف وترتيب وإظهار المراكز',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ServiceCentersAdminPage(
+                      kind: ServiceCenterKind.beauty,
+                    ),
                   ),
                 );
               },
@@ -1984,6 +1961,9 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
   late final TextEditingController _tiktokController;
   late final TextEditingController _telegramController;
   late final TextEditingController _imageController;
+  String _logoUrl = '';
+  var _logoColumnMissing = false;
+  late final String _doctorEntityId;
   XFile? _pickedImage;
   Uint8List? _pickedImageBytes;
   /// البايتات الأصلية قبل إزالة الخلفية (لإعادة التطبيق عند تبديل الخيار).
@@ -2086,6 +2066,11 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
         doctor?['image_url']?.toString() ?? '',
       ),
     );
+    _logoUrl = doctor?['logo_url']?.toString() ?? '';
+    final existingId = doctor?['id']?.toString().trim() ?? '';
+    _doctorEntityId = existingId.isNotEmpty
+        ? existingId
+        : 'doc_${DateTime.now().microsecondsSinceEpoch}';
 
     _shortDescriptionController = TextEditingController(
       text: doctor?['short_description']?.toString() ?? '',
@@ -2481,6 +2466,7 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
         'tiktok_url': _tiktokController.text.trim(),
         'telegram_url': _telegramController.text.trim(),
         'image_url': imageUrl,
+        'logo_url': _logoUrl.trim().isEmpty ? null : _logoUrl.trim(),
         'short_description': shortText,
         'bio': bioText,
         'services': _servicesController.text.trim(),
@@ -2593,9 +2579,11 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
           if ((rows as List).isEmpty) {
             throw const ContentConflictException();
           }
+          _notifyLogoColumn();
         } else {
           payload['content_revision'] = 1;
           await _supabase.from('doctors').insert(payload);
+          _notifyLogoColumn();
         }
         return;
       } on PostgrestException catch (e) {
@@ -2609,6 +2597,7 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
         if (missing == null || !payload.containsKey(missing)) {
           rethrow;
         }
+        if (missing == 'logo_url') _logoColumnMissing = true;
         debugPrint(
           'Doctor save: skipping missing column "$missing" (PGRST204)',
         );
@@ -2617,6 +2606,17 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
     }
 
     throw Exception('تعذر حفظ الطبيب بعد تجاهل أعمدة غير موجودة في Schema');
+  }
+
+  void _notifyLogoColumn() {
+    if (!_logoColumnMissing || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'حُفظ الطبيب. الشعار يحتاج تنفيذ عمود logo_url قبل أن يظهر للجميع.',
+        ),
+      ),
+    );
   }
 
   /// توحيد قيم الفئة العمرية لخيارات الإدارة الثلاث.
@@ -3024,6 +3024,12 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
               ),
 
               const SizedBox(height: 12),
+              EntityLogoAdminField(
+                logoUrl: _logoUrl,
+                folder: 'doctors',
+                entityId: _doctorEntityId,
+                onChanged: (value) => setState(() => _logoUrl = value),
+              ),
               const Divider(height: 30),
 
               SwitchListTile(

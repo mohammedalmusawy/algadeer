@@ -97,6 +97,8 @@ class GhadeerFollowUpContext {
       ConversationEntityType.pharmacy => 'تقصد أي صيدلية؟',
       ConversationEntityType.physio => 'تقصد أي مركز علاج طبيعي؟',
       ConversationEntityType.supply => 'تقصد أي محل مستلزمات؟',
+      ConversationEntityType.optics => 'تقصد أي مركز بصريات؟',
+      ConversationEntityType.beauty => 'تقصد أي مركز تجميل؟',
       ConversationEntityType.package => 'تقصد أي باقة؟',
       ConversationEntityType.analysis => 'تقصد أي تحليل؟',
       ConversationEntityType.doctor || ConversationEntityType.none =>
@@ -104,12 +106,29 @@ class GhadeerFollowUpContext {
     };
   }
 
-  /// Existing booking policy: never auto-book; keep selected target explicit.
+  /// Existing booking policy: never auto-book; explain registered method + contacts.
   static String bookingNotAutomaticMessage(SmartSearchResult doctor) {
     final name = doctor.title.trim();
-    if (name.isEmpty) {
-      return 'ما أحجز موعداً تلقائياً من هنا. أكدر أدلّك على الاتصال أو واتساب إن تحب.';
-    }
-    return 'ما أحجز موعداً تلقائياً من هنا لـ $name. أكدر أدلّك على الاتصال أو واتساب إن تحب.';
+    final status = (doctor.bookingStatus ?? '').trim();
+    final method = switch (status) {
+      'walk_in_only' =>
+        'حسب البيانات المسجّلة: الاستقبال حضور مباشر فقط — بدون حجز مسبق من التطبيق.',
+      'full' =>
+        'حسب البيانات المسجّلة: الحجز مكتمل حالياً.',
+      'unavailable' =>
+        'حسب البيانات المسجّلة: غير متاح للموعد حالياً.',
+      _ =>
+        'حسب البيانات المسجّلة: الحجز عبر الاتصال أو واتساب مع العيادة.',
+    };
+    final contacts = <String>[];
+    if (doctor.canCall) contacts.add('اتصال');
+    if (doctor.canWhatsApp) contacts.add('واتساب');
+    final contactLine = contacts.isEmpty
+        ? 'ما لقيت رقم اتصال أو واتساب مسجّل لهذا الطبيب.'
+        : 'المتاح الآن: ${contacts.join(' و')}.';
+    final prefix = name.isEmpty
+        ? 'ما أحجز موعداً تلقائياً من هنا.'
+        : 'ما أحجز موعداً تلقائياً من هنا لـ $name.';
+    return '$prefix $method $contactLine';
   }
 }

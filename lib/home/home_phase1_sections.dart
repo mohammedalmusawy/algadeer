@@ -466,6 +466,22 @@ class HomePhase1ServicesGrid extends StatelessWidget {
       accent: GhadeerHomeColors.suppliesAccent,
     ),
     HomeServiceCardData(
+      id: 'optics',
+      title: 'العوينات وفحص البصر',
+      subtitle: 'مراكز البصريات',
+      icon: Icons.visibility_outlined,
+      background: GhadeerHomeColors.opticsBg,
+      accent: GhadeerHomeColors.opticsAccent,
+    ),
+    HomeServiceCardData(
+      id: 'beauty',
+      title: 'مراكز التجميل',
+      subtitle: 'مراكز العناية',
+      icon: Icons.spa_outlined,
+      background: GhadeerHomeColors.beautyBg,
+      accent: GhadeerHomeColors.beautyAccent,
+    ),
+    HomeServiceCardData(
       id: 'pharmacy',
       title: 'الصيدليات',
       subtitle: 'استفسار • اتصال • مراسلة',

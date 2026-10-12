@@ -9,6 +9,7 @@ import '../../models/entity_social_links.dart';
 import '../../models/lab_models.dart';
 import '../../services/content_conflict.dart';
 import '../../widgets/clinic_app_bar.dart';
+import '../../widgets/entity_optional_logo.dart';
 import '../../widgets/entity_social_sheet.dart';
 import '../lab_default_images.dart';
 import '../labs_service.dart';
@@ -44,6 +45,8 @@ class _LabFormPageState extends State<LabFormPage> {
   late final TextEditingController _imageUrl;
 
   bool _isActive = true;
+  String _logoUrl = '';
+  late final String _labEntityId;
   bool _isFeatured = false;
   bool _saving = false;
   XFile? _pickedImage;
@@ -73,6 +76,11 @@ class _LabFormPageState extends State<LabFormPage> {
     _imageUrl = TextEditingController(
       text: GhadeerBranding.normalizeEntityImageUrl(lab?.imageUrl ?? ''),
     );
+    _logoUrl = lab?.logoUrl ?? '';
+    final existingId = lab?.id.trim() ?? '';
+    _labEntityId = existingId.isNotEmpty
+        ? existingId
+        : 'lab_${DateTime.now().microsecondsSinceEpoch}';
     _isActive = lab?.isActive ?? true;
     _isFeatured = lab?.isFeatured ?? false;
     _selectedDefaultId = LabDefaultImages.matchIdForUrl(
@@ -178,6 +186,7 @@ class _LabFormPageState extends State<LabFormPage> {
         phone: _phone.text.trim(),
         whatsapp: _whatsapp.text.trim(),
         imageUrl: imageUrl,
+        logoUrl: _logoUrl,
         isActive: _isActive,
         isFeatured: _isFeatured,
         displayOrder: int.tryParse(_order.text.trim()) ?? 0,
@@ -274,6 +283,14 @@ class _LabFormPageState extends State<LabFormPage> {
                     ),
                   ),
                 ],
+              ),
+              EntityLogoAdminField(
+                logoUrl: _logoUrl,
+                folder: 'labs',
+                entityId: widget.lab?.id.trim().isNotEmpty == true
+                    ? widget.lab!.id
+                    : _labEntityId,
+                onChanged: (value) => setState(() => _logoUrl = value),
               ),
               const SizedBox(height: 14),
               const Text(

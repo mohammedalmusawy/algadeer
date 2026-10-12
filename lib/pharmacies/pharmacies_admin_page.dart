@@ -5,6 +5,7 @@ import '../services/content_conflict.dart';
 import '../models/entity_social_links.dart';
 import '../doctors/doctor_card_password_admin_section.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_access_pin_gate.dart';
 import '../widgets/entity_social_sheet.dart';
 import 'pharmacies_store.dart';
@@ -220,6 +221,8 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
   late final TextEditingController _from;
   late final TextEditingController _to;
   late final TextEditingController _image;
+  String _logoUrl = '';
+  late final String _pharmacyEntityId;
   late final TextEditingController _offerPercent;
   late final TextEditingController _offerImage;
   late final TextEditingController _offerIcon;
@@ -248,6 +251,11 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
     _from = TextEditingController(text: p?.openFrom ?? '8:00 صباحاً');
     _to = TextEditingController(text: p?.openTo ?? '11:00 مساءً');
     _image = TextEditingController(text: p?.imageUrl ?? '');
+    _logoUrl = p?.logoUrl ?? '';
+    final existingId = p?.id.trim() ?? '';
+    _pharmacyEntityId = existingId.isNotEmpty
+        ? existingId
+        : 'pharm_${DateTime.now().microsecondsSinceEpoch}';
     _offerPercent = TextEditingController(
       text: '${p?.offerPercent ?? 20}',
     );
@@ -353,13 +361,11 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
       );
       return;
     }
-    final id = widget.initial?.id ??
-        'p_${DateTime.now().millisecondsSinceEpoch}';
     final pct = int.tryParse(_offerPercent.text.trim()) ?? 20;
     final lat = double.tryParse(_lat.text.trim());
     final lng = double.tryParse(_lng.text.trim());
     final item = PharmacyItem(
-      id: id,
+      id: _pharmacyEntityId,
       name: name,
       slogan: _slogan.text.trim().isEmpty
           ? 'صحتك تهمنا دائماً'
@@ -376,7 +382,7 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
       isOpenNow: _open,
       hasSupplements: _supplements,
       imageUrl: _image.text.trim(),
-      logoUrl: widget.initial?.logoUrl ?? '',
+      logoUrl: _logoUrl,
       offerPercent: pct.clamp(0, 90),
       offerImageUrl: _offerImage.text.trim(),
       offerIconUrl: _offerIcon.text.trim(),
@@ -423,6 +429,12 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
                 _imagePickerBlock(
                   label: 'صورة واجهة الصيدلية',
                   controller: _image,
+                ),
+                EntityLogoAdminField(
+                  logoUrl: _logoUrl,
+                  folder: 'pharmacies',
+                  entityId: _pharmacyEntityId,
+                  onChanged: (value) => setState(() => _logoUrl = value),
                 ),
                 const SizedBox(height: 8),
                 const Text(

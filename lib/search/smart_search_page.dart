@@ -12,6 +12,8 @@ import '../labs/lab_package_detail_page.dart';
 import '../labs/lab_profile_page.dart';
 import '../labs/labs_service.dart';
 import '../pharmacies/pharmacies_store.dart';
+import '../centers/service_center_profile_page.dart';
+import '../centers/service_centers_store.dart';
 import '../pharmacies/pharmacy_profile_page.dart';
 import '../physio/physio_profile_page.dart';
 import '../physio/physio_store.dart';
@@ -1264,7 +1266,18 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     setState(() {
       if (plan.candidates.isNotEmpty) _results = plan.candidates;
       if (plan.target != null) {
-        _results = [plan.target!, ..._results.where((r) => r != plan.target)];
+        final tid = _entityIdOfResult(plan.target!);
+        _results = [
+          plan.target!,
+          ..._results.where((r) {
+            if (identical(r, plan.target)) return false;
+            if (tid.isEmpty) return r != plan.target;
+            return _entityIdOfResult(r) != tid;
+          }),
+        ];
+      }
+      if (plan.intentResult.intent == AssistantIntent.bookAppointment) {
+        _shownInfoTags.add('booking');
       }
       _loading = false;
       _searchError =
@@ -2525,6 +2538,10 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         return (r.physioId ?? '').trim();
       case SmartSearchResultType.supply:
         return (r.supplyId ?? '').trim();
+      case SmartSearchResultType.optics:
+        return (r.opticsId ?? '').trim();
+      case SmartSearchResultType.beauty:
+        return (r.beautyId ?? '').trim();
       case SmartSearchResultType.package:
       case SmartSearchResultType.offer:
         return (r.packageId ?? '').trim();
@@ -2574,6 +2591,14 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         case SmartSearchResultType.supply:
           if (result.supplyId != null) {
             await _openSupply(result.supplyId!);
+          }
+        case SmartSearchResultType.optics:
+          if (result.opticsId != null) {
+            await _openServiceCenter(result.opticsId!);
+          }
+        case SmartSearchResultType.beauty:
+          if (result.beautyId != null) {
+            await _openServiceCenter(result.beautyId!);
           }
         case SmartSearchResultType.package:
         case SmartSearchResultType.offer:
@@ -2656,6 +2681,18 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => PhysioProfilePage(center: center)),
+    );
+  }
+
+  Future<void> _openServiceCenter(String centerId) async {
+    await ServiceCentersStore.instance.load();
+    final center = ServiceCentersStore.instance.byId(centerId);
+    if (!mounted || center == null || !center.isActive) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ServiceCenterProfilePage(center: center),
+      ),
     );
   }
 

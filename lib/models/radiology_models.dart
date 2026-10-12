@@ -13,6 +13,7 @@ class RadiologyCenter {
   final String name;
   final String description;
   final String imageUrl;
+  final String logoUrl;
   final String address;
   final String phone;
   final String whatsapp;
@@ -30,6 +31,7 @@ class RadiologyCenter {
     required this.name,
     this.description = '',
     this.imageUrl = '',
+    this.logoUrl = '',
     this.address = '',
     this.phone = '',
     this.whatsapp = '',
@@ -51,6 +53,7 @@ class RadiologyCenter {
       imageUrl: GhadeerBranding.normalizeEntityImageUrl(
         data['image_url']?.toString() ?? '',
       ),
+      logoUrl: data['logo_url']?.toString() ?? '',
       address: data['address']?.toString() ?? '',
       phone: data['phone']?.toString() ?? '',
       whatsapp: data['whatsapp']?.toString() ?? '',
@@ -70,6 +73,7 @@ class RadiologyCenter {
       'name': name,
       'description': description,
       'image_url': imageUrl.isEmpty ? null : imageUrl,
+      'logo_url': logoUrl.trim().isEmpty ? null : logoUrl.trim(),
       'address': address,
       'phone': phone,
       'whatsapp': whatsapp,

@@ -177,6 +177,20 @@ class SmartNavigationResolver {
           target: target,
           confidence: target.score,
         );
+      case SmartSearchResultType.optics:
+        return SmartNavigationDecision(
+          action: SmartNavAction.openLab,
+          message: 'فتح ملف ${target.title}',
+          target: target,
+          confidence: target.score,
+        );
+      case SmartSearchResultType.beauty:
+        return SmartNavigationDecision(
+          action: SmartNavAction.openLab,
+          message: 'فتح ملف ${target.title}',
+          target: target,
+          confidence: target.score,
+        );
       case SmartSearchResultType.offer:
         return SmartNavigationDecision(
           action: SmartNavAction.openOffer,
@@ -311,6 +325,10 @@ class SmartNavigationResolver {
         return 'وجدت أكثر من مركز علاج طبيعي ($count)، اختر المقصود.';
       case SmartSearchResultType.supply:
         return 'وجدت أكثر من محل مستلزمات ($count)، اختر المقصود.';
+      case SmartSearchResultType.optics:
+        return 'وجدت أكثر من مركز بصريات ($count)، اختر المقصود.';
+      case SmartSearchResultType.beauty:
+        return 'وجدت أكثر من مركز تجميل ($count)، اختر المقصود.';
       case SmartSearchResultType.package:
         return 'وجدت أكثر من باقة ($count)، اختر الباقة المقصودة.';
       case SmartSearchResultType.offer:

@@ -13,10 +13,16 @@ class PharmacyAllBundlesPage extends StatelessWidget {
     super.key,
     required this.pharmacy,
     required this.bundles,
+    this.title,
+    this.emptyText = 'لا توجد باقات ظاهرة حالياً',
   });
 
   final PharmacyItem pharmacy;
   final List<PharmacyBundle> bundles;
+
+  /// عنوان مخصص (نتائج بحث/عروض/تصنيف)؛ الافتراضي «باقات <الصيدلية>».
+  final String? title;
+  final String emptyText;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +32,7 @@ class PharmacyAllBundlesPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFFF7FBFC),
         appBar: ClinicAppBar(
-          title: Text('باقات ${pharmacy.name}'),
+          title: Text(title ?? 'باقات ${pharmacy.name}'),
           backgroundColor: const Color(0xFF0FAFA3),
           foregroundColor: Colors.white,
         ),
@@ -64,10 +70,14 @@ class PharmacyAllBundlesPage extends StatelessWidget {
             ),
             Expanded(
               child: items.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'لا توجد باقات ظاهرة حالياً',
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          emptyText,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     )
                   : ListView.separated(

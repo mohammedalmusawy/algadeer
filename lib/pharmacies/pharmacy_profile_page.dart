@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../home/ghadeer_home_colors.dart';
@@ -10,8 +11,10 @@ import '../doctors/doctor_card_tap.dart';
 import '../voice/entity_profile_speech.dart';
 import '../voice/voice_response_controller.dart';
 import '../widgets/entity_contact_actions.dart';
+import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_speak_button.dart';
 import 'pharmacy_all_bundles_page.dart';
+import 'pharmacy_bundle_filter.dart';
 import 'pharmacy_bundle_detail_sheet.dart';
 import 'pharmacy_owner_editor_page.dart';
 import 'pharmacy_custom_bundle_page.dart';
@@ -28,6 +31,11 @@ class PharmacyProfilePage extends StatefulWidget {
   State<PharmacyProfilePage> createState() => _PharmacyProfilePageState();
 }
 
+/// مفتاح مفضلة الصيدليات على الجهاز (نفس نمط `favoriteLabIds`).
+abstract final class PharmacyProfilePageFavorites {
+  static const key = 'favoritePharmacyIds';
+}
+
 class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
   late PharmacyItem _p;
   bool _favorite = false;
@@ -39,6 +47,27 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
   void initState() {
     super.initState();
     _p = widget.pharmacy;
+    unawaited(_loadFavorite());
+  }
+
+  Future<void> _loadFavorite() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList(PharmacyProfilePageFavorites.key) ?? const <String>[];
+    if (!mounted) return;
+    setState(() => _favorite = ids.contains(_p.id));
+  }
+
+  Future<void> _toggleFavorite() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = [...(prefs.getStringList(PharmacyProfilePageFavorites.key) ?? const <String>[])];
+    if (_favorite) {
+      ids.remove(_p.id);
+    } else if (!ids.contains(_p.id)) {
+      ids.add(_p.id);
+    }
+    await prefs.setStringList(PharmacyProfilePageFavorites.key, ids);
+    if (!mounted) return;
+    setState(() => _favorite = !_favorite);
   }
 
   @override
@@ -180,7 +209,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
             ),
             IconButton(
               tooltip: 'مفضلة',
-              onPressed: () => setState(() => _favorite = !_favorite),
+              onPressed: _toggleFavorite,
               icon: Icon(
                 _favorite ? Icons.favorite_rounded : Icons.favorite_border,
                 color: _favorite
@@ -246,6 +275,10 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    if (_p.logoUrl.trim().isNotEmpty) ...[
+                                      EntityOptionalLogo(url: _p.logoUrl),
+                                      const SizedBox(height: 6),
+                                    ],
                                     Text(
                                       _p.name,
                                       style: const TextStyle(
@@ -392,6 +425,8 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
               child: TextField(
                 controller: _search,
                 textDirection: TextDirection.rtl,
+                textInputAction: TextInputAction.search,
+                onSubmitted: _runProductSearch,
                 decoration: const InputDecoration(
                   border: InputBorder.none,
                   isDense: true,
@@ -406,7 +441,8 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
               ),
             ),
             IconButton(
-              onPressed: () => _snack('تصفية المنتجات قريباً'),
+              tooltip: 'تصفية الباقات',
+              onPressed: _openFilterSheet,
               icon: const Icon(
                 Icons.tune_rounded,
                 color: GhadeerHomeColors.primary,
@@ -416,6 +452,114 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
         ),
       ),
     );
+  }
+
+  void _openBundles(
+    List<PharmacyBundle> bundles, {
+    required String title,
+    required String emptyText,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PharmacyAllBundlesPage(
+          pharmacy: _p,
+          bundles: bundles,
+          title: title,
+          emptyText: emptyText,
+        ),
+      ),
+    );
+  }
+
+  void _runProductSearch(String raw) {
+    final q = raw.trim();
+    if (q.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    _openBundles(
+      PharmacyBundleFilter.search(_allBundles, q),
+      title: 'نتائج «$q»',
+      emptyText:
+          'ما لكينا باقة بيها «$q».\nجرّب اسم ثاني أو اسأل الصيدلية بالواتساب.',
+    );
+  }
+
+  void _openOffers() {
+    _openBundles(
+      PharmacyBundleFilter.offers(_allBundles),
+      title: 'عروض ${_p.name}',
+      emptyText: 'ماكو عروض بخصم حالياً بهاي الصيدلية.',
+    );
+  }
+
+  Future<void> _openFilterSheet() async {
+    final all = _allBundles;
+    final cats = PharmacyBundleFilter.categoriesIn(all);
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Text(
+                  'تصفية الباقات',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.local_offer_outlined),
+                title: const Text('العروض (بيها خصم)'),
+                trailing: Text(
+                  '${PharmacyBundleFilter.offers(all).length}',
+                ),
+                onTap: () => Navigator.pop(ctx, 'offers'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.star_border_rounded),
+                title: const Text('الأكثر طلباً'),
+                trailing: Text(
+                  '${PharmacyBundleFilter.popular(all).length}',
+                ),
+                onTap: () => Navigator.pop(ctx, 'popular'),
+              ),
+              for (final c in cats)
+                ListTile(
+                  leading: const Icon(Icons.category_outlined),
+                  title: Text(c.titleAr),
+                  trailing: Text(
+                    '${PharmacyBundleFilter.byCategory(all, c.id).length}',
+                  ),
+                  onTap: () => Navigator.pop(ctx, 'cat:${c.id}'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || picked == null) return;
+    if (picked == 'offers') {
+      _openOffers();
+    } else if (picked == 'popular') {
+      _openBundles(
+        PharmacyBundleFilter.popular(all),
+        title: 'الأكثر طلباً',
+        emptyText: 'ماكو باقات مميزة حالياً.',
+      );
+    } else if (picked.startsWith('cat:')) {
+      final id = picked.substring(4);
+      final cat = cats.firstWhere((c) => c.id == id);
+      _openBundles(
+        PharmacyBundleFilter.byCategory(all, id),
+        title: cat.titleAr,
+        emptyText: 'ماكو باقات بهذا التصنيف حالياً.',
+      );
+    }
   }
 
   List<PharmacyBundle> get _allBundles {
@@ -780,7 +924,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 child: InkWell(
-                  onTap: () => _snack('عروض الصيدلية قريباً'),
+                  onTap: _openOffers,
                   borderRadius: BorderRadius.circular(12),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 11),
@@ -885,7 +1029,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
       _secTile(
         icon: Icons.star_border_rounded,
         label: 'المفضلة',
-        onTap: () => setState(() => _favorite = !_favorite),
+        onTap: _toggleFavorite,
       ),
     ];
     return Directionality(

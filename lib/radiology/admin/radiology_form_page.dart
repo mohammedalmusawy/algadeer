@@ -7,6 +7,7 @@ import '../../branding/ghadeer_brand_mark.dart';
 import '../../models/entity_social_links.dart';
 import '../../models/radiology_models.dart';
 import '../../widgets/clinic_app_bar.dart';
+import '../../widgets/entity_optional_logo.dart';
 import '../../widgets/entity_social_sheet.dart';
 import '../radiology_default_images.dart';
 import '../radiology_service.dart';
@@ -42,6 +43,8 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
   late final TextEditingController _imageUrl;
 
   bool _isActive = true;
+  String _logoUrl = '';
+  late final String _radEntityId;
   bool _isFeatured = false;
   bool _saving = false;
   XFile? _pickedImage;
@@ -71,6 +74,11 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
     _imageUrl = TextEditingController(
       text: GhadeerBranding.normalizeEntityImageUrl(c?.imageUrl ?? ''),
     );
+    _logoUrl = c?.logoUrl ?? '';
+    final existingId = c?.id.trim() ?? '';
+    _radEntityId = existingId.isNotEmpty
+        ? existingId
+        : 'rad_${DateTime.now().microsecondsSinceEpoch}';
     _isActive = c?.isActive ?? true;
     _isFeatured = c?.isFeatured ?? false;
     _selectedDefaultId = RadiologyDefaultImages.matchIdForUrl(
@@ -168,6 +176,7 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
         phone: _phone.text.trim(),
         whatsapp: _whatsapp.text.trim(),
         imageUrl: imageUrl,
+        logoUrl: _logoUrl,
         isActive: _isActive,
         isFeatured: _isFeatured,
         displayOrder: int.tryParse(_order.text.trim()) ?? 0,
@@ -260,6 +269,14 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
                     ),
                   ),
                 ],
+              ),
+              EntityLogoAdminField(
+                logoUrl: _logoUrl,
+                folder: 'radiology',
+                entityId: widget.center?.id.trim().isNotEmpty == true
+                    ? widget.center!.id
+                    : _radEntityId,
+                onChanged: (value) => setState(() => _logoUrl = value),
               ),
               const SizedBox(height: 12),
               const Text('صور افتراضية', style: TextStyle(fontWeight: FontWeight.w800)),

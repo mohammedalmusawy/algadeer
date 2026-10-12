@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -24,17 +25,23 @@ void main() {
       conditionTitle: 'الضغط',
       patientName: 'أحمد علي حسن',
       issuedAt: DateTime(2026, 10, 4, 18, 30),
+      readings: const [
+        FollowUpReadingRow(
+          dateTimeLabel: '2026/10/02 08:15',
+          valueLabel: '128/82 · نبض 70',
+          unitLabel: 'ملم زئبق',
+          kindLabel: 'ضغط الدم',
+        ),
+        FollowUpReadingRow(
+          dateTimeLabel: '2026/09/20 21:05',
+          valueLabel: '134/86 · نبض 74',
+          unitLabel: 'ملم زئبق',
+          kindLabel: 'ضغط الدم',
+        ),
+      ],
       lines: const [
         FollowUpLine(
-          title: '2026/10/02 08:15',
-          detail: '128/82 ملم زئبق · نبض 70',
-        ),
-        FollowUpLine(
-          title: '2026/09/20 21:05',
-          detail: '134/86 ملم زئبق · نبض 74',
-        ),
-        FollowUpLine(
-          title: 'ملاحظة أدخلها المريض',
+          title: 'ملاحظات',
           detail:
               'القراءات التالية سجّلتها بنفسي بعد المراجعة، '
               'بدون أي تنبيه آلي من التطبيق وبدون مشاركة تلقائية.',
@@ -80,6 +87,70 @@ void main() {
     expect(pdf.length, greaterThan(100));
   });
 
+  testWidgets('بطاقة بجدول قراءات بعرض 360 ثم PDF متعدد الصفحات', (tester) async {
+    tester.view.physicalSize = const Size(360, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final content = FollowUpCardContent(
+      conditionTitle: 'الضغط',
+      patientName: 'أحمد علي حسن',
+      issuedAt: DateTime(2026, 10, 4, 18, 30),
+      readings: const [
+        FollowUpReadingRow(
+          dateTimeLabel: '2026/10/02 08:15',
+          valueLabel: '128/82 · نبض 70',
+          unitLabel: 'ملم زئبق',
+          kindLabel: 'ضغط الدم',
+        ),
+        FollowUpReadingRow(
+          dateTimeLabel: '2026/09/20 21:05',
+          valueLabel: '134/86 · نبض 74',
+          unitLabel: 'ملم زئبق',
+          kindLabel: 'ضغط الدم',
+        ),
+      ],
+      lines: const [
+        FollowUpLine(title: 'ملاحظات', detail: 'سجّلتها بنفسي بعد المراجعة.'),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: 360,
+              child: FollowUpCardView(content: content),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('القراءات'), findsOneWidget);
+    expect(find.text('التاريخ والوقت'), findsOneWidget);
+    expect(find.text('القراءة'), findsOneWidget);
+    expect(find.text('الوحدة'), findsOneWidget);
+    expect(find.text('نوع القياس'), findsOneWidget);
+    expect(find.textContaining('128/82'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // toImage يعلّق في بعض بيئات الاختبار؛ نولّد PNG عبر لوحة رسم ثم PDF.
+    final png = await tester.runAsync(_tableCardPng);
+    expect(png, isNotNull);
+    final outDir = Directory('build/acceptance_visual');
+    outDir.createSync(recursive: true);
+    File('${outDir.path}/follow_up_card_360.png').writeAsBytesSync(png!);
+    final pdf = await followUpExportPdf(cardPng: png, images: [_onePixelPng]);
+    File('${outDir.path}/follow_up_card.pdf').writeAsBytesSync(pdf);
+    expect(String.fromCharCodes(pdf.take(4)), '%PDF');
+    expect(
+      RegExp(r'/Type\s*/Page\b').allMatches(String.fromCharCodes(pdf)).length,
+      greaterThanOrEqualTo(2),
+    );
+  });
+
   test('PDF يضم صفحة البطاقة ثم صفحة لكل مرفق', () async {
     final pdf = await followUpExportPdf(
       cardPng: _onePixelPng,
@@ -101,10 +172,13 @@ void main() {
       conditionTitle: 'الضغط',
       patientName: 'أحمد علي حسن',
       issuedAt: DateTime(2026, 10, 4, 18, 30),
-      lines: const [
-        FollowUpLine(
-          title: '2026/10/02 08:15',
-          detail: '128/82 ملم زئبق · نبض 70',
+      lines: const [],
+      readings: const [
+        FollowUpReadingRow(
+          dateTimeLabel: '2026/10/02 08:15',
+          valueLabel: '128/82 · نبض 70',
+          unitLabel: 'ملم زئبق',
+          kindLabel: 'ضغط الدم',
         ),
       ],
     );
@@ -154,6 +228,34 @@ Future<Uint8List> _arabicCardPng() async {
     ..layout(const ui.ParagraphConstraints(width: 680));
   canvas.drawParagraph(paragraph, const Offset(20, 90));
   final image = await recorder.endRecording().toImage(720, 280);
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  return bytes!.buffer.asUint8List();
+}
+
+Future<Uint8List> _tableCardPng() async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  canvas.drawRect(
+    const Rect.fromLTWH(0, 0, 720, 420),
+    Paint()..color = const Color(0xFFFFFFFF),
+  );
+  void drawLine(String text, double y, {double size = 20}) {
+    final builder = ui.ParagraphBuilder(
+      ui.ParagraphStyle(textDirection: TextDirection.rtl, fontSize: size),
+    )
+      ..pushStyle(ui.TextStyle(color: const Color(0xFF123B42)))
+      ..addText(text);
+    final p = builder.build()
+      ..layout(const ui.ParagraphConstraints(width: 680));
+    canvas.drawParagraph(p, Offset(20, y));
+  }
+
+  drawLine('عيادة الغدير — بطاقة متابعة', 24, size: 22);
+  drawLine('القراءات | التاريخ والوقت | القراءة | الوحدة | نوع القياس', 70);
+  drawLine('2026/10/02 08:15 | 128/82 · نبض 70 | ملم زئبق | ضغط الدم', 110);
+  drawLine('2026/09/20 21:05 | 134/86 · نبض 74 | ملم زئبق | ضغط الدم', 150);
+  drawLine('ملاحظات: سجّلتها بنفسي بعد المراجعة.', 200, size: 18);
+  final image = await recorder.endRecording().toImage(720, 420);
   final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
   return bytes!.buffer.asUint8List();
 }

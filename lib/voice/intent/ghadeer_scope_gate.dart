@@ -10,7 +10,7 @@ class GhadeerScopeGate {
   static const String outOfScopeMessage =
       'أعتذر منك، أنا مساعد خاص بمنصة الغدير، وأكدر أساعدك بالبحث عن '
       'الأطباء والاختصاصات والصيدليات والمختبرات والباقات والأشعة '
-      'والعلاج الطبيعي والمستلزمات والخدمات الموجودة بالمنصة.';
+      'والعلاج الطبيعي والمستلزمات والعوينات ومراكز التجميل والخدمات الموجودة بالمنصة.';
 
   /// نية صريحة داخل المنصة — لا تُرفض حتى لو فيها كلمات عامة.
   static bool isPlatformOwnedIntent(AssistantIntent intent) {
@@ -25,6 +25,8 @@ class GhadeerScopeGate {
       case AssistantIntent.findPharmacy:
       case AssistantIntent.findPhysio:
       case AssistantIntent.findSupply:
+      case AssistantIntent.findOptics:
+      case AssistantIntent.findBeauty:
       case AssistantIntent.doctorAvailability:
       case AssistantIntent.bookAppointment:
       case AssistantIntent.callDoctor:
@@ -39,6 +41,10 @@ class GhadeerScopeGate {
       case AssistantIntent.messagePhysio:
       case AssistantIntent.callSupply:
       case AssistantIntent.messageSupply:
+      case AssistantIntent.callOptics:
+      case AssistantIntent.messageOptics:
+      case AssistantIntent.callBeauty:
+      case AssistantIntent.messageBeauty:
       case AssistantIntent.showLocation:
       case AssistantIntent.showProfile:
       case AssistantIntent.showMore:
@@ -66,6 +72,7 @@ class GhadeerScopeGate {
       r'واتس|وتساب|اتصال|اتصل|دز|راسل|احجز|حجز|'
       r'افتح|بطاقة|ملف|موقع|عنوان|دوام|متوفر|متواجد|'
       r'اطفال|أطفال|جهال|نسائية|عظام|جلدية|اسنان|أسنان|'
+      r'عوين|نظار|فحص\s*البصر|مركز\s*تجميل|مراكز\s*التجميل|'
       r'الغدير|منصة)',
     ).hasMatch(n);
   }

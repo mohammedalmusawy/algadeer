@@ -4,6 +4,7 @@ import '../home/ghadeer_home_colors.dart';
 import '../models/entity_social_links.dart';
 import '../pharmacies/pharmacy_fit_image.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_social_sheet.dart';
 import 'supplies_store.dart';
 import 'supply_models.dart';
@@ -43,7 +44,20 @@ class _SuppliesAdminPageState extends State<SuppliesAdminPage> {
       MaterialPageRoute(builder: (_) => _SupplyEditPage(initial: existing)),
     );
     if (result == null) return;
-    await _store.upsert(result);
+    try {
+      await _store.upsert(result);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'حُفظ المحتوى محليًا. الشعار المشترك يحتاج جدول entity_logos ودخول الإدارة.\n$e',
+          ),
+        ),
+      );
+      await _reload();
+      return;
+    }
     await _reload();
   }
 
@@ -78,8 +92,7 @@ class _SuppliesAdminPageState extends State<SuppliesAdminPage> {
                 itemBuilder: (context, i) {
                   if (i == 0) {
                     return const Text(
-                      'التعديلات تُحفظ على هذا الجهاز. '
-                      'الافتراضي يظهر تلقائياً ويمكنك الإخفاء أو التعديل.',
+                      'المحتوى يُحفظ على هذا الجهاز. الشعار يُحفظ مشتركًا لكل المستخدمين بعد تنفيذ entity_logos.',
                       style: TextStyle(
                         color: GhadeerHomeColors.muted,
                         fontWeight: FontWeight.w600,
@@ -164,11 +177,14 @@ class _SupplyEditPageState extends State<_SupplyEditPage> {
   late bool _open;
   late bool _active;
   bool _picking = false;
+  String _logoUrl = '';
+  late final String _id;
 
   @override
   void initState() {
     super.initState();
     final p = widget.initial;
+    _id = p?.id ?? 's_${DateTime.now().microsecondsSinceEpoch}';
     _name = TextEditingController(text: p?.name ?? '');
     _slogan = TextEditingController(text: p?.slogan ?? 'تجهيزات طبية موثوقة');
     _address = TextEditingController(text: p?.address ?? '');
@@ -177,6 +193,7 @@ class _SupplyEditPageState extends State<_SupplyEditPage> {
     _from = TextEditingController(text: p?.openFrom ?? '9:00 صباحاً');
     _to = TextEditingController(text: p?.openTo ?? '9:00 مساءً');
     _image = TextEditingController(text: p?.imageUrl ?? '');
+    _logoUrl = p?.logoUrl ?? '';
     _description = TextEditingController(text: p?.description ?? '');
     _categories = TextEditingController(
       text: (p?.categories ?? const []).join('، '),
@@ -243,10 +260,8 @@ class _SupplyEditPageState extends State<_SupplyEditPage> {
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .toList();
-    final id = widget.initial?.id ??
-        's_${DateTime.now().millisecondsSinceEpoch}';
     final item = SupplyVendor(
-      id: id,
+      id: _id,
       name: name,
       slogan: _slogan.text.trim().isEmpty
           ? 'تجهيزات طبية موثوقة'
@@ -263,6 +278,7 @@ class _SupplyEditPageState extends State<_SupplyEditPage> {
       openTo: _to.text.trim(),
       isOpenNow: _open,
       imageUrl: _image.text.trim(),
+      logoUrl: _logoUrl,
       description: _description.text.trim(),
       latitude: double.tryParse(_lat.text.trim()),
       longitude: double.tryParse(_lng.text.trim()),
@@ -342,6 +358,12 @@ class _SupplyEditPageState extends State<_SupplyEditPage> {
                       ),
                     ),
                   ],
+                ),
+                EntityLogoAdminField(
+                  logoUrl: _logoUrl,
+                  folder: 'supplies',
+                  entityId: _id,
+                  onChanged: (value) => setState(() => _logoUrl = value),
                 ),
                 const SizedBox(height: 12),
                 EntitySocialAdminFields(

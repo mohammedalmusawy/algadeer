@@ -105,8 +105,20 @@ void main() {
         planKind: AssistantActionKind.showMessage,
         lastQuery: 'احجز عنده',
       );
-      expect(bookingGoal.actions.first.kind,
-          SmartBrainSuggestedActionKind.bookingGuidance);
+      // بعد شرح الحجز: لا نعيد شريحة «طريقة الحجز» — نعرض اتصال/واتساب.
+      expect(
+        bookingGoal.actions.any(
+          (a) => a.kind == SmartBrainSuggestedActionKind.bookingGuidance,
+        ),
+        isFalse,
+      );
+      expect(
+        bookingGoal.actions.map((a) => a.kind),
+        anyOf(
+          contains(SmartBrainSuggestedActionKind.call),
+          contains(SmartBrainSuggestedActionKind.whatsapp),
+        ),
+      );
     });
 
     test('بعد الدوام → حجز وموقع لا تكرار الدوام', () {

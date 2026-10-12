@@ -14,6 +14,7 @@ class PhysioCenter {
     required this.isOpenNow,
     this.slogan = 'حركة أفضل لحياة أفضل',
     this.imageUrl = '',
+    this.logoUrl = '',
     this.description = '',
     this.latitude,
     this.longitude,
@@ -32,6 +33,7 @@ class PhysioCenter {
   final bool isOpenNow;
   final String slogan;
   final String imageUrl;
+  final String logoUrl;
   final String description;
   final double? latitude;
   final double? longitude;
@@ -49,6 +51,7 @@ class PhysioCenter {
     bool? isOpenNow,
     String? slogan,
     String? imageUrl,
+    String? logoUrl,
     String? description,
     double? latitude,
     double? longitude,
@@ -67,6 +70,7 @@ class PhysioCenter {
       isOpenNow: isOpenNow ?? this.isOpenNow,
       slogan: slogan ?? this.slogan,
       imageUrl: imageUrl ?? this.imageUrl,
+      logoUrl: logoUrl ?? this.logoUrl,
       description: description ?? this.description,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
@@ -87,6 +91,7 @@ class PhysioCenter {
         'isOpenNow': isOpenNow,
         'slogan': slogan,
         'imageUrl': imageUrl,
+        'logoUrl': logoUrl,
         'description': description,
         'latitude': latitude,
         'longitude': longitude,
@@ -107,6 +112,7 @@ class PhysioCenter {
         isOpenNow: m['isOpenNow'] == true,
         slogan: m['slogan']?.toString() ?? 'حركة أفضل لحياة أفضل',
         imageUrl: m['imageUrl']?.toString() ?? '',
+        logoUrl: m['logoUrl']?.toString() ?? '',
         description: m['description']?.toString() ?? '',
         latitude: (m['latitude'] as num?)?.toDouble(),
         longitude: (m['longitude'] as num?)?.toDouble(),

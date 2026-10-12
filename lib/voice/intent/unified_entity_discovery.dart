@@ -2,6 +2,7 @@ import '../../search/arabic_text_utils.dart';
 import '../../search/catalog_name_matcher.dart';
 import '../../search/doctor_name_matcher.dart';
 import '../../search/laboratory_name_matcher.dart';
+import '../../centers/service_center_kind.dart';
 import '../../search/pharmacy_name_matcher.dart';
 import '../../search/smart_search_models.dart';
 import '../conversation_context.dart';
@@ -155,6 +156,13 @@ class UnifiedEntityDiscovery {
         .hasMatch(n)) {
       return ConversationEntityType.supply;
     }
+    final centerKind = ServiceCenterQuery.kindFor(n);
+    if (centerKind == ServiceCenterKind.optics) {
+      return ConversationEntityType.optics;
+    }
+    if (centerKind == ServiceCenterKind.beauty) {
+      return ConversationEntityType.beauty;
+    }
     if (RegExp(r'(?:صيدليه|صيدلية|صيدليات)').hasMatch(n)) {
       return ConversationEntityType.pharmacy;
     }
@@ -178,6 +186,8 @@ class UnifiedEntityDiscovery {
       SmartSearchResultType.pharmacy => ConversationEntityType.pharmacy,
       SmartSearchResultType.physio => ConversationEntityType.physio,
       SmartSearchResultType.supply => ConversationEntityType.supply,
+      SmartSearchResultType.optics => ConversationEntityType.optics,
+      SmartSearchResultType.beauty => ConversationEntityType.beauty,
       _ => ConversationEntityType.none,
     };
     final id = switch (r.type) {
@@ -187,6 +197,8 @@ class UnifiedEntityDiscovery {
       SmartSearchResultType.pharmacy => (r.pharmacyId ?? '').trim(),
       SmartSearchResultType.physio => (r.physioId ?? '').trim(),
       SmartSearchResultType.supply => (r.supplyId ?? '').trim(),
+      SmartSearchResultType.optics => (r.opticsId ?? '').trim(),
+      SmartSearchResultType.beauty => (r.beautyId ?? '').trim(),
       _ => '',
     };
     return SearchablePlatformEntity(
@@ -291,6 +303,8 @@ class UnifiedEntityDiscovery {
         return batch.best?.score ?? 0;
       case ConversationEntityType.physio:
       case ConversationEntityType.supply:
+      case ConversationEntityType.optics:
+      case ConversationEntityType.beauty:
       case ConversationEntityType.radiology:
         final batch = const CatalogNameMatcher().match(
           query: query,

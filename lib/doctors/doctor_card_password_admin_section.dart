@@ -29,6 +29,22 @@ const ownerPermissionLabels = <String, Map<String, String>>{
     'packages_edit': 'تعديل باقات',
     'packages_delete': 'حذف باقات محفوظة',
   },
+  'optics': {
+    'image': 'الصورة والشعار',
+    'bio': 'النبذة',
+    'services': 'الخدمات',
+    'hours': 'الدوام',
+    'contacts': 'الهاتف وواتساب',
+    'location': 'العنوان والموقع',
+  },
+  'beauty': {
+    'image': 'الصورة والشعار',
+    'bio': 'النبذة',
+    'services': 'الخدمات',
+    'hours': 'الدوام',
+    'contacts': 'الهاتف وواتساب',
+    'location': 'العنوان والموقع',
+  },
 };
 
 /// السماح للمالك بالتعديل من محرر الإدارة. الرمز يظهر مرة واحدة هنا فقط.

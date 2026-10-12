@@ -10,6 +10,8 @@ enum SmartSearchResultType {
   pharmacy,
   physio,
   supply,
+  optics,
+  beauty,
 }
 
 /// نتيجة بحث غنية بما يكفي لعرض Card حقيقية والتنقل المباشر.
@@ -26,6 +28,8 @@ class SmartSearchResult {
     this.pharmacyId,
     this.physioId,
     this.supplyId,
+    this.opticsId,
+    this.beautyId,
     this.score = 0,
     this.imageUrl,
     this.specialty,
@@ -62,6 +66,8 @@ class SmartSearchResult {
   final String? pharmacyId;
   final String? physioId;
   final String? supplyId;
+  final String? opticsId;
+  final String? beautyId;
   final int score;
 
   /// حقول اختيارية لبطاقات البحث الغنية.
@@ -132,6 +138,10 @@ class SmartSearchResult {
         return physioId != null && physioId!.isNotEmpty;
       case SmartSearchResultType.supply:
         return supplyId != null && supplyId!.isNotEmpty;
+      case SmartSearchResultType.optics:
+        return opticsId != null && opticsId!.isNotEmpty;
+      case SmartSearchResultType.beauty:
+        return beautyId != null && beautyId!.isNotEmpty;
       case SmartSearchResultType.specialty:
         return title.trim().isNotEmpty;
     }
@@ -162,6 +172,8 @@ class SmartSearchResult {
         if (pharmacyId != null) 'pharmacy_id': pharmacyId,
         if (physioId != null) 'physio_id': physioId,
         if (supplyId != null) 'supply_id': supplyId,
+        if (opticsId != null) 'optics_id': opticsId,
+        if (beautyId != null) 'beauty_id': beautyId,
         if (discountPercent != null) 'discount_percent': discountPercent,
         if (newPrice != null) 'price': newPrice,
       };

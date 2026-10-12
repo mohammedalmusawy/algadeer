@@ -8,6 +8,7 @@ import '../models/radiology_models.dart';
 import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import '../widgets/entity_contact_actions.dart';
+import '../widgets/entity_optional_logo.dart';
 import 'radiology_default_images.dart';
 import 'radiology_service.dart';
 import 'widgets/radiology_network_or_asset_image.dart';
@@ -227,6 +228,10 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
                                   color: Color(0xFF1A4F58),
                                 ),
                               ),
+                              if (_center.logoUrl.trim().isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                EntityOptionalLogo(url: _center.logoUrl),
+                              ],
                               const SizedBox(height: 8),
                               Text(
                                 _center.name.trim().isEmpty

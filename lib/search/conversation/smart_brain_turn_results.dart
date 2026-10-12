@@ -23,9 +23,58 @@ class SmartBrainTurnResults {
   List<SmartSearchResult> presentedIn(int turn) =>
       turn == _producedInTurn ? _results : const [];
 
-  /// يثبّت نتائج أنتجها [turn].
+  /// يثبّت نتائج أنتجها [turn] بعد إزالة تكرار نفس الكيان في الرد الواحد.
   void remember(List<SmartSearchResult> results, {required int turn}) {
-    _results = List<SmartSearchResult>.unmodifiable(results);
+    _results = List<SmartSearchResult>.unmodifiable(dedupeByEntityId(results));
     _producedInTurn = turn;
+  }
+
+  /// يمنع بطاقة الطبيب/الكيان نفسها مرتين في نفس قائمة العرض.
+  static List<SmartSearchResult> dedupeByEntityId(
+    List<SmartSearchResult> results,
+  ) {
+    if (results.length <= 1) return results;
+    final seen = <String>{};
+    final out = <SmartSearchResult>[];
+    for (final r in results) {
+      final id = _entityId(r);
+      if (id.isEmpty) {
+        out.add(r);
+        continue;
+      }
+      final key = '${r.type.name}:$id';
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      out.add(r);
+    }
+    return out;
+  }
+
+  static String _entityId(SmartSearchResult r) {
+    switch (r.type) {
+      case SmartSearchResultType.doctor:
+        return (r.doctorId ?? '').trim();
+      case SmartSearchResultType.lab:
+        return (r.labId ?? '').trim();
+      case SmartSearchResultType.radiology:
+        return (r.radiologyId ?? '').trim();
+      case SmartSearchResultType.pharmacy:
+        return (r.pharmacyId ?? '').trim();
+      case SmartSearchResultType.physio:
+        return (r.physioId ?? '').trim();
+      case SmartSearchResultType.supply:
+        return (r.supplyId ?? '').trim();
+      case SmartSearchResultType.optics:
+        return (r.opticsId ?? '').trim();
+      case SmartSearchResultType.beauty:
+        return (r.beautyId ?? '').trim();
+      case SmartSearchResultType.package:
+      case SmartSearchResultType.offer:
+        return (r.packageId ?? '').trim();
+      case SmartSearchResultType.analysis:
+        return (r.analysisId ?? '').trim();
+      case SmartSearchResultType.specialty:
+        return '';
+    }
   }
 }

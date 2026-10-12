@@ -118,6 +118,14 @@ class MedicalNavigationService {
           result: result,
           disclaimer: defaultDisclaimer,
         );
+      case SmartSearchResultType.optics:
+      case SmartSearchResultType.beauty:
+        return MedicalNavigationDecision(
+          action: MedicalNavigationAction.openLab,
+          safeMessage: 'فتح ملف ${result.title}',
+          result: result,
+          disclaimer: defaultDisclaimer,
+        );
       case SmartSearchResultType.package:
         return MedicalNavigationDecision(
           action: MedicalNavigationAction.openPackage,

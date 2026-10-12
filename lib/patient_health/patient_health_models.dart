@@ -227,18 +227,37 @@ class FollowUpLine {
   final String detail;
 }
 
+/// صف قراءة منظم لجدول بطاقة المتابعة / PDF.
+class FollowUpReadingRow {
+  const FollowUpReadingRow({
+    required this.dateTimeLabel,
+    required this.valueLabel,
+    required this.unitLabel,
+    required this.kindLabel,
+    this.note = '',
+  });
+
+  final String dateTimeLabel;
+  final String valueLabel;
+  final String unitLabel;
+  final String kindLabel;
+  final String note;
+}
+
 class FollowUpCardContent {
   const FollowUpCardContent({
     required this.conditionTitle,
     required this.patientName,
-    required this.lines,
+    this.lines = const [],
     required this.issuedAt,
     this.emptyNote = '',
+    this.readings = const [],
   });
 
   final String conditionTitle;
   final String? patientName;
   final List<FollowUpLine> lines;
+  final List<FollowUpReadingRow> readings;
   final DateTime issuedAt;
   final String emptyNote;
 }

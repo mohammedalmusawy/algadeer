@@ -488,6 +488,8 @@ class ClarificationResolver {
       case AssistantIntent.findPharmacy:
       case AssistantIntent.findPhysio:
       case AssistantIntent.findSupply:
+      case AssistantIntent.findOptics:
+      case AssistantIntent.findBeauty:
         return true;
       case AssistantIntent.findAnalysis:
         return (intent.entities.analysis ?? '').trim().isNotEmpty ||

@@ -4,7 +4,7 @@ import '../home/ghadeer_home_colors.dart';
 import '../models/entity_social_links.dart';
 import 'entity_social_icons.dart';
 
-/// ورقة مواقع التواصل — زر «مواقع» يبقى ظاهراً دائماً مع أيقونات المنصات.
+/// ورقة مواقع التواصل — زر «مواقع التواصل» يبقى ظاهراً دائماً مع أيقونات المنصات.
 Future<void> showEntitySocialSheet(
   BuildContext context, {
   required EntitySocialLinks links,
@@ -124,7 +124,7 @@ Future<void> showEntitySocialSheet(
   );
 }
 
-/// بطاقة إجراء «مواقع» بأسلوب أزرار المختبر (أيقونات فوق النص).
+/// بطاقة إجراء «مواقع التواصل» بأسلوب أزرار المختبر (أيقونات فوق النص).
 class EntitySocialActionCard extends StatelessWidget {
   const EntitySocialActionCard({
     super.key,
@@ -182,11 +182,14 @@ class EntitySocialActionCard extends StatelessWidget {
                 ),
               const SizedBox(height: 6),
               Text(
-                'مواقع',
+                'مواقع التواصل',
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 11,
                   fontWeight: FontWeight.w800,
+                  height: 1.15,
                   color: filled ? Colors.white : color,
                 ),
               ),
@@ -198,7 +201,7 @@ class EntitySocialActionCard extends StatelessWidget {
   }
 }
 
-/// زر «مواقع» مع أيقونات المنصات الملوّنة (إن وُجدت روابط).
+/// زر «مواقع التواصل» مع أيقونات المنصات الملوّنة (إن وُجدت روابط).
 class EntitySocialMawaqaeButton extends StatelessWidget {
   const EntitySocialMawaqaeButton({
     super.key,
@@ -234,9 +237,10 @@ class EntitySocialMawaqaeButton extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Text(
-          'مواقع',
+          'مواقع التواصل',
           style: TextStyle(
             fontWeight: FontWeight.w800,
+            fontSize: 13,
             color: filled ? Colors.white : color,
           ),
         ),
@@ -328,7 +332,7 @@ class EntitySocialAdminFields extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text(
-          'اترك الفارغ إن لا تحتاج. زر «مواقع» يظهر دائماً. واتساب زر منفصل.',
+          'اترك الفارغ إن لا تحتاج. زر «مواقع التواصل» يظهر دائماً. واتساب زر منفصل.',
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w600,

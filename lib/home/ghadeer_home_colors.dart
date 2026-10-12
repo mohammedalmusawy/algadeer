@@ -30,6 +30,10 @@ class GhadeerHomeColors {
   static const pharmacyBg = Color(0xFFE8F8FA);
   /// تركواز شعار الغدير — عيّنة من الشعار المرسل (#00B8C0).
   static const pharmacyAccent = Color(0xFF00B8C0);
+  static const opticsBg = Color(0xFFE8F1FF);
+  static const opticsAccent = Color(0xFF3D6CB3);
+  static const beautyBg = Color(0xFFF8EAF3);
+  static const beautyAccent = Color(0xFFB85C8A);
   /// أزرق غامق لعناوين الصيدليات (مثل الموكاب).
   static const pharmacyTitle = Color(0xFF003D82);
 }

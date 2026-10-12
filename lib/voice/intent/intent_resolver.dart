@@ -1,9 +1,11 @@
+import '../../centers/service_center_kind.dart';
 import '../../search/arabic_text_utils.dart';
 import '../../search/voice_contact_command.dart';
 import '../../search/voice_specialty_search_command.dart';
 import '../context_resolver.dart';
 import 'assistant_intent.dart';
 import 'entity_extractor.dart';
+import 'extracted_entities.dart';
 import 'ghadeer_scope_gate.dart';
 import 'intent_result.dart';
 import 'search_modifiers.dart';
@@ -101,6 +103,13 @@ class RuleBasedIntentResolver implements IntentResolver {
       );
     }
 
+    final serviceCenter = _serviceCenterIntent(
+      original: original,
+      normalized: normalized,
+      meaning: meaning,
+      entities: entities,
+    );
+    if (serviceCenter != null) return serviceCenter;
 
     // 1) اختيار ترتيبي — فقط للجمل السياقية النقية (الثاني / اختار الثاني).
     // لا يبتلع «أريد دكتور علي الثاني» كـ selectResult.
@@ -1038,6 +1047,48 @@ class RuleBasedIntentResolver implements IntentResolver {
     return IntentResult.unknown(original, normalized);
   }
 
+  IntentResult? _serviceCenterIntent({
+    required String original,
+    required String normalized,
+    required String meaning,
+    required ExtractedEntities entities,
+  }) {
+    final kind = ServiceCenterQuery.kindFor(normalized);
+    if (kind == null) return null;
+    final name = ServiceCenterQuery.nameHint(normalized);
+    final optics = kind == ServiceCenterKind.optics;
+    final AssistantIntent intent;
+    if (_looksLikeWhatsAppVocab(normalized)) {
+      intent = optics
+          ? AssistantIntent.messageOptics
+          : AssistantIntent.messageBeauty;
+    } else if (_looksLikeCallVocab(normalized)) {
+      intent = optics ? AssistantIntent.callOptics : AssistantIntent.callBeauty;
+    } else if (RegExp(
+      r'(?:^|\s)(?:وين|اين|موقع|عنوان)(?=\s|$)',
+    ).hasMatch(normalized)) {
+      intent = AssistantIntent.showLocation;
+    } else if (_looksLikeProfile(normalized)) {
+      intent = AssistantIntent.showProfile;
+    } else {
+      intent = optics ? AssistantIntent.findOptics : AssistantIntent.findBeauty;
+    }
+    return IntentResult(
+      intent: intent,
+      originalText: original,
+      normalizedText: normalized,
+      searchMeaning: meaning,
+      entities: entities.copyWith(
+        optics: optics ? name : null,
+        beauty: optics ? null : name,
+        doctorName: null,
+        specialty: null,
+      ),
+      confidence: name != null ? 86 : 78,
+      requiresContext: false,
+    );
+  }
+
   /// جملة ترتيبية سياقية فقط — بعد إزالة أفعال الاختيار/الألقاب/الترتيب لا يبقى اسم.
   static bool _isPureContextualOrdinal(String n) {
     var stripped = n
@@ -1093,6 +1144,19 @@ class RuleBasedIntentResolver implements IntentResolver {
     if (parts.length < 2) return null;
     final focus = parts.last.trim();
     if (focus.isEmpty) return null;
+    final centerKind = ServiceCenterQuery.kindFor(focus);
+    if (centerKind == ServiceCenterKind.optics) {
+      return AssistantIntent.findOptics;
+    }
+    if (centerKind == ServiceCenterKind.beauty) {
+      return AssistantIntent.findBeauty;
+    }
+    if (ServiceCenterQuery.kindFor(focus) == ServiceCenterKind.optics) {
+      return AssistantIntent.findOptics;
+    }
+    if (ServiceCenterQuery.kindFor(focus) == ServiceCenterKind.beauty) {
+      return AssistantIntent.findBeauty;
+    }
     if (_looksLikePharmacySearch(focus) || _mentionsPharmacy(focus)) {
       return AssistantIntent.findPharmacy;
     }

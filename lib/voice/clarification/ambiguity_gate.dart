@@ -141,6 +141,9 @@ class AmbiguityGate {
           return ClarificationEntityType.physio;
         case SmartSearchResultType.supply:
           return ClarificationEntityType.supply;
+        case SmartSearchResultType.optics:
+        case SmartSearchResultType.beauty:
+          return ClarificationEntityType.unknown;
         case SmartSearchResultType.radiology:
           return ClarificationEntityType.radiology;
         default:
@@ -160,6 +163,10 @@ class AmbiguityGate {
           return 'علاج طبيعي';
         case SmartSearchResultType.supply:
           return 'مستلزمات';
+        case SmartSearchResultType.optics:
+          return 'بصريات';
+        case SmartSearchResultType.beauty:
+          return 'تجميل';
         case SmartSearchResultType.radiology:
           return 'أشعة';
         default:
@@ -179,6 +186,10 @@ class AmbiguityGate {
           return r.physioId ?? r.title;
         case SmartSearchResultType.supply:
           return r.supplyId ?? r.title;
+        case SmartSearchResultType.optics:
+          return r.opticsId ?? r.title;
+        case SmartSearchResultType.beauty:
+          return r.beautyId ?? r.title;
         case SmartSearchResultType.radiology:
           return r.radiologyId ?? r.title;
         default:

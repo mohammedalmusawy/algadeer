@@ -1131,7 +1131,7 @@ class _HeroWeekSchedule extends StatelessWidget {
     final status = Text(
       entry.status,
       maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+      overflow: shrinkWrap ? TextOverflow.ellipsis : TextOverflow.visible,
       style: TextStyle(
         fontSize: 14.5,
         height: 1.3,
@@ -1155,7 +1155,17 @@ class _HeroWeekSchedule extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        if (shrinkWrap) status else Flexible(child: status),
+        if (shrinkWrap)
+          status
+        else
+          // تصغير بدل القص: «السبت م…» كانت تخفي الدوام على 375px.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerStart,
+              child: status,
+            ),
+          ),
       ],
     );
   }

@@ -65,6 +65,18 @@
 	<string>يُستخدم التعرف على الصوت لتحويل كلامك إلى نص للبحث.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>يُستخدم موقعك لترتيب الصيدليات الأقرب إليك.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>تُستخدم الكاميرا لتصوير صورة أو مرفق تضيفه للتطبيق.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>تُستخدم الصور لاختيار صورة أو مرفق تضيفه للتطبيق.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>https</string>
+		<string>http</string>
+		<string>whatsapp</string>
+		<string>comgooglemaps</string>
+	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

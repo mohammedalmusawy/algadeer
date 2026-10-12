@@ -251,6 +251,14 @@
 تحقق قراءة فقط 2026-10-12 في SQL Editor: قيدا `entity_type` في `entity_owner_access` و`entity_owner_attempts` يشملان optics/beauty، و`service_centers` و`entity_logos` موجودان، و`doctors.logo_url` موجود — كلها true.
 
 بوابة 2026-10-12 (بعد الصيدلية: بحث/تصفية/عروض/مفضلة): `flutter test` الكامل **2577 نجاح، 0 إخفاق** (~51 ث)؛ المراكز/الشعار/الوصول/كلمة مرور المالك **24 نجاح**؛ `deno test` سياسة `doctor-card-access` **22 نجاح، 0 إخفاق**.
+
+بعد `c2b0a00` (أيام الدوام تصغر بدل القص على 375px): `flutter analyze` 65 info بلا أخطاء؛ `flutter test` الكامل **2577 نجاح**. فحص متصفح محلي 375px لـ `build/web` (الرئيسية، الأطباء، الصيدلية بحث/تصفية/مفضلة بعد إعادة التحميل، العوينات، العقل: اختيار → فتح → «شنو دوامه»): يعمل. آيفون المستخدم (release، فريق `67U94HSTGD`، `com.mohammed.ghadeer`) 2026-10-13: اتصال طبيب وواتساب **مؤكد** يعملان.
+
+### موبايل 2026-10-13
+- صلاحيات الإطلاق: `<queries>` في Android (tel/https/http/whatsapp/geo + RecognitionService) و`LSApplicationQueriesSchemes` + `NSCamera/NSPhotoLibraryUsageDescription` في iOS — كانت أزرار اتصال/واتساب الصيدليات والعلاج الطبيعي والمستلزمات (`canLaunchUrl`) ستفشل بصمت على Android 11+ و iOS، و`image_picker` كان سيغلق التطبيق على iOS. اختبار: `mobile_launch_permissions_test`.
+- iOS: `DEVELOPMENT_TEAM = 67U94HSTGD`، المعرّف `com.mohammed.ghadeer`.
+- بدون نت (مثل إنستا): `OfflineRowsCache` يحفظ آخر صفوف عامة للأطباء/المختبرات/باقات كل مختبر/الأشعة ويقدّمها عند فشل الشبكة + تنبيه في الرئيسية؛ بحث العقل للمختبرات/الأشعة/الأطباء يقرأ النسخة المحلية. الصور غير محفوظة (تحتاج مكتبة). اختبار: `offline_rows_cache_test`.
+- بوابة: `flutter test` الكامل **2584 نجاح، 0 إخفاق**؛ تحليل الملفات الملموسة 7 info بلا أخطاء.
 5. تجربة جهاز: رفع/استبدال/حذف الشعار، ظهوره من جهاز أو جلسة ثانية، ومنع تعديل بطاقة أخرى. بلا مراكز فحص في القاعدة الحية.
 
 ## قبل موافقة النشر

@@ -6,6 +6,7 @@ import '../doctors/doctor_gender.dart';
 import '../home/trending_entity.dart';
 import '../models/doctor_item.dart';
 import '../models/lab_models.dart';
+import '../services/offline_rows_cache.dart';
 import 'arabic_text_utils.dart';
 import 'doctor_name_matcher.dart';
 import 'smart_search_models.dart';
@@ -161,7 +162,14 @@ class SmartSearchService {
       return rows;
     } catch (e, st) {
       debugPrint('SmartSearchService doctors cache fetch failed: $e\n$st');
-      return _doctorsCache ?? const [];
+      if (_doctorsCache != null) return _doctorsCache!;
+      // بدون نت: نفس قائمة الأطباء المحفوظة من الرئيسية.
+      final saved = await OfflineRowsCache.read('doctors');
+      if (saved != null) {
+        OfflineRowsCache.lastOfflineServe.value = DateTime.now();
+        return saved;
+      }
+      return const [];
     }
   }
 
@@ -562,30 +570,40 @@ class SmartSearchService {
               q.replaceAll(RegExp(r'مختبر|المختبرات|المختبر'), '').trim().isEmpty);
 
       List rows;
-      if (isGenericLabQuery) {
-        rows = await _client
-            .from('labs')
-            .select()
-            .eq('is_active', true)
-            .order('display_order', ascending: true)
-            .limit(8) as List;
-      } else {
-        // lab_name هو العمود الأساسي في الكتابة؛ name قد يوجد في بعض البيئات.
-        try {
+      try {
+        if (isGenericLabQuery) {
           rows = await _client
               .from('labs')
               .select()
               .eq('is_active', true)
-              .or('lab_name.ilike.$pattern,address.ilike.$pattern')
+              .order('display_order', ascending: true)
               .limit(8) as List;
-        } catch (_) {
-          rows = await _client
-              .from('labs')
-              .select()
-              .eq('is_active', true)
-              .ilike('lab_name', pattern)
-              .limit(8) as List;
+        } else {
+          // lab_name هو العمود الأساسي في الكتابة؛ name قد يوجد في بعض البيئات.
+          try {
+            rows = await _client
+                .from('labs')
+                .select()
+                .eq('is_active', true)
+                .or('lab_name.ilike.$pattern,address.ilike.$pattern')
+                .limit(8) as List;
+          } catch (_) {
+            rows = await _client
+                .from('labs')
+                .select()
+                .eq('is_active', true)
+                .ilike('lab_name', pattern)
+                .limit(8) as List;
+          }
         }
+      } catch (_) {
+        // بدون نت: المختبرات المحفوظة على الجهاز.
+        rows = await _offlineMatch(
+          'labs',
+          pattern,
+          const ['lab_name', 'name', 'address'],
+          all: isGenericLabQuery,
+        );
       }
 
       final needle = pattern.replaceAll('%', '');
@@ -634,20 +652,30 @@ class SmartSearchService {
               ArabicTextUtils.prepareRadiologyNameQuery(q).isEmpty);
 
       List rows;
-      if (isGeneric) {
-        rows = await _client
-            .from('radiology_centers')
-            .select()
-            .eq('is_active', true)
-            .order('display_order', ascending: true)
-            .limit(8) as List;
-      } else {
-        rows = await _client
-            .from('radiology_centers')
-            .select()
-            .eq('is_active', true)
-            .or('name.ilike.$pattern,address.ilike.$pattern')
-            .limit(8) as List;
+      try {
+        if (isGeneric) {
+          rows = await _client
+              .from('radiology_centers')
+              .select()
+              .eq('is_active', true)
+              .order('display_order', ascending: true)
+              .limit(8) as List;
+        } else {
+          rows = await _client
+              .from('radiology_centers')
+              .select()
+              .eq('is_active', true)
+              .or('name.ilike.$pattern,address.ilike.$pattern')
+              .limit(8) as List;
+        }
+      } catch (_) {
+        // بدون نت: مراكز الأشعة المحفوظة على الجهاز.
+        rows = await _offlineMatch(
+          'radiology_centers',
+          pattern,
+          const ['name', 'center_name', 'address'],
+          all: isGeneric,
+        );
       }
 
       final needle = pattern.replaceAll('%', '');
@@ -677,6 +705,29 @@ class SmartSearchService {
         );
       }
     } catch (_) {}
+  }
+
+  /// مطابقة محلية بسيطة على آخر نسخة محفوظة (بدون نت).
+  static Future<List<Map<String, dynamic>>> _offlineMatch(
+    String cacheKey,
+    String pattern,
+    List<String> fields, {
+    required bool all,
+  }) async {
+    final saved = await OfflineRowsCache.read(cacheKey);
+    if (saved == null) return const [];
+    OfflineRowsCache.lastOfflineServe.value = DateTime.now();
+    final needle = ArabicTextUtils.normalize(pattern.replaceAll('%', ''));
+    final matched = [
+      for (final r in saved)
+        if (all ||
+            needle.isEmpty ||
+            fields.any(
+              (f) => ArabicTextUtils.normalize('${r[f] ?? ''}').contains(needle),
+            ))
+          r,
+    ];
+    return matched.take(8).toList();
   }
 
   /// مؤشر الطلب الحقيقي من أعمدة الصف (نفس وزن قسم «الأكثر طلبًا»).

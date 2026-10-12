@@ -23,6 +23,7 @@ import 'doctors/clinic_doctor_list_card.dart';
 import 'doctors/doctor_absences_admin_page.dart';
 import 'doctors/doctor_admin_persist.dart';
 import 'services/content_conflict.dart';
+import 'services/offline_rows_cache.dart';
 import 'doctors/doctor_availability_service.dart';
 import 'doctors/doctor_card_links.dart';
 import 'doctors/doctor_card_password_admin_section.dart';
@@ -485,17 +486,25 @@ class _HomePageState extends State<HomePage> {
       debugPrint('loadDoctors: fetching from Supabase...');
       // فلترة على السيرفر: نشط أو null (للتوافق مع صفوف قديمة)
       // الترتيب حسب المشاهدات يتم محليًا حتى لا يفشل الطلب إن غاب العمود.
-      List<dynamic> data;
-      try {
-        data = await supabase
-            .from('doctors')
-            .select()
-            .or('is_active.eq.true,is_active.is.null')
-            .order('display_order', ascending: true);
-      } catch (e) {
-        debugPrint('loadDoctors primary query failed, retry plain: $e');
-        data = await supabase.from('doctors').select();
-      }
+      // بدون نت: آخر قائمة ناجحة من الجهاز بدل شاشة الخطأ.
+      final offlineBefore = OfflineRowsCache.lastOfflineServe.value;
+      final List<dynamic> data = await OfflineRowsCache.fetchOrCache(
+        'doctors',
+        () async {
+          List<dynamic> remote;
+          try {
+            remote = await supabase
+                .from('doctors')
+                .select()
+                .or('is_active.eq.true,is_active.is.null')
+                .order('display_order', ascending: true);
+          } catch (e) {
+            debugPrint('loadDoctors primary query failed, retry plain: $e');
+            remote = await supabase.from('doctors').select();
+          }
+          return List<Map<String, dynamic>>.from(remote);
+        },
+      );
 
       if (!mounted) return;
 
@@ -521,6 +530,19 @@ class _HomePageState extends State<HomePage> {
           }
         }
       });
+
+      if (OfflineRowsCache.lastOfflineServe.value != offlineBefore &&
+          mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'ماكو إنترنت حالياً — تشوف آخر معلومات محفوظة. '
+              'اسحب للتحديث لمن يرجع النت.',
+              textDirection: TextDirection.rtl,
+            ),
+          ),
+        );
+      }
 
       debugPrint(
         'loadDoctors: fetched=${rows.length} '

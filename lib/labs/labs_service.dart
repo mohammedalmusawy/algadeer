@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../doctors/doctor_admin_persist.dart';
 import '../models/lab_models.dart';
 import '../services/content_conflict.dart';
+import '../services/offline_rows_cache.dart';
 import 'package_image_library.dart';
 import 'package_templates.dart';
 
@@ -33,14 +34,15 @@ class LabsService {
   bool get isAuthenticated => _client.auth.currentUser != null;
 
   Future<List<LabItem>> fetchPublicLabs() async {
-    final data = await _client
-        .from('labs')
-        .select()
-        .eq('is_active', true)
-        .order('display_order', ascending: true);
-    return (data as List)
-        .map((e) => LabItem.fromMap(Map<String, dynamic>.from(e)))
-        .toList();
+    final data = await OfflineRowsCache.fetchOrCache('labs', () async {
+      final remote = await _client
+          .from('labs')
+          .select()
+          .eq('is_active', true)
+          .order('display_order', ascending: true);
+      return List<Map<String, dynamic>>.from(remote as List);
+    });
+    return data.map(LabItem.fromMap).toList();
   }
 
   /// جلب مختبر واحد — أسرع من تحميل كل المختبرات ثم الفلترة.
@@ -110,53 +112,58 @@ class LabsService {
   }
 
   Future<List<LabPackageItem>> fetchPublicPackages(String labId) async {
+    // بدون نت: آخر باقات هذا المختبر المحفوظة على الجهاز.
+    final rows = await OfflineRowsCache.fetchOrCache(
+      'lab_packages_$labId',
+      () => _fetchPublicPackageRows(labId),
+    );
+    return rows.map(_mapPublicPackageRow).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchPublicPackageRows(
+    String labId,
+  ) async {
+    List data;
     try {
-      final data = await _client
+      data = await _client
           .from('lab_packages')
           .select('*, lab_package_analyses(display_order, analyses(*))')
           .eq('lab_id', labId)
           .eq('is_active', true)
           .order('display_order', ascending: true);
-
-      return (data as List).map((row) {
-        final map = Map<String, dynamic>.from(row as Map);
-        final links = map['lab_package_analyses'];
-        if (links is List) {
-          links.sort((a, b) {
-            final ao = (a is Map) ? (a['display_order'] as num? ?? 0) : 0;
-            final bo = (b is Map) ? (b['display_order'] as num? ?? 0) : 0;
-            return ao.compareTo(bo);
-          });
-          map['lab_package_analyses'] = links;
-        }
-        return LabPackageItem.fromMap(map);
-      }).toList();
     } catch (_) {
       try {
-        final data = await _client
+        data = await _client
             .from('lab_packages')
             .select('*, lab_package_analyses(count)')
             .eq('lab_id', labId)
             .eq('is_active', true)
             .order('display_order', ascending: true);
-
-        return (data as List).map(_mapPackageRow).toList();
       } catch (_) {
-        final data = await _client
+        data = await _client
             .from('lab_packages')
             .select()
             .eq('lab_id', labId)
             .eq('is_active', true)
             .order('display_order', ascending: true);
-
-        return (data as List)
-            .map(
-              (row) =>
-                  LabPackageItem.fromMap(Map<String, dynamic>.from(row as Map)),
-            )
-            .toList();
       }
     }
+    return [for (final row in data) Map<String, dynamic>.from(row as Map)];
+  }
+
+  LabPackageItem _mapPublicPackageRow(Map<String, dynamic> row) {
+    final map = Map<String, dynamic>.from(row);
+    final links = map['lab_package_analyses'];
+    if (links is List) {
+      final sorted = [...links]
+        ..sort((a, b) {
+          final ao = (a is Map) ? (a['display_order'] as num? ?? 0) : 0;
+          final bo = (b is Map) ? (b['display_order'] as num? ?? 0) : 0;
+          return ao.compareTo(bo);
+        });
+      map['lab_package_analyses'] = sorted;
+    }
+    return _mapPackageRow(map);
   }
 
   Future<List<LabPackageItem>> fetchAllPackages({String? labId}) async {

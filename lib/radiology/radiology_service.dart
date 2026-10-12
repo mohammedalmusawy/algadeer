@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../doctors/doctor_admin_persist.dart';
 import '../models/radiology_models.dart';
+import '../services/offline_rows_cache.dart';
 
 class RadiologyService {
   RadiologyService({SupabaseClient? client})
@@ -12,14 +13,18 @@ class RadiologyService {
   static const String mediaBucket = 'clinic-media';
 
   Future<List<RadiologyCenter>> fetchPublicCenters() async {
-    final data = await _client
-        .from('radiology_centers')
-        .select()
-        .eq('is_active', true)
-        .order('display_order', ascending: true);
-    return (data as List)
-        .map((e) => RadiologyCenter.fromMap(Map<String, dynamic>.from(e)))
-        .toList();
+    final data = await OfflineRowsCache.fetchOrCache(
+      'radiology_centers',
+      () async {
+        final remote = await _client
+            .from('radiology_centers')
+            .select()
+            .eq('is_active', true)
+            .order('display_order', ascending: true);
+        return List<Map<String, dynamic>>.from(remote as List);
+      },
+    );
+    return data.map(RadiologyCenter.fromMap).toList();
   }
 
   Future<RadiologyCenter?> fetchCenterById(

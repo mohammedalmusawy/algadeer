@@ -13,6 +13,7 @@ import '../voice/voice_response_controller.dart';
 import '../widgets/entity_contact_actions.dart';
 import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_speak_button.dart';
+import '../widgets/owner_access_link.dart';
 import 'pharmacy_all_bundles_page.dart';
 import 'pharmacy_bundle_filter.dart';
 import 'pharmacy_bundle_detail_sheet.dart';
@@ -225,6 +226,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
                 color: GhadeerHomeColors.secondary,
               ),
             ),
+            OwnerAccess.faint(onTap: _openBundlesManage),
           ],
         ),
       ),

@@ -21,6 +21,7 @@ import 'doctor_card_tap.dart';
 import 'doctor_engagement_service.dart';
 import 'doctor_gender.dart';
 import 'doctor_week_schedule.dart';
+import '../widgets/owner_access_link.dart';
 
 export 'doctor_week_schedule.dart'
     show DoctorWeekDayEntry, doctorWeekDayOrder, parseDoctorWeekSchedule;
@@ -534,6 +535,13 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                             setState(() => _favorite = !_favorite);
                             widget.onToggleFavorite();
                           },
+                        ),
+                      ),
+                      Positioned(
+                        top: 10 + (38 + 8) * 2,
+                        right: 10,
+                        child: OwnerAccess.faint(
+                          onTap: () => unawaited(_openCardAccess()),
                         ),
                       ),
                     ],

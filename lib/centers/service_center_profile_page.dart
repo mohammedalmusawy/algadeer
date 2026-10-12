@@ -13,6 +13,7 @@ import '../widgets/entity_optional_logo.dart';
 import 'service_center_kind.dart';
 import 'service_center_models.dart';
 import 'service_center_owner_editor_page.dart';
+import '../widgets/owner_access_link.dart';
 
 /// بطاقة المركز بهوية قريبة من بطاقة الطبيب: صورة، اسم، وتفاصيل بلا حجز.
 class ServiceCenterProfilePage extends StatelessWidget {
@@ -67,6 +68,7 @@ class ServiceCenterProfilePage extends StatelessWidget {
               onPressed: _share,
               icon: const Icon(Icons.ios_share_rounded),
             ),
+            OwnerAccess.faint(onTap: () => _openOwner(context)),
           ],
         ),
         body: ListView(

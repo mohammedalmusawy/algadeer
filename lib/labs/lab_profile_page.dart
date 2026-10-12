@@ -24,6 +24,7 @@ import 'lab_pick_analyses_sheet.dart';
 import 'labs_service.dart';
 import 'widgets/lab_network_or_asset_image.dart';
 import 'widgets/lab_package_strip.dart';
+import '../widgets/owner_access_link.dart';
 
 /// بطاقة المختبر الرقمية — قالب Premium واحد لكل المختبرات من Supabase.
 class LabProfilePage extends StatefulWidget {
@@ -628,6 +629,13 @@ class _LabProfilePageState extends State<LabProfilePage> {
                               ? const Color(0xFFE25555)
                               : _navy,
                           onTap: _toggleFavorite,
+                        ),
+                      ),
+                      Positioned(
+                        top: 10 + (38 + 8) * 2,
+                        right: 10,
+                        child: OwnerAccess.faint(
+                          onTap: () => unawaited(_openLabPackagesManage()),
                         ),
                       ),
                     ],

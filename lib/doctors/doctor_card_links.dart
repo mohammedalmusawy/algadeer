@@ -1,26 +1,25 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
+import '../utils/ghadeer_card_link.dart';
 
 /// رابط البطاقة الرقمية — يعمل على الويب إن وُجد، ويفتح التطبيق إن كان منزّلًا.
 class DoctorCardLinks {
-  /// غيّر هذا عند نشر موقع/استضافة Flutter Web النهائية.
-  static const String publicWebBase = 'https://ghadeer-clinic.web.app';
+  /// الموقع المنشور (Netlify). المصدر الوحيد: [GhadeerCardLink.webBase].
+  static const String publicWebBase = GhadeerCardLink.webBase;
 
-  static String forDoctor(String doctorId) {
-    if (kIsWeb) {
-      final origin = Uri.base.origin;
-      return '$origin/#/doctor/$doctorId';
-    }
-    return '$publicWebBase/#/doctor/$doctorId';
-  }
+  /// رابط واحد ثابت: يفتح التطبيق إن كان منزّلاً، وإلا صفحة اقتراح التنزيل.
+  static String forDoctor(String doctorId) =>
+      GhadeerCardLink.url(GhadeerCardKind.doctor, doctorId);
 
   static String? parseDoctorId(Uri uri) {
+    final ref = GhadeerCardLink.parse(uri);
+    if (ref != null) {
+      return ref.kind == GhadeerCardKind.doctor ? ref.id : null;
+    }
     // ghadeerclinic://doctor/{id}
     if (uri.host == 'doctor' && uri.pathSegments.isNotEmpty) {
       return uri.pathSegments.first;
@@ -42,13 +41,11 @@ class DoctorCardLinks {
     required String doctorId,
     required String doctorName,
   }) async {
-    final url = forDoctor(doctorId);
-    await SharePlus.instance.share(
-      ShareParams(
-        text:
-            'بطاقة $doctorName الرقمية — عيادة الغدير\n$url\n\nإن لم يكن التطبيق منزّلًا ستفتح البطاقة عبر الموقع مع اقتراح التحميل.',
-        subject: 'بطاقة $doctorName',
-      ),
+    await GhadeerCardLink.share(
+      kind: GhadeerCardKind.doctor,
+      id: doctorId,
+      name: doctorName,
+      subtitle: 'البطاقة الرقمية — منصة الغدير',
     );
   }
 
@@ -295,9 +292,8 @@ class DoctorCardLinks {
 
   static Future<void> openInstallSuggestion(BuildContext context) async {
     // روابط المتاجر — حدّثها عند النشر
-    const playStore =
-        'https://play.google.com/store/apps/details?id=com.example.ghadeer_clinic';
-    const appStore = 'https://apps.apple.com/app/id000000000';
+    const playStore = GhadeerCardLink.playStoreUrl;
+    const appStore = GhadeerCardLink.appStoreUrl;
     await showModalBottomSheet<void>(
       context: context,
       builder: (ctx) {

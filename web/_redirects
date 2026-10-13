@@ -1,2 +1,6 @@
+# ملف تحقق الأندرويد (App Links) — يفتح التطبيق مباشرة من رابط البطاقة.
+/.well-known/assetlinks.json    /assetlinks.json   200
+# روابط مشاركة البطاقات: صفحة جسر صغيرة (افتح بالتطبيق / نزّل التطبيق).
+/c/*    /open.html   200
 # Netlify SPA fallback for Flutter Web deep links / refresh.
 /*    /index.html   200

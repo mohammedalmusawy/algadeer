@@ -14,6 +14,17 @@
   # build command only if the Netlify build image installs Flutter.
   command = "true"
 
+# ملف تحقق الأندرويد + صفحة جسر البطاقات (نفس web/_redirects).
+[[redirects]]
+  from = "/.well-known/assetlinks.json"
+  to = "/assetlinks.json"
+  status = 200
+
+[[redirects]]
+  from = "/c/*"
+  to = "/open.html"
+  status = 200
+
 # Flutter Web is a client-side SPA — deep links must fall back to index.html.
 [[redirects]]
   from = "/*"
@@ -45,3 +56,13 @@
   for = "/canvaskit/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assetlinks.json"
+  [headers.values]
+    Content-Type = "application/json"
+
+[[headers]]
+  for = "/open.html"
+  [headers.values]
+    Cache-Control = "no-cache"

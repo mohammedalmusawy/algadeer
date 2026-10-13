@@ -489,6 +489,14 @@ class HomePhase1ServicesGrid extends StatelessWidget {
       background: GhadeerHomeColors.pharmacyBg,
       accent: GhadeerHomeColors.pharmacyAccent,
     ),
+    HomeServiceCardData(
+      id: 'nursing',
+      title: 'التمريض المنزلي',
+      subtitle: 'ممرض أو ممرضة يزورك بالبيت',
+      icon: Icons.medical_services_outlined,
+      background: GhadeerHomeColors.nursingBg,
+      accent: GhadeerHomeColors.nursingAccent,
+    ),
   ];
 
   @override
@@ -505,12 +513,15 @@ class HomePhase1ServicesGrid extends StatelessWidget {
               spacing: gap,
               runSpacing: gap,
               children: [
-                for (final item in items)
+                for (var i = 0; i < items.length; i++)
                   SizedBox(
-                    width: cardW,
+                    // آخر بطاقة لحالها (عدد فردي) تاخذ العرض كامل.
+                    width: items.length.isOdd && i == items.length - 1
+                        ? constraints.maxWidth
+                        : cardW,
                     child: _ServiceCard(
-                      data: item,
-                      onTap: () => onOpen(item.id),
+                      data: items[i],
+                      onTap: () => onOpen(items[i].id),
                     ),
                   ),
               ],

@@ -1,26 +1,44 @@
 import '../search/arabic_text_utils.dart';
 
-/// قسم دليل: بصريات أو تجميل. ليس اختصاص طبيب.
+/// قسم دليل: بصريات أو تجميل أو تمريض منزلي. ليس اختصاص طبيب.
 enum ServiceCenterKind {
   optics,
-  beauty;
+  beauty,
+
+  /// ممرض أو ممرضة يزورون المريض بالبيت (زرق، مغذي، ضماد، قياس…).
+  nursing;
 
   String get dbValue => name;
 
   String get sectionTitle => switch (this) {
         ServiceCenterKind.optics => 'العوينات وفحص البصر',
         ServiceCenterKind.beauty => 'مراكز التجميل',
+        ServiceCenterKind.nursing => 'التمريض المنزلي',
       };
 
   String get shortLabel => switch (this) {
         ServiceCenterKind.optics => 'بصريات',
         ServiceCenterKind.beauty => 'تجميل',
+        ServiceCenterKind.nursing => 'تمريض منزلي',
+      };
+
+  /// عنوان حقل الاسم بالإدارة.
+  String get nameFieldLabel => switch (this) {
+        ServiceCenterKind.nursing => 'الاسم (الممرض أو الممرضة)',
+        _ => 'اسم المركز',
+      };
+
+  /// مثال للاسم حتى تبقى التسمية مرتبة مثل بطاقات الأطباء.
+  String get nameFieldHint => switch (this) {
+        ServiceCenterKind.nursing => 'مثال: الممرض علي حسن / الممرضة زينب كاظم',
+        _ => '',
       };
 
   String get emptyVisitorsMessage => switch (this) {
         ServiceCenterKind.optics =>
           'لا توجد مراكز عوينات أو فحص بصر مضافة بعد.',
         ServiceCenterKind.beauty => 'لا توجد مراكز تجميل مضافة بعد.',
+        ServiceCenterKind.nursing => 'لا يوجد ممرضون للزيارات المنزلية مضافون بعد.',
       };
 
   String get unavailableMessage =>
@@ -32,6 +50,8 @@ enum ServiceCenterKind {
         return ServiceCenterKind.optics;
       case 'beauty':
         return ServiceCenterKind.beauty;
+      case 'nursing':
+        return ServiceCenterKind.nursing;
       default:
         return null;
     }

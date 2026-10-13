@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -22,6 +21,7 @@ import 'pharmacy_custom_bundle_page.dart';
 import 'pharmacy_fit_image.dart';
 import 'pharmacy_models.dart';
 import '../utils/contact_launch.dart';
+import '../utils/ghadeer_card_link.dart';
 
 /// صفحة تفاصيل صيدلية — مواضع بصرية مطابقة للموكاب (موبايل أولاً).
 class PharmacyProfilePage extends StatefulWidget {
@@ -130,8 +130,14 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
   }
 
   Future<void> _share() async {
-    await SharePlus.instance.share(
-      ShareParams(text: '${_p.name}\n${_p.address}\nهاتف: ${_p.phone}'),
+    await GhadeerCardLink.share(
+      kind: GhadeerCardKind.pharmacy,
+      id: _p.id,
+      name: _p.name,
+      subtitle: [
+        'صيدلية',
+        if (_p.address.trim().isNotEmpty) _p.address.trim(),
+      ].join(' · '),
     );
   }
 

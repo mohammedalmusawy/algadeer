@@ -12,6 +12,7 @@ import '../widgets/entity_optional_logo.dart';
 import 'radiology_default_images.dart';
 import 'radiology_service.dart';
 import 'widgets/radiology_network_or_asset_image.dart';
+import '../utils/ghadeer_card_link.dart';
 
 /// هوية مركز الأشعة — نفس هيكل هوية المختبر مع تمييز الأشعة.
 class RadiologyProfilePage extends StatefulWidget {
@@ -290,15 +291,16 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
                         right: 10,
                         child: _circleIconBtn(
                           icon: Icons.ios_share_rounded,
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'المشاركة ستُفعَّل بالكامل بعد ربط الموقع',
-                                ),
-                              ),
-                            );
-                          },
+                          onTap: () => GhadeerCardLink.share(
+                            kind: GhadeerCardKind.radiology,
+                            id: _center.id,
+                            name: _center.name,
+                            subtitle: [
+                              'مركز أشعة',
+                              if (_center.address.trim().isNotEmpty)
+                                _center.address.trim(),
+                            ].join(' · '),
+                          ),
                         ),
                       ),
                       Positioned(

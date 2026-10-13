@@ -3,12 +3,71 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+import '../search/smart_search_models.dart';
+import '../search/smart_search_service.dart';
+import '../utils/contact_launch.dart';
 import '../widgets/clinic_app_bar.dart';
 import 'attachment_view.dart';
 import 'card_export.dart';
 import 'follow_up_card.dart';
+import 'follow_up_insights.dart';
+import 'follow_up_quick_entry.dart';
+import 'follow_up_reminders.dart';
+import 'follow_up_target_store.dart';
 import 'patient_health_models.dart';
 import 'patient_health_repository.dart';
+
+/// طبيب من الغدير يمكن إرسال البطاقة له على واتساب.
+class FollowUpDoctorContact {
+  const FollowUpDoctorContact({
+    required this.name,
+    required this.specialty,
+    required this.whatsapp,
+  });
+
+  final String name;
+  final String specialty;
+  final String whatsapp;
+}
+
+/// أطباء الغدير اللي عندهم رقم واتساب (أو هاتف) — مرتبين بالاسم.
+List<FollowUpDoctorContact> followUpDoctorContacts(
+  List<SmartSearchResult> doctors,
+) {
+  final out = <FollowUpDoctorContact>[];
+  final seen = <String>{};
+  for (final d in doctors) {
+    final number = (d.whatsapp ?? '').trim().isNotEmpty
+        ? d.whatsapp!.trim()
+        : (d.phone ?? '').trim();
+    if (clinicWhatsAppDigits(number).length < 8) continue;
+    if (!seen.add('${d.title}|$number')) continue;
+    out.add(
+      FollowUpDoctorContact(
+        name: d.title.trim(),
+        specialty: (d.specialty ?? d.subtitle).trim(),
+        whatsapp: number,
+      ),
+    );
+  }
+  out.sort((a, b) => a.name.compareTo(b.name));
+  return out;
+}
+
+/// رسالة واتساب جاهزة للطبيب — بلا أي أرقام صحية داخل الرسالة نفسها.
+String followUpDoctorMessage({
+  required String doctorName,
+  required String conditionTitle,
+}) {
+  final name = doctorName.trim();
+  final greet = name.isEmpty
+      ? 'مرحباً دكتور'
+      : (RegExp(r'^(د\.|دكتور|الدكتور|الدكتورة|دكتورة)').hasMatch(name)
+            ? 'مرحباً $name'
+            : 'مرحباً دكتور $name');
+  return '$greet، راح أرسل لك بطاقة متابعة ($conditionTitle) '
+      'من منصة الغدير كملف PDF. شكراً لوقتك.';
+}
 
 class FollowUpCardPage extends StatefulWidget {
   const FollowUpCardPage({
@@ -18,6 +77,11 @@ class FollowUpCardPage extends StatefulWidget {
     required this.repository,
     required this.store,
     this.now,
+    this.targetStore = const FollowUpTargetStore(),
+    this.loadDoctors,
+    this.openWhatsApp,
+    this.reminderStore = const FollowUpReminderStore(),
+    this.reminderScheduler,
   });
 
   final String userId;
@@ -25,6 +89,18 @@ class FollowUpCardPage extends StatefulWidget {
   final PatientHealthRepository repository;
   final AttachmentByteStore store;
   final DateTime Function()? now;
+  final FollowUpTargetStore targetStore;
+
+  /// للاختبار: مصدر أطباء الغدير (الافتراضي كاش البحث الذكي).
+  final Future<List<SmartSearchResult>> Function()? loadDoctors;
+
+  /// للاختبار: فتح واتساب الطبيب.
+  final Future<void> Function(String whatsapp, String message)? openWhatsApp;
+
+  final FollowUpReminderStore reminderStore;
+
+  /// للاختبار: جدولة وهمية. الافتراضي إشعارات الجهاز المحلية.
+  final ReminderScheduler? reminderScheduler;
 
   @override
   State<FollowUpCardPage> createState() => _FollowUpCardPageState();
@@ -43,18 +119,146 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
   bool _includeAttachments = false;
   final _selectedIds = <String>{};
   bool _busy = false;
+  late PatientHealthSnapshot _snapshot;
+  FollowUpTarget _target = const FollowUpTarget();
+  List<ReminderTime> _reminders = const [];
+  late final ReminderScheduler _scheduler =
+      widget.reminderScheduler ?? LocalReminderScheduler();
 
   @override
   void initState() {
     super.initState();
-    _conditionId = widget.snapshot.conditions.first.id;
+    _snapshot = widget.snapshot;
+    _conditionId = _snapshot.conditions.first.id;
+    _loadTarget();
+    _loadReminders();
+  }
+
+  Future<void> _loadReminders() async {
+    final id = _conditionId;
+    final times = await widget.reminderStore.load(widget.userId, id);
+    if (!mounted || id != _conditionId) return;
+    setState(() => _reminders = times);
+  }
+
+  Future<void> _editReminders() async {
+    if (!_scheduler.isSupported) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('التذكير يشتغل من تطبيق الموبايل (أندرويد أو آيفون).'),
+        ),
+      );
+      return;
+    }
+    final result = await showReminderTimesDialog(
+      context: context,
+      current: _reminders,
+    );
+    if (result == null || !mounted) return;
+    final conditionId = _conditionId;
+    try {
+      if (result.isNotEmpty && !await _scheduler.requestPermission()) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'الإشعارات مقفولة. فعّلها للغدير من إعدادات الموبايل وارجع جرّب.',
+            ),
+          ),
+        );
+        return;
+      }
+      await applyFollowUpReminders(
+        scheduler: _scheduler,
+        store: widget.reminderStore,
+        userId: widget.userId,
+        conditionId: conditionId,
+        times: result,
+      );
+      if (!mounted) return;
+      if (conditionId == _conditionId) {
+        setState(() => _reminders = result..sort());
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.isEmpty
+                ? 'انلغى تذكير القياس.'
+                : 'راح نذكّرك كل يوم: ${[for (final t in result) t.label].join('، ')}',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر ضبط التذكير. جرّب مرة ثانية.')),
+      );
+    }
+  }
+
+  PatientCondition get _condition => _snapshot.conditions.firstWhere(
+    (c) => c.id == _conditionId,
+    orElse: () => _snapshot.conditions.first,
+  );
+
+  bool get _hasMeasurements =>
+      _condition.kind == ConditionKind.hypertension ||
+      _condition.kind == ConditionKind.diabetes;
+
+  Future<void> _loadTarget() async {
+    final id = _conditionId;
+    final target = await widget.targetStore.load(widget.userId, id);
+    if (!mounted || id != _conditionId) return;
+    setState(() => _target = target);
+  }
+
+  Future<void> _editTarget() async {
+    final result = await showFollowUpTargetDialog(
+      context: context,
+      kind: _condition.kind,
+      current: _target,
+    );
+    if (result == null || !mounted) return;
+    setState(() => _target = result);
+    try {
+      await widget.targetStore.save(widget.userId, _conditionId, result);
+    } catch (_) {
+      // المدى يبقى للجلسة حتى لو تعذر الحفظ على الجهاز.
+    }
+  }
+
+  Future<void> _quickReading() async {
+    final reading = await showQuickReadingDialog(
+      context: context,
+      condition: _condition,
+      userId: widget.userId,
+      now: _now,
+    );
+    if (reading == null || !mounted) return;
+    try {
+      if (reading is BpReading) await widget.repository.saveBp(reading);
+      if (reading is GlucoseReading) {
+        await widget.repository.saveGlucose(reading);
+      }
+      final fresh = await widget.repository.load();
+      if (!mounted) return;
+      setState(() => _snapshot = fresh);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('انحفظت القراءة وانضافت للبطاقة.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(patientHealthErrorMessage(error))));
+    }
   }
 
   DateTime get _now => widget.now?.call() ?? DateTime.now();
 
   List<HealthAttachment> get _conditionAttachments {
     return [
-      for (final file in widget.snapshot.attachments)
+      for (final file in _snapshot.attachments)
         if (file.userId == widget.userId && file.conditionId == _conditionId)
           file,
     ];
@@ -68,23 +272,17 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
     ];
   }
 
-  FollowUpCardContent get _content {
-    return buildFollowUpCard(
-      userId: widget.userId,
-      snapshot: widget.snapshot,
-      selection: FollowUpSelection(
-        conditionId: _conditionId,
-        period: _period,
-        issuedAt: _now,
-        includeMeasurements: _measurements,
-        includeTreatment: _treatment,
-        includeReviews: _reviews,
-        includeNotes: _notes,
-        includeEvents: _events,
-        showName: _showName,
-      ),
-    );
-  }
+  FollowUpSelection _selection(DateTime issuedAt) => FollowUpSelection(
+    conditionId: _conditionId,
+    period: _period,
+    issuedAt: issuedAt,
+    includeMeasurements: _measurements,
+    includeTreatment: _treatment,
+    includeReviews: _reviews,
+    includeNotes: _notes,
+    includeEvents: _events,
+    showName: _showName,
+  );
 
   Future<List<AttachmentExportReady>> _readyImages() {
     return loadAttachmentsForExport(
@@ -93,7 +291,7 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
     );
   }
 
-  Future<void> _export({required bool pdf}) async {
+  Future<bool> _confirmShare() async {
     final agreed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -111,9 +309,14 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
         ],
       ),
     );
-    if (agreed != true || !mounted) return;
+    return agreed == true && mounted;
+  }
+
+  Future<void> _export({required bool pdf}) async {
+    if (!await _confirmShare()) return;
     final boundary =
-        _boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        _boundaryKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
     if (boundary == null) return;
     setState(() => _busy = true);
     try {
@@ -145,7 +348,10 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
           for (var i = 0; i < images.length; i++)
             PatientExportFile(
               bytes: images[i].bytes,
-              filename: safeExportFileName(images[i].attachment.fileName, i + 1),
+              filename: safeExportFileName(
+                images[i].attachment.fileName,
+                i + 1,
+              ),
               mimeType: attachmentMimeType(images[i].attachment.fileName),
             ),
         ]);
@@ -166,6 +372,83 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
     }
   }
 
+  Future<void> _sendToDoctor() async {
+    final doctor = await showModalBottomSheet<FollowUpDoctorContact>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _DoctorPickerSheet(
+        load:
+            widget.loadDoctors ??
+            () => SmartSearchService().activeDoctorsCatalog(),
+      ),
+    );
+    if (doctor == null || !mounted) return;
+    final message = followUpDoctorMessage(
+      doctorName: doctor.name,
+      conditionTitle: _condition.title,
+    );
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheet) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'إرسال البطاقة إلى ${doctor.name}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'خطوتين: افتح محادثة الطبيب على واتساب، بعدين ارجع وأرسل '
+                  'ملف PDF واختار محادثته من المشاركة.',
+                  style: TextStyle(height: 1.4),
+                ),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  key: const Key('send-doctor-open-chat'),
+                  onPressed: () async {
+                    final open =
+                        widget.openWhatsApp ??
+                        (String number, String text) =>
+                            launchClinicWhatsApp(number, message: text);
+                    try {
+                      await open(doctor.whatsapp, message);
+                    } catch (_) {
+                      if (!sheet.mounted) return;
+                      ScaffoldMessenger.of(sheet).showSnackBar(
+                        const SnackBar(content: Text('تعذر فتح واتساب.')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.chat_outlined),
+                  label: const Text('١. افتح محادثة الطبيب'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  key: const Key('send-doctor-share-pdf'),
+                  onPressed: () {
+                    Navigator.pop(sheet);
+                    _export(pdf: true);
+                  },
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  label: const Text('٢. أرسل ملف PDF'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _deliver(List<PatientExportFile> files) async {
     final delivery = await deliverPatientFiles(files);
     if (!mounted) return;
@@ -183,9 +466,21 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final content = _content;
+    final issuedAt = _now;
+    final selection = _selection(issuedAt);
+    final content = buildFollowUpCard(
+      userId: widget.userId,
+      snapshot: _snapshot,
+      selection: selection,
+    );
+    final insights = buildFollowUpInsights(
+      userId: widget.userId,
+      snapshot: _snapshot,
+      selection: selection,
+      target: _target,
+    );
     final nameAvailable =
-        (widget.snapshot.profile?.displayName.trim().isNotEmpty ?? false);
+        (_snapshot.profile?.displayName.trim().isNotEmpty ?? false);
     final attachments = _conditionAttachments;
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -210,7 +505,7 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
                 border: OutlineInputBorder(),
               ),
               items: [
-                for (final condition in widget.snapshot.conditions)
+                for (final condition in _snapshot.conditions)
                   DropdownMenuItem(
                     value: condition.id,
                     child: Text(condition.title),
@@ -221,7 +516,11 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
                 setState(() {
                   _conditionId = value;
                   _selectedIds.clear();
+                  _target = const FollowUpTarget();
+                  _reminders = const [];
                 });
+                _loadTarget();
+                _loadReminders();
               },
             ),
             const SizedBox(height: 10),
@@ -239,7 +538,8 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
               value: _measurements,
-              onChanged: (value) => setState(() => _measurements = value ?? false),
+              onChanged: (value) =>
+                  setState(() => _measurements = value ?? false),
               title: const Text('القراءات'),
             ),
             CheckboxListTile(
@@ -274,7 +574,9 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
                   : null,
               title: const Text('إظهار الاسم'),
               subtitle: Text(
-                nameAvailable ? 'الاسم الذي حفظته في الملف' : 'ما مكتوب اسم بالملف',
+                nameAvailable
+                    ? 'الاسم الذي حفظته في الملف'
+                    : 'ما مكتوب اسم بالملف',
               ),
             ),
             CheckboxListTile(
@@ -320,7 +622,50 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
                       attachment: file,
                     ),
                   ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (_hasMeasurements)
+                  ActionChip(
+                    key: const Key('follow-up-quick-reading'),
+                    avatar: const Icon(Icons.add_circle_outline, size: 18),
+                    label: const Text('قراءة جديدة'),
+                    onPressed: _busy ? null : _quickReading,
+                  ),
+                if (_hasMeasurements)
+                  ActionChip(
+                    key: const Key('follow-up-target'),
+                    avatar: Icon(
+                      _target.isEmpty ? Icons.tune_rounded : Icons.check_circle,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _target.isEmpty ? 'المدى من طبيبي' : 'المدى محفوظ',
+                    ),
+                    onPressed: _busy ? null : _editTarget,
+                  ),
+                if (_hasMeasurements)
+                  ActionChip(
+                    key: const Key('follow-up-reminders'),
+                    avatar: Icon(
+                      _reminders.isEmpty
+                          ? Icons.notifications_none_rounded
+                          : Icons.notifications_active_rounded,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _reminders.isEmpty
+                          ? 'تذكير القياس'
+                          : 'تذكير: ${_reminders.first.label}'
+                                '${_reminders.length > 1 ? ' +${_reminders.length - 1}' : ''}',
+                    ),
+                    onPressed: _busy ? null : _editReminders,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
             RepaintBoundary(
               key: _boundaryKey,
               child: DecoratedBox(
@@ -328,7 +673,14 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
                   border: Border.all(color: const Color(0xFFE4EEEE)),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: FollowUpCardView(content: content),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: FollowUpCardView(
+                    content: content,
+                    insights: insights,
+                    conditionKind: _condition.kind,
+                  ),
+                ),
               ),
             ),
             if (_selectedAttachments.isNotEmpty) ...[
@@ -369,6 +721,18 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              key: const Key('follow-up-send-doctor'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(48),
+              ),
+              onPressed: _busy ? null : _sendToDoctor,
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('أرسلها لطبيبي'),
             ),
           ],
         ),
@@ -441,6 +805,120 @@ class _ExportThumbState extends State<_ExportThumb> {
       child: ColoredBox(
         color: const Color(0xFFEAF4F3),
         child: SizedBox(width: size, height: size, child: child),
+      ),
+    );
+  }
+}
+
+class _DoctorPickerSheet extends StatefulWidget {
+  const _DoctorPickerSheet({required this.load});
+
+  final Future<List<SmartSearchResult>> Function() load;
+
+  @override
+  State<_DoctorPickerSheet> createState() => _DoctorPickerSheetState();
+}
+
+class _DoctorPickerSheetState extends State<_DoctorPickerSheet> {
+  final _query = TextEditingController();
+  List<FollowUpDoctorContact>? _all;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    try {
+      final rows = await widget.load();
+      if (!mounted) return;
+      setState(() => _all = followUpDoctorContacts(rows));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _failed = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _query.text.trim();
+    final all = _all;
+    final list = all == null
+        ? const <FollowUpDoctorContact>[]
+        : [
+            for (final d in all)
+              if (q.isEmpty || d.name.contains(q) || d.specialty.contains(q)) d,
+          ];
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * 0.7,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                  child: Text(
+                    'اختار طبيبك من الغدير',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TextField(
+                    key: const Key('doctor-picker-search'),
+                    controller: _query,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      hintText: 'اسم الطبيب أو الاختصاص',
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _failed
+                      ? const Center(
+                          child: Text('تعذر تحميل الأطباء. جرّب بعدين.'),
+                        )
+                      : all == null
+                      ? const Center(child: CircularProgressIndicator())
+                      : list.isEmpty
+                      ? const Center(child: Text('ما لكينا طبيب بهالاسم.'))
+                      : ListView.builder(
+                          itemCount: list.length,
+                          itemBuilder: (_, i) {
+                            final d = list[i];
+                            return ListTile(
+                              key: Key('doctor-pick-$i'),
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.person_outline),
+                              ),
+                              title: Text(d.name),
+                              subtitle: d.specialty.isEmpty
+                                  ? null
+                                  : Text(d.specialty),
+                              onTap: () => Navigator.pop(context, d),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

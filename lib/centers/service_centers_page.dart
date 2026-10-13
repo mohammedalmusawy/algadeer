@@ -5,6 +5,7 @@ import '../home/ghadeer_home_colors.dart';
 import '../pharmacies/pharmacy_distance.dart';
 import '../widgets/clinic_app_bar.dart';
 import 'service_center_kind.dart';
+import 'service_center_style.dart';
 import 'service_center_models.dart';
 import 'service_center_profile_page.dart';
 import 'service_centers_store.dart';
@@ -190,9 +191,7 @@ class _ServiceCentersPageState extends State<ServiceCentersPage> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = widget.kind == ServiceCenterKind.optics
-        ? GhadeerHomeColors.opticsAccent
-        : GhadeerHomeColors.beautyAccent;
+    final accent = widget.kind.accent;
     final list = _filtered;
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -324,9 +323,7 @@ class _CenterTile extends StatelessWidget {
                       : ColoredBox(
                           color: const Color(0xFFE8F4FC),
                           child: Icon(
-                            center.kind == ServiceCenterKind.optics
-                                ? Icons.visibility_outlined
-                                : Icons.spa_outlined,
+                            center.kind.icon,
                             color: GhadeerHomeColors.secondary,
                           ),
                         ),

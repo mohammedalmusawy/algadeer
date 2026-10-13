@@ -58,6 +58,8 @@ import 'services/admin_launch_session.dart';
 import 'services/admin_password_change_page.dart';
 import 'services/dynamic_message_admin_page.dart';
 import 'services/dynamic_message_service.dart';
+import 'utils/card_link_router.dart';
+import 'utils/ghadeer_card_link.dart';
 import 'utils/responsive.dart';
 import 'utils/dom_input_value.dart'
     if (dart.library.html) 'utils/dom_input_value_web.dart' as dom_input;
@@ -372,10 +374,10 @@ class _HomePageState extends State<HomePage> {
           });
           return;
         }
-        final id = DoctorCardLinks.parseDoctorId(uri);
-        if (id != null && id.isNotEmpty) {
+        final ref = GhadeerCardLink.parse(uri);
+        if (ref != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _openDoctorById(id, fromDeepLink: true);
+            _openCardFromLink(ref);
           });
         }
         return;
@@ -392,8 +394,8 @@ class _HomePageState extends State<HomePage> {
           );
           return;
         }
-        final id = DoctorCardLinks.parseDoctorId(uri);
-        if (id != null) _openDoctorById(id, fromDeepLink: true);
+        final ref = GhadeerCardLink.parse(uri);
+        if (ref != null) await _openCardFromLink(ref);
       }
 
       final initial = await appLinks.getInitialLink();
@@ -405,6 +407,21 @@ class _HomePageState extends State<HomePage> {
       appLinks.uriLinkStream.listen(openFromUri);
     } catch (e) {
       debugPrint('deep link init failed: $e');
+    }
+  }
+
+  /// رابط مشاركة بطاقة: الطبيب بمساره، والباقي عبر [openSharedCard].
+  Future<void> _openCardFromLink(GhadeerCardRef ref) async {
+    if (!mounted) return;
+    if (ref.kind == GhadeerCardKind.doctor) {
+      await _openDoctorById(ref.id, fromDeepLink: true);
+      return;
+    }
+    final opened = await openSharedCard(context, ref);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('هاي البطاقة غير متوفرة حالياً.')),
+      );
     }
   }
 
@@ -786,6 +803,16 @@ class _HomePageState extends State<HomePage> {
           MaterialPageRoute(
             builder: (_) => const ServiceCentersPage(
               kind: ServiceCenterKind.beauty,
+            ),
+          ),
+        );
+        return;
+      case 'nursing':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ServiceCentersPage(
+              kind: ServiceCenterKind.nursing,
             ),
           ),
         );
@@ -1317,6 +1344,21 @@ class AdminPage extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (context) => const ServiceCentersAdminPage(
                       kind: ServiceCenterKind.beauty,
+                    ),
+                  ),
+                );
+              },
+            ),
+            _adminTile(
+              icon: Icons.medical_services_outlined,
+              title: 'إدارة التمريض المنزلي',
+              subtitle: 'إضافة الممرضين والممرضات للزيارات المنزلية',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ServiceCentersAdminPage(
+                      kind: ServiceCenterKind.nursing,
                     ),
                   ),
                 );

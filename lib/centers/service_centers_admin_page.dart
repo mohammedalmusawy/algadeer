@@ -400,7 +400,11 @@ class _ServiceCenterFormPageState extends State<_ServiceCenterFormPage> {
         body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
-            _field(_name, 'اسم المركز'),
+            _field(
+              _name,
+              widget.kind.nameFieldLabel,
+              hint: widget.kind.nameFieldHint,
+            ),
             _field(_bio, 'نبذة', lines: 3),
             _field(_services, 'الخدمات، سطر لكل خدمة', lines: 4),
             _field(_hours, 'الدوام', lines: 2),
@@ -463,6 +467,7 @@ class _ServiceCenterFormPageState extends State<_ServiceCenterFormPage> {
     String label, {
     int lines = 1,
     TextInputType? type,
+    String hint = '',
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -476,6 +481,7 @@ class _ServiceCenterFormPageState extends State<_ServiceCenterFormPage> {
             : null,
         decoration: InputDecoration(
           labelText: label,
+          hintText: hint.isEmpty ? null : hint,
           border: const OutlineInputBorder(),
         ),
       ),

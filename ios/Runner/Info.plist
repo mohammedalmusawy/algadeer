@@ -69,6 +69,19 @@
 	<string>تُستخدم الكاميرا لتصوير صورة أو مرفق تضيفه للتطبيق.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>تُستخدم الصور لاختيار صورة أو مرفق تضيفه للتطبيق.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.mohammed.ghadeer.cards</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ghadeerclinic</string>
+			</array>
+		</dict>
+	</array>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tel</string>

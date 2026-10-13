@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../home/ghadeer_home_colors.dart';
@@ -12,6 +11,7 @@ import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_speak_button.dart';
 import 'physio_models.dart';
 import '../utils/contact_launch.dart';
+import '../utils/ghadeer_card_link.dart';
 
 /// تفاصيل مركز علاج طبيعي.
 class PhysioProfilePage extends StatefulWidget {
@@ -100,8 +100,14 @@ class _PhysioProfilePageState extends State<PhysioProfilePage> {
   }
 
   Future<void> _share() async {
-    await SharePlus.instance.share(
-      ShareParams(text: '${_v.name}\n${_v.address}\nهاتف: ${_v.phone}'),
+    await GhadeerCardLink.share(
+      kind: GhadeerCardKind.physio,
+      id: _v.id,
+      name: _v.name,
+      subtitle: [
+        'علاج طبيعي',
+        if (_v.address.trim().isNotEmpty) _v.address.trim(),
+      ].join(' · '),
     );
   }
 

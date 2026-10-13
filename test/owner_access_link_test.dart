@@ -64,4 +64,39 @@ void main() {
     await phone(tester, const PharmacyProfilePage(pharmacy: pharmacy));
     expectLockAtTop(tester);
   });
+
+  testWidgets('lock needs three quick taps; one or two do nothing', (
+    tester,
+  ) async {
+    var opened = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(child: OwnerAccess.faint(onTap: () => opened++)),
+        ),
+      ),
+    );
+    final lock = find.byKey(OwnerAccess.key);
+    await tester.tap(lock);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(opened, 0);
+    await tester.tap(lock);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(opened, 0);
+    await tester.tap(lock);
+    await tester.pump();
+    expect(opened, 1);
+    // نقرتين ثم توقف طويل ثم نقرة: ما تنحسب ثلاثة.
+    await tester.tap(lock);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(lock);
+    // الماكنة تستخدم ساعة حقيقية، فننتظر وقتاً حقيقياً.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 900)),
+    );
+    await tester.pump();
+    await tester.tap(lock);
+    await tester.pump();
+    expect(opened, 1);
+  });
 }

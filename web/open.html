@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0FAFA3">
+  <title>منصة الغدير</title>
+  <meta property="og:title" content="بطاقة من منصة الغدير">
+  <meta property="og:description" content="افتح البطاقة بتطبيق الغدير — أطباء، مختبرات، أشعة، صيدليات وخدمات الشطرة.">
+  <meta property="og:image" content="/icons/Icon-512.png">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <style>
+    :root {
+      --bg: #F4F8FA; --card: #FFFFFF; --ink: #0F2A3D; --muted: #5B6C70;
+      --teal: #0FAFA3; --navy: #003D82; --line: #E1ECEE;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0C1A20; --card: #13252C; --ink: #EAF4F6; --muted: #9DB2B8; --line: #22383F; }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: var(--bg); color: var(--ink);
+      font-family: -apple-system, "SF Arabic", "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+      padding: 16px;
+    }
+    .card {
+      width: 100%; max-width: 400px; background: var(--card); border-radius: 24px;
+      overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,.08); border: 1px solid var(--line);
+    }
+    .head {
+      background: linear-gradient(135deg, var(--teal), var(--navy));
+      color: #fff; text-align: center; padding: 28px 20px 22px;
+    }
+    .head img { width: 84px; height: 84px; border-radius: 22px; background: #fff; padding: 6px; }
+    .head h1 { margin: 12px 0 4px; font-size: 22px; }
+    .head p { margin: 0; opacity: .85; font-size: 14px; }
+    .body { padding: 20px; }
+    .kind { text-align: center; font-weight: 800; font-size: 17px; margin: 0 0 6px; }
+    .hint { text-align: center; color: var(--muted); font-size: 14px; line-height: 1.6; margin: 0 0 18px; }
+    a.btn {
+      display: block; text-align: center; text-decoration: none; font-weight: 800; font-size: 16px;
+      padding: 14px; border-radius: 14px; margin-bottom: 10px;
+    }
+    .primary { background: var(--teal); color: #fff; }
+    .secondary { border: 2px solid var(--teal); color: var(--teal); }
+    .soon { display: block; text-align: center; color: var(--muted); font-size: 13px; margin: -4px 0 10px; }
+    .web { display: block; text-align: center; color: var(--muted); font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="head">
+      <img src="/icons/Icon-192.png" alt="شعار الغدير">
+      <h1>منصة الغدير</h1>
+      <p>أطباء · مختبرات · أشعة · صيدليات · خدمات</p>
+    </div>
+    <div class="body">
+      <p class="kind" id="kind">بطاقة من منصة الغدير</p>
+      <p class="hint">حتى تشوف البطاقة كاملة وتتصل أو تراسل بضغطة، افتحها بتطبيق الغدير.</p>
+      <a class="btn primary" id="open" href="#">افتح بالتطبيق</a>
+      <a class="btn secondary" id="install" href="#">نزّل التطبيق</a>
+      <span class="soon" id="soon" hidden>تطبيق الآيفون قريباً على App Store</span>
+      <a class="web" id="web" href="/">عرض البطاقة بالمتصفح</a>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var PKG = 'com.mohammed.ghadeer';
+      var SCHEME = 'ghadeerclinic';
+      var PLAY = 'https://play.google.com/store/apps/details?id=' + PKG;
+      // حدّثه بعد نشر تطبيق الآيفون. الصفر يعني «بعد ما انتشر».
+      var APP_STORE = 'https://apps.apple.com/app/id000000000';
+      var NAMES = {
+        doctor: 'بطاقة طبيب', lab: 'بطاقة مختبر', radiology: 'بطاقة مركز أشعة',
+        pharmacy: 'بطاقة صيدلية', physio: 'بطاقة مركز علاج طبيعي',
+        supply: 'بطاقة تجهيزات طبية', center: 'بطاقة من خدمات الغدير'
+      };
+      var parts = location.pathname.split('/').filter(Boolean); // c, kind, id
+      var kind = parts[1] || '', id = parts[2] || '';
+      if (!/^[a-z]+$/.test(kind) || !NAMES[kind] || !id) { kind = ''; id = ''; }
+      var safeId = encodeURIComponent(decodeURIComponent(id));
+      var ua = navigator.userAgent || '';
+      var android = /Android/i.test(ua);
+      var ios = /iPhone|iPad|iPod/i.test(ua);
+
+      if (kind) document.getElementById('kind').textContent = NAMES[kind] + ' من منصة الغدير';
+
+      var appPath = kind ? kind + '/' + safeId : '';
+      var open = document.getElementById('open');
+      if (android) {
+        open.href = 'intent://' + appPath + '#Intent;scheme=' + SCHEME + ';package=' + PKG +
+          ';S.browser_fallback_url=' + encodeURIComponent(PLAY) + ';end';
+      } else {
+        open.href = SCHEME + '://' + appPath;
+      }
+
+      var install = document.getElementById('install');
+      var storeReady = APP_STORE.indexOf('id000000000') === -1;
+      if (ios && !storeReady) {
+        install.hidden = true;
+        document.getElementById('soon').hidden = false;
+      } else {
+        install.href = ios ? APP_STORE : PLAY;
+      }
+
+      document.getElementById('web').href = kind ? '/#/c/' + kind + '/' + safeId : '/';
+    })();
+  </script>
+</body>
+</html>

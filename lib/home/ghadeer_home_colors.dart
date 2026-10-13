@@ -34,6 +34,10 @@ class GhadeerHomeColors {
   static const opticsAccent = Color(0xFF3D6CB3);
   static const beautyBg = Color(0xFFF8EAF3);
   static const beautyAccent = Color(0xFFB85C8A);
+
+  /// التمريض المنزلي: نفس عائلة ألوان الأطباء (هوية طبية) بدرجة أهدأ.
+  static const nursingBg = Color(0xFFE6F6F4);
+  static const nursingAccent = Color(0xFF0E8F9A);
   /// أزرق غامق لعناوين الصيدليات (مثل الموكاب).
   static const pharmacyTitle = Color(0xFF003D82);
 }

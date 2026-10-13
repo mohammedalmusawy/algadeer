@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
 import '../doctors/doctor_card_gate.dart';
 import '../doctors/doctor_card_tap.dart';
-import '../home/ghadeer_home_colors.dart';
 import '../models/entity_social_links.dart';
 import '../utils/contact_launch.dart';
 import '../widgets/clinic_app_bar.dart';
 import '../widgets/entity_contact_actions.dart';
 import '../widgets/entity_optional_logo.dart';
-import 'service_center_kind.dart';
+import 'service_center_style.dart';
 import 'service_center_models.dart';
 import 'service_center_owner_editor_page.dart';
 import '../widgets/owner_access_link.dart';
+import '../utils/ghadeer_card_link.dart';
 
 /// بطاقة المركز بهوية قريبة من بطاقة الطبيب: صورة، اسم، وتفاصيل بلا حجز.
 class ServiceCenterProfilePage extends StatelessWidget {
@@ -40,20 +39,20 @@ class ServiceCenterProfilePage extends StatelessWidget {
   }
 
   Future<void> _share() async {
-    final lines = <String>[
-      center.name,
-      center.kind.sectionTitle,
-      if (center.address.trim().isNotEmpty) center.address.trim(),
-      if (center.phone.trim().isNotEmpty) center.phone.trim(),
-    ];
-    await SharePlus.instance.share(ShareParams(text: lines.join('\n')));
+    await GhadeerCardLink.share(
+      kind: GhadeerCardKind.center,
+      id: center.id,
+      name: center.name,
+      subtitle: [
+        center.kind.sectionTitle,
+        if (center.address.trim().isNotEmpty) center.address.trim(),
+      ].join(' · '),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final accent = center.kind == ServiceCenterKind.optics
-        ? GhadeerHomeColors.opticsAccent
-        : GhadeerHomeColors.beautyAccent;
+    final accent = center.kind.accent;
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -232,9 +231,7 @@ class _Hero extends StatelessWidget {
       color: const Color(0xFFE8F4FC),
       child: Center(
         child: Icon(
-          center.kind == ServiceCenterKind.optics
-              ? Icons.visibility_outlined
-              : Icons.spa_outlined,
+          center.kind.icon,
           size: 56,
           color: accent,
         ),

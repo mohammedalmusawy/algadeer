@@ -1,34 +1,27 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
+import '../utils/ghadeer_card_link.dart';
 
 /// مشاركة وQR لهوية المختبر — قالب واحد لكل المختبرات.
 class LabCardLinks {
-  static const String publicWebBase = 'https://ghadeer-clinic.web.app';
+  static const String publicWebBase = GhadeerCardLink.webBase;
 
-  static String forLab(String labId) {
-    if (kIsWeb) {
-      final origin = Uri.base.origin;
-      return '$origin/#/lab/$labId';
-    }
-    return '$publicWebBase/#/lab/$labId';
-  }
+  static String forLab(String labId) =>
+      GhadeerCardLink.url(GhadeerCardKind.lab, labId);
 
   static Future<void> shareLabCard({
     required String labId,
     required String labName,
   }) async {
-    final url = forLab(labId);
-    await SharePlus.instance.share(
-      ShareParams(
-        text: 'بطاقة $labName — عيادة الغدير\n$url',
-        subject: 'بطاقة $labName',
-      ),
+    await GhadeerCardLink.share(
+      kind: GhadeerCardKind.lab,
+      id: labId,
+      name: labName,
+      subtitle: 'مختبر — منصة الغدير',
     );
   }
 

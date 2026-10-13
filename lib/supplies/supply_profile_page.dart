@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../home/ghadeer_home_colors.dart';
@@ -12,6 +11,7 @@ import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_speak_button.dart';
 import 'supply_models.dart';
 import '../utils/contact_launch.dart';
+import '../utils/ghadeer_card_link.dart';
 
 /// تفاصيل محل مستلزمات وتجهيزات طبية.
 class SupplyProfilePage extends StatefulWidget {
@@ -100,8 +100,14 @@ class _SupplyProfilePageState extends State<SupplyProfilePage> {
   }
 
   Future<void> _share() async {
-    await SharePlus.instance.share(
-      ShareParams(text: '${_v.name}\n${_v.address}\nهاتف: ${_v.phone}'),
+    await GhadeerCardLink.share(
+      kind: GhadeerCardKind.supply,
+      id: _v.id,
+      name: _v.name,
+      subtitle: [
+        'تجهيزات طبية',
+        if (_v.address.trim().isNotEmpty) _v.address.trim(),
+      ].join(' · '),
     );
   }
 

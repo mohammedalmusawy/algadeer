@@ -60,7 +60,13 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type Role = "owner" | "admin";
-export type EntityType = "doctor" | "lab" | "pharmacy" | "optics" | "beauty";
+export type EntityType =
+  | "doctor"
+  | "lab"
+  | "pharmacy"
+  | "optics"
+  | "beauty"
+  | "nursing";
 export type AttemptKind = "password" | "activation";
 
 export const OWNER_PERMISSIONS: Record<EntityType, readonly string[]> = {
@@ -78,6 +84,7 @@ export const OWNER_PERMISSIONS: Record<EntityType, readonly string[]> = {
   ],
   optics: ["image", "bio", "services", "hours", "contacts", "location"],
   beauty: ["image", "bio", "services", "hours", "contacts", "location"],
+  nursing: ["image", "bio", "services", "hours", "contacts", "location"],
 };
 
 export type OwnerAccess = {
@@ -421,11 +428,16 @@ export async function readToken(
 
 export function isEntityType(value: string): value is EntityType {
   return value === "doctor" || value === "lab" || value === "pharmacy" ||
-    value === "optics" || value === "beauty";
+    value === "optics" || value === "beauty" || value === "nursing";
+}
+
+/** عوينات / تجميل / تمريض منزلي — كلها بجدول service_centers. */
+export function isServiceCenterType(type: EntityType): boolean {
+  return type === "optics" || type === "beauty" || type === "nursing";
 }
 
 export function isEntityId(type: EntityType, id: string): boolean {
-  if (type === "pharmacy" || type === "optics" || type === "beauty") {
+  if (type === "pharmacy" || isServiceCenterType(type)) {
     return /^[A-Za-z0-9_-]{1,64}$/.test(id);
   }
   return isUuid(id);
@@ -1183,7 +1195,7 @@ export async function handleDoctorCardAccess(
       if (revision == null) return conflict();
       return { status: 200, body: { ok: true, content_revision: revision } };
     }
-    if (target.type === "optics" || target.type === "beauty") {
+    if (isServiceCenterType(target.type)) {
       const patch = acceptCenterFields(fields, owner.access.permissions);
       if (!patch) return forbidden();
       const expected = expectedRevision(body);
@@ -1297,7 +1309,7 @@ export async function handleDoctorCardAccess(
         ? "labs"
         : target.type === "pharmacy"
         ? "pharmacies"
-        : target.type === "optics" || target.type === "beauty"
+        : isServiceCenterType(target.type)
         ? "service-centers"
         : "doctors";
       const folder = `${root}/${target.id}/logos`;
@@ -1312,7 +1324,7 @@ export async function handleDoctorCardAccess(
       ? `labs/${target.id}`
       : target.type === "pharmacy"
       ? `pharmacies/${target.id}`
-      : target.type === "optics" || target.type === "beauty"
+      : isServiceCenterType(target.type)
       ? `service-centers/${target.id}`
       : `doctors/${target.id}`;
     const path = `${folder}/${crypto.randomUUID()}.${image.ext}`;
@@ -1355,7 +1367,7 @@ export async function handleDoctorCardAccess(
         body: { ok: true, image_url: url, content_revision: expected + 1 },
       };
     }
-    if (target.type === "optics" || target.type === "beauty") {
+    if (isServiceCenterType(target.type)) {
       const published = await deps.saveServiceCenter(
         target.id,
         { imageUrl: url },

@@ -45,6 +45,14 @@ const ownerPermissionLabels = <String, Map<String, String>>{
     'contacts': 'الهاتف وواتساب',
     'location': 'العنوان والموقع',
   },
+  'nursing': {
+    'image': 'الصورة',
+    'bio': 'النبذة',
+    'services': 'الخدمات',
+    'hours': 'أوقات الزيارات',
+    'contacts': 'الهاتف وواتساب',
+    'location': 'المنطقة والعنوان',
+  },
 };
 
 /// السماح للمالك بالتعديل من محرر الإدارة. الرمز يظهر مرة واحدة هنا فقط.

@@ -8,6 +8,7 @@ import 'radiology_profile_page.dart';
 import 'radiology_service.dart';
 import 'widgets/radiology_card.dart';
 import '../ads/widgets/home_ad_slot.dart';
+import '../services/favorites_cloud.dart';
 
 /// واجهة الأشعة العامة — قائمة مراكز الأشعة.
 class RadiologyPage extends StatefulWidget {
@@ -35,7 +36,10 @@ class _RadiologyPageState extends State<RadiologyPage> {
 
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
-    final ids = prefs.getStringList(_favKey) ?? const [];
+    final ids = await FavoritesCloud.instance.merge(
+      _favKey,
+      prefs.getStringList(_favKey) ?? const [],
+    );
     if (!mounted) return;
     setState(() {
       _favoriteIds
@@ -54,6 +58,7 @@ class _RadiologyPageState extends State<RadiologyPage> {
       }
     });
     await prefs.setStringList(_favKey, _favoriteIds.toList());
+    await FavoritesCloud.instance.push(_favKey, _favoriteIds.toList());
   }
 
   Future<void> _load() async {

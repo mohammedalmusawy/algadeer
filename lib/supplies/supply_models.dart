@@ -20,6 +20,7 @@ class SupplyVendor {
     this.longitude,
     this.isActive = true,
     this.social = EntitySocialLinks.empty,
+    this.contentRevision = 0,
   });
 
   final String id;
@@ -40,6 +41,9 @@ class SupplyVendor {
   final bool isActive;
   final EntitySocialLinks social;
 
+  /// رقم نسخة الدليل المشترك (للحفظ المتفائل). 0 = غير منشور بعد.
+  final int contentRevision;
+
   SupplyVendor copyWith({
     String? name,
     String? address,
@@ -57,6 +61,7 @@ class SupplyVendor {
     double? longitude,
     bool? isActive,
     EntitySocialLinks? social,
+    int? contentRevision,
   }) {
     return SupplyVendor(
       id: id,
@@ -76,6 +81,7 @@ class SupplyVendor {
       longitude: longitude ?? this.longitude,
       isActive: isActive ?? this.isActive,
       social: social ?? this.social,
+      contentRevision: contentRevision ?? this.contentRevision,
     );
   }
 
@@ -120,6 +126,7 @@ class SupplyVendor {
         longitude: (m['longitude'] as num?)?.toDouble(),
         isActive: m['isActive'] != false,
         social: EntitySocialLinks.fromMap(m),
+        contentRevision: (m['contentRevision'] as num?)?.toInt() ?? 0,
       );
 }
 

@@ -20,6 +20,7 @@ class PhysioCenter {
     this.longitude,
     this.isActive = true,
     this.social = EntitySocialLinks.empty,
+    this.contentRevision = 0,
   });
 
   final String id;
@@ -40,6 +41,9 @@ class PhysioCenter {
   final bool isActive;
   final EntitySocialLinks social;
 
+  /// رقم نسخة الدليل المشترك (للحفظ المتفائل). 0 = غير منشور بعد.
+  final int contentRevision;
+
   PhysioCenter copyWith({
     String? name,
     String? address,
@@ -57,6 +61,7 @@ class PhysioCenter {
     double? longitude,
     bool? isActive,
     EntitySocialLinks? social,
+    int? contentRevision,
   }) {
     return PhysioCenter(
       id: id,
@@ -76,6 +81,7 @@ class PhysioCenter {
       longitude: longitude ?? this.longitude,
       isActive: isActive ?? this.isActive,
       social: social ?? this.social,
+      contentRevision: contentRevision ?? this.contentRevision,
     );
   }
 
@@ -118,6 +124,7 @@ class PhysioCenter {
         longitude: (m['longitude'] as num?)?.toDouble(),
         isActive: m['isActive'] != false,
         social: EntitySocialLinks.fromMap(m),
+        contentRevision: (m['contentRevision'] as num?)?.toInt() ?? 0,
       );
 }
 

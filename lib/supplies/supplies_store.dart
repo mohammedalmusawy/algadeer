@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/directory_shared_table.dart';
 import '../services/entity_logos_store.dart';
 import 'supply_models.dart';
 
@@ -16,6 +17,12 @@ class SuppliesStore {
 
   List<SupplyVendor> _items = List.of(SuppliesCatalog.items);
   bool _loaded = false;
+
+  /// الدليل المشترك على Supabase (تعديلات الإدارة والمالك لكل الأجهزة).
+  static const shared = DirectorySharedTable('supply_vendors');
+
+  /// آخر خطأ نشر للدليل المشترك (null = تمام).
+  Object? lastShareError;
 
   List<SupplyVendor> get items =>
       _items.where((p) => p.isActive).toList(growable: false);
@@ -59,7 +66,57 @@ class SuppliesStore {
       clearMissing:
           EntityLogosStore.instance.isKindLoaded(EntityLogosStore.supplies),
     );
+    // الدليل المشترك فوك نسخة الجهاز والكتالوج.
+    final rows = await shared.fetch();
+    if (rows != null) _items = _overlayShared(_items, rows);
     _loaded = true;
+  }
+
+  static List<SupplyVendor> _overlayShared(
+    List<SupplyVendor> base,
+    List<Map<String, dynamic>> rows,
+  ) {
+    final byId = {for (final v in base) v.id: v};
+    for (final row in rows) {
+      final id = row['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      final current = byId[id];
+      try {
+        byId[id] = SupplyVendor.fromMap(
+          DirectorySharedTable.mergeRow(current?.toMap() ?? const {}, row),
+        );
+      } catch (e) {
+        debugPrint('shared row $id skipped: $e');
+      }
+    }
+    return byId.values.toList();
+  }
+
+  /// ينشر كل بطاقات الجهاز للدليل المشترك (مرة وحدة بعد تطبيق SQL).
+  /// يرجع عدد اللي انتشرت.
+  Future<int> publishAll() async {
+    await load();
+    var done = 0;
+    lastShareError = null;
+    final next = <SupplyVendor>[];
+    for (final item in _items) {
+      try {
+        final rev = await shared.upsert(
+          id: item.id,
+          name: item.name,
+          isActive: item.isActive,
+          profile: item.toMap(),
+          contentRevision: item.contentRevision,
+        );
+        next.add(item.copyWith(contentRevision: rev));
+        done++;
+      } catch (e) {
+        lastShareError = e;
+        next.add(item);
+      }
+    }
+    await saveAll(next);
+    return done;
   }
 
   void invalidate() {
@@ -100,6 +157,22 @@ class SuppliesStore {
     } else {
       next.add(item);
     }
+    lastShareError = null;
+    try {
+      final rev = await shared.upsert(
+        id: item.id,
+        name: item.name,
+        isActive: item.isActive,
+        profile: item.toMap(),
+        contentRevision: item.contentRevision,
+      );
+      final i2 = next.indexWhere((p) => p.id == item.id);
+      if (i2 >= 0) next[i2] = item.copyWith(contentRevision: rev);
+    } catch (e) {
+      // بدون نت أو قبل تطبيق SQL: النسخة تبقى على الجهاز.
+      lastShareError = e;
+      debugPrint('shared publish failed: $e');
+    }
     await saveAll(next);
     try {
       await EntityLogosStore.instance.upsert(
@@ -120,6 +193,21 @@ class SuppliesStore {
         if (p.id == id) p.copyWith(isActive: active) else p,
     ];
     await saveAll(next);
+    // الإخفاء/الإظهار يوصل للكل إذا البطاقة منشورة.
+    for (final p in next) {
+      if (p.id != id) continue;
+      try {
+        await shared.upsert(
+          id: p.id,
+          name: p.name,
+          isActive: p.isActive,
+          profile: p.toMap(),
+          contentRevision: p.contentRevision,
+        );
+      } catch (e) {
+        lastShareError = e;
+      }
+    }
   }
 
   SupplyVendor? byId(String id) {

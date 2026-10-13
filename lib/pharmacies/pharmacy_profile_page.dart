@@ -22,6 +22,7 @@ import 'pharmacy_fit_image.dart';
 import 'pharmacy_models.dart';
 import '../utils/contact_launch.dart';
 import '../utils/ghadeer_card_link.dart';
+import '../services/favorites_cloud.dart';
 
 /// صفحة تفاصيل صيدلية — مواضع بصرية مطابقة للموكاب (موبايل أولاً).
 class PharmacyProfilePage extends StatefulWidget {
@@ -68,6 +69,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
       ids.add(_p.id);
     }
     await prefs.setStringList(PharmacyProfilePageFavorites.key, ids);
+    await FavoritesCloud.instance.push(PharmacyProfilePageFavorites.key, ids);
     if (!mounted) return;
     setState(() => _favorite = !_favorite);
   }

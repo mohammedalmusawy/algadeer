@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../doctors/doctor_card_password_admin_section.dart';
 import '../home/ghadeer_home_colors.dart';
 import '../models/entity_social_links.dart';
 import '../pharmacies/pharmacy_fit_image.dart';
@@ -66,6 +67,22 @@ class _PhysioAdminPageState extends State<PhysioAdminPage> {
     await _reload();
   }
 
+  Future<void> _publishAll() async {
+    final done = await PhysioStore.instance.publishAll();
+    if (!mounted) return;
+    final failed = PhysioStore.instance.lastShareError != null;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          failed
+              ? 'انتشر $done فقط. تأكد من النت ومن تطبيق ملف SQL الجديد.'
+              : 'انتشرت كل المراكز ($done) للدليل المشترك.',
+        ),
+      ),
+    );
+    await _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -91,13 +108,25 @@ class _PhysioAdminPageState extends State<PhysioAdminPage> {
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, i) {
                   if (i == 0) {
-                    return const Text(
-                      'المحتوى يُحفظ على هذا الجهاز. الشعار يُحفظ مشتركًا لكل المستخدمين بعد تنفيذ entity_logos.',
-                      style: TextStyle(
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'التعديلات تنحفظ بالدليل المشترك وتوصل لكل المستخدمين. إذا البطاقات قديمة على جهاز الإدارة فقط، اضغط «نشر للدليل المشترك» مرة وحدة.',
+                          style: TextStyle(
                         color: GhadeerHomeColors.muted,
                         fontWeight: FontWeight.w600,
                         height: 1.35,
                       ),
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          key: const Key('directory-publish-all'),
+                          onPressed: _publishAll,
+                          icon: const Icon(Icons.cloud_upload_outlined),
+                          label: const Text('نشر للدليل المشترك'),
+                        ),
+                      ],
                     );
                   }
                   final p = _items[i - 1];
@@ -281,6 +310,7 @@ class _PhysioEditPageState extends State<_PhysioEditPage> {
       latitude: double.tryParse(_lat.text.trim()),
       longitude: double.tryParse(_lng.text.trim()),
       isActive: _active,
+      contentRevision: widget.initial?.contentRevision ?? 0,
       social: EntitySocialLinks(
         website: _website.text.trim(),
         instagram: _instagram.text.trim(),
@@ -381,6 +411,14 @@ class _PhysioEditPageState extends State<_PhysioEditPage> {
                   value: _active,
                   onChanged: (v) => setState(() => _active = v),
                 ),
+                if (widget.initial != null &&
+                    widget.initial!.id.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  EntityOwnerAdminPanel(
+                    entityType: 'physio',
+                    entityId: widget.initial!.id,
+                  ),
+                ],
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: _save,

@@ -25,6 +25,7 @@ import 'labs_service.dart';
 import 'widgets/lab_network_or_asset_image.dart';
 import 'widgets/lab_package_strip.dart';
 import '../widgets/owner_access_link.dart';
+import '../services/favorites_cloud.dart';
 
 /// بطاقة المختبر الرقمية — قالب Premium واحد لكل المختبرات من Supabase.
 class LabProfilePage extends StatefulWidget {
@@ -208,6 +209,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
       ids.add(_lab.id);
     }
     await prefs.setStringList(_favKey, ids);
+    await FavoritesCloud.instance.push(_favKey, ids);
     if (!mounted) return;
     setState(() => _favorite = !_favorite);
   }

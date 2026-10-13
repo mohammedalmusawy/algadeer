@@ -58,6 +58,7 @@ import 'services/admin_launch_session.dart';
 import 'services/admin_password_change_page.dart';
 import 'services/dynamic_message_admin_page.dart';
 import 'services/dynamic_message_service.dart';
+import 'services/favorites_cloud.dart';
 import 'utils/card_link_router.dart';
 import 'utils/ghadeer_card_link.dart';
 import 'utils/responsive.dart';
@@ -480,11 +481,25 @@ class _HomePageState extends State<HomePage> {
         ..clear()
         ..addAll(savedIds);
     });
+
+    // إذا مسجّل دخول: المفضلة من الحساب ترجع حتى بعد مسح التطبيق.
+    final merged =
+        await FavoritesCloud.instance.merge(FavoriteKeys.doctors, savedIds);
+    if (!mounted || merged.length == savedIds.length) return;
+    setState(() {
+      favoriteDoctorIds
+        ..clear()
+        ..addAll(merged);
+    });
   }
 
   Future<void> _saveFavorites() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('favoriteDoctorIds', favoriteDoctorIds.toList());
+    await FavoritesCloud.instance.push(
+      FavoriteKeys.doctors,
+      favoriteDoctorIds.toList(),
+    );
   }
 
   void _toggleFavorite(String doctorId) {
@@ -3506,7 +3521,19 @@ class _FavoritesPageState extends State<FavoritesPage> {
           backgroundColor: const Color(0xFF0FAFA3),
           foregroundColor: Colors.white,
         ),
-        body: favoriteDoctors.isEmpty
+        body: Column(
+          children: [
+            if (!FavoritesCloud.instance.isSignedIn)
+              const _FavoritesSignInHint(),
+            Expanded(child: _favoritesBody()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _favoritesBody() {
+    return favoriteDoctors.isEmpty
             ? const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -3540,7 +3567,36 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     onOpenProfile: () => widget.onOpenDoctorProfile(doctor),
                   );
                 },
-              ),
+              );
+  }
+}
+
+/// تنبيه صغير: المفضلة تبقى على الجهاز فقط إلا إذا سجّل دخول.
+class _FavoritesSignInHint extends StatelessWidget {
+  const _FavoritesSignInHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('favorites-sign-in-hint'),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF7F6),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.cloud_outlined, color: Color(0xFF0B7F78)),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'سجّل دخولك من «حسابي» حتى تنحفظ مفضلتك بحسابك وما تضيع إذا بدّلت الموبايل.',
+              style: TextStyle(height: 1.4, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -13,6 +13,10 @@ import 'radiology_default_images.dart';
 import 'radiology_service.dart';
 import 'widgets/radiology_network_or_asset_image.dart';
 import '../utils/ghadeer_card_link.dart';
+import '../doctors/doctor_card_gate.dart';
+import '../widgets/directory_owner_editor_page.dart';
+import '../widgets/owner_access_link.dart';
+import '../services/favorites_cloud.dart';
 
 /// هوية مركز الأشعة — نفس هيكل هوية المختبر مع تمييز الأشعة.
 class RadiologyProfilePage extends StatefulWidget {
@@ -61,8 +65,42 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
       ids.add(_center.id);
     }
     await prefs.setStringList(_favKey, ids);
+    await FavoritesCloud.instance.push(_favKey, ids);
     if (!mounted) return;
     setState(() => _favorite = !_favorite);
+  }
+
+  /// قفل صاحب المركز (3 نقرات): يعدّل حقوله فقط عبر Edge Function.
+  Future<void> _openOwner() async {
+    final session = await showEntityOwnerSession(
+      context,
+      entityType: 'radiology',
+      entityId: _center.id,
+      title: _center.name,
+    );
+    if (session == null || !mounted) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => DirectoryOwnerEditorPage(
+          session: session,
+          card: OwnerCardData(
+            id: _center.id,
+            name: _center.name,
+            contentRevision: _center.contentRevision,
+            logoFolder: 'radiology',
+            bio: _center.description,
+            supportsServices: false,
+            hours: _center.workingHours,
+            phone: _center.phone,
+            whatsapp: _center.whatsapp,
+            address: _center.address,
+            mapUrl: _center.mapUrl,
+            logoUrl: _center.logoUrl,
+          ),
+        ),
+      ),
+    );
+    if (saved == true && mounted) await _load();
   }
 
   Future<void> _load() async {
@@ -302,6 +340,11 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
                             ].join(' · '),
                           ),
                         ),
+                      ),
+                      Positioned(
+                        top: 10 + (38 + 8) * 2,
+                        right: 10,
+                        child: OwnerAccess.faint(onTap: _openOwner),
                       ),
                       Positioned(
                         top: 10 + 38 + 8,

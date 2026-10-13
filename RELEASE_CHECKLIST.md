@@ -319,3 +319,12 @@
   - الدماغ الصوتي ما يعرف التمريض بعد (خطوة لاحقة).
 - تذكير القياس اليومي (flutter_local_notifications): لحد 3 أوقات لكل مرض، محلي، نص الإشعار ما يذكر المرض.
 - اختبارات: owner_access_link_test, ghadeer_card_link_test, home_nursing_section_test, follow_up_reminders_test.
+
+## دفعة 2026-10-13 (3): قفل المالك بكل الأقسام + المفضلة بالحساب
+
+- قفل المالك (3 نقرات) للأشعة والعلاج الطبيعي والتجهيزات: `DirectoryOwnerEditorPage`، ودالة `doctor-card-access` (radiology/physio/supply).
+- العلاج الطبيعي والتجهيزات بالدليل المشترك (`physio_centers`، `supply_vendors`) + زر «نشر للدليل المشترك» بالإدارة.
+- المفضلة بحساب المستخدم (`user_favorites`) + تنبيه تسجيل الدخول بصفحة «أطبائي».
+- تنصيب الآيفون صار يحدّث بدون مسح البيانات (`flutter run --release --no-resident`).
+- SQL مطبّق: `owner_access_radiology_physio_supplies.sql`، `user_favorites_schema.sql`. الدالة منشورة.
+- اختبارات: owner_access_directory_test, favorites_cloud_test, policy_test (Deno: ما انشغل).

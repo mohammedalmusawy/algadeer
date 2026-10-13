@@ -69,6 +69,7 @@ function memoryDeps(options?: {
   const packages = new Map<string, Record<string, unknown>>();
   const pharmacies = new Map<string, Record<string, unknown>>();
   const centers = new Map<string, Record<string, unknown>>();
+  const directory = new Map<string, Record<string, unknown>>();
   const uploads: string[] = [];
   let adminChecks = 0;
   const now = options?.now ?? 1_700_000_000_000;
@@ -176,6 +177,15 @@ function memoryDeps(options?: {
       centers.set(id, { ...prev, ...patch, content_revision: next });
       return Promise.resolve("ok");
     },
+    saveDirectoryEntity: (type, id, patch, expected) => {
+      const key = `${type}:${id}`;
+      const prev = directory.get(key);
+      if (!prev) return Promise.resolve("missing");
+      const next = bump(`dir:${key}`, expected);
+      if (next == null) return Promise.resolve("conflict");
+      directory.set(key, { ...prev, ...patch, content_revision: next });
+      return Promise.resolve("ok");
+    },
     uploadImage: (path) => {
       uploads.push(path);
       return Promise.resolve(`https://cdn.example/clinic-media/${path}`);
@@ -194,6 +204,7 @@ function memoryDeps(options?: {
     packages,
     pharmacies,
     centers,
+    directory,
     uploads,
     hashes,
     access,
@@ -1720,4 +1731,129 @@ Deno.test("logo upload does not replace the portrait and needs image permission"
     null,
   );
   assertEquals(other.status, 403);
+});
+
+Deno.test("radiology, physio and supply owners edit only their own card", async () => {
+  const box = memoryDeps({ adminJwt: true });
+  const radiologyId = "11111111-2222-4333-8444-555555555555";
+  box.directory.set(`radiology:${radiologyId}`, { bio: "قبل", content_revision: 1 });
+  box.directory.set("physio:physio_shatra", { bio: "قبل", content_revision: 1 });
+  box.directory.set("supply:medequip_shatra", { bio: "قبل", content_revision: 1 });
+
+  async function ownerToken(type: string, id: string, perms: string[], ip: string) {
+    const issued = await handleDoctorCardAccess(
+      { action: "admin_configure", entity_type: type, entity_id: id, enabled: true, permissions: perms },
+      box.deps,
+      ip,
+      "Bearer admin",
+    );
+    const verify = await handleDoctorCardAccess(
+      { action: "verify_code", entity_type: type, entity_id: id, code: String(issued.body.activation_code) },
+      box.deps,
+      ip,
+      null,
+    );
+    const done = await handleDoctorCardAccess(
+      {
+        action: "complete_activation",
+        entity_type: type,
+        entity_id: id,
+        token: String(verify.body.activation_token),
+        new_password: `${type}-owner-1`,
+      },
+      box.deps,
+      ip,
+      null,
+    );
+    return String(done.body.token);
+  }
+
+  const visitor = await handleDoctorCardAccess(
+    { action: "update", base_revision: 1, entity_type: "physio", entity_id: "physio_shatra", fields: { bio: "زائر" } },
+    box.deps,
+    "10.31.0.1",
+    null,
+  );
+  assertEquals(visitor.status, 403);
+
+  const physioToken = await ownerToken("physio", "physio_shatra", ["bio", "services", "hours"], "10.31.0.2");
+  const physioSaved = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      entity_type: "physio",
+      entity_id: "physio_shatra",
+      token: physioToken,
+      fields: { bio: "بعد", services: ["تأهيل"], hours: "4 - 9" },
+    },
+    box.deps,
+    "10.31.0.2",
+    null,
+  );
+  assertEquals(physioSaved.status, 200);
+  assertEquals(box.directory.get("physio:physio_shatra")?.bio, "بعد");
+
+  // نفس الجلسة ما تعدّل التجهيزات.
+  const crossed = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      entity_type: "supply",
+      entity_id: "medequip_shatra",
+      token: physioToken,
+      fields: { bio: "تعدي" },
+    },
+    box.deps,
+    "10.31.0.3",
+    null,
+  );
+  assertEquals(crossed.status, 403);
+  assertEquals(box.directory.get("supply:medequip_shatra")?.bio, "قبل");
+
+  // صلاحية غير ممنوحة (الأرقام) مرفوضة.
+  const noContacts = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 2,
+      entity_type: "physio",
+      entity_id: "physio_shatra",
+      token: physioToken,
+      fields: { phone: "0770" },
+    },
+    box.deps,
+    "10.31.0.2",
+    null,
+  );
+  assertEquals(noContacts.status, 403);
+
+  const radToken = await ownerToken("radiology", radiologyId, ["bio", "hours", "location"], "10.31.0.4");
+  const radServices = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      entity_type: "radiology",
+      entity_id: radiologyId,
+      token: radToken,
+      fields: { latitude: 31.4 },
+    },
+    box.deps,
+    "10.31.0.4",
+    null,
+  );
+  assertEquals(radServices.status, 403);
+  const radSaved = await handleDoctorCardAccess(
+    {
+      action: "update",
+      base_revision: 1,
+      entity_type: "radiology",
+      entity_id: radiologyId,
+      token: radToken,
+      fields: { bio: "مركز أشعة", hours: "٨ صباحاً - ٨ مساءً" },
+    },
+    box.deps,
+    "10.31.0.4",
+    null,
+  );
+  assertEquals(radSaved.status, 200);
+  assertEquals(box.directory.get(`radiology:${radiologyId}`)?.bio, "مركز أشعة");
 });

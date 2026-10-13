@@ -66,7 +66,10 @@ export type EntityType =
   | "pharmacy"
   | "optics"
   | "beauty"
-  | "nursing";
+  | "nursing"
+  | "radiology"
+  | "physio"
+  | "supply";
 export type AttemptKind = "password" | "activation";
 
 export const OWNER_PERMISSIONS: Record<EntityType, readonly string[]> = {
@@ -85,6 +88,9 @@ export const OWNER_PERMISSIONS: Record<EntityType, readonly string[]> = {
   optics: ["image", "bio", "services", "hours", "contacts", "location"],
   beauty: ["image", "bio", "services", "hours", "contacts", "location"],
   nursing: ["image", "bio", "services", "hours", "contacts", "location"],
+  radiology: ["image", "bio", "hours", "contacts", "location"],
+  physio: ["image", "bio", "services", "hours", "contacts", "location"],
+  supply: ["image", "bio", "services", "hours", "contacts", "location"],
 };
 
 export type OwnerAccess = {
@@ -192,6 +198,13 @@ export type CardDeps = {
   ): Promise<"ok" | "missing" | "conflict" | "forbidden">;
   saveServiceCenter(
     centerId: string,
+    patch: Record<string, unknown>,
+    expectedRevision: number,
+  ): Promise<"ok" | "missing" | "conflict" | "forbidden">;
+  /** الأشعة والعلاج الطبيعي والتجهيزات: نفس حقول المراكز، جدول لكل قسم. */
+  saveDirectoryEntity(
+    type: "radiology" | "physio" | "supply",
+    id: string,
     patch: Record<string, unknown>,
     expectedRevision: number,
   ): Promise<"ok" | "missing" | "conflict" | "forbidden">;
@@ -428,7 +441,8 @@ export async function readToken(
 
 export function isEntityType(value: string): value is EntityType {
   return value === "doctor" || value === "lab" || value === "pharmacy" ||
-    value === "optics" || value === "beauty" || value === "nursing";
+    value === "optics" || value === "beauty" || value === "nursing" ||
+    value === "radiology" || value === "physio" || value === "supply";
 }
 
 /** عوينات / تجميل / تمريض منزلي — كلها بجدول service_centers. */
@@ -436,7 +450,22 @@ export function isServiceCenterType(type: EntityType): boolean {
   return type === "optics" || type === "beauty" || type === "nursing";
 }
 
+/** أقسام الدليل اللي يعدّلها المالك بحقول المراكز وتنحفظ بجدولها. */
+export function isDirectoryType(
+  type: EntityType,
+): type is "radiology" | "physio" | "supply" {
+  return type === "radiology" || type === "physio" || type === "supply";
+}
+
+/** مجلد الصور لكل قسم بـ clinic-media. */
+export function directoryImageRoot(type: "radiology" | "physio" | "supply"): string {
+  return type === "radiology" ? "radiology" : type === "physio" ? "physio" : "supplies";
+}
+
 export function isEntityId(type: EntityType, id: string): boolean {
+  if (type === "physio" || type === "supply") {
+    return /^[A-Za-z0-9_-]{1,64}$/.test(id);
+  }
   if (type === "pharmacy" || isServiceCenterType(type)) {
     return /^[A-Za-z0-9_-]{1,64}$/.test(id);
   }
@@ -1195,6 +1224,37 @@ export async function handleDoctorCardAccess(
       if (revision == null) return conflict();
       return { status: 200, body: { ok: true, content_revision: revision } };
     }
+    if (isDirectoryType(target.type)) {
+      const patch = acceptCenterFields(fields, owner.access.permissions);
+      if (!patch) return forbidden();
+      if (
+        target.type === "radiology" &&
+        ("latitude" in patch || "longitude" in patch || "services" in patch)
+      ) {
+        return forbidden();
+      }
+      const expected = expectedRevision(body);
+      if (typeof expected !== "number") return expected;
+      const published = await deps.saveDirectoryEntity(
+        target.type,
+        target.id,
+        patch,
+        expected,
+      );
+      if (published === "missing") {
+        return {
+          status: 409,
+          body: {
+            ok: false,
+            code: "unpublished",
+            error: "هذي البطاقة غير منشورة في الدليل المشترك بعد. راجع الإدارة.",
+          },
+        };
+      }
+      if (published === "forbidden") return forbidden();
+      if (published === "conflict") return conflict();
+      return { status: 200, body: { ok: true, content_revision: expected + 1 } };
+    }
     if (isServiceCenterType(target.type)) {
       const patch = acceptCenterFields(fields, owner.access.permissions);
       if (!patch) return forbidden();
@@ -1311,6 +1371,8 @@ export async function handleDoctorCardAccess(
         ? "pharmacies"
         : isServiceCenterType(target.type)
         ? "service-centers"
+        : isDirectoryType(target.type)
+        ? directoryImageRoot(target.type)
         : "doctors";
       const folder = `${root}/${target.id}/logos`;
       const path = `${folder}/${crypto.randomUUID()}.${image.ext}`;
@@ -1326,6 +1388,8 @@ export async function handleDoctorCardAccess(
       ? `pharmacies/${target.id}`
       : isServiceCenterType(target.type)
       ? `service-centers/${target.id}`
+      : isDirectoryType(target.type)
+      ? `${directoryImageRoot(target.type)}/${target.id}`
       : `doctors/${target.id}`;
     const path = `${folder}/${crypto.randomUUID()}.${image.ext}`;
     if (!path.startsWith(`${folder}/`)) return badImage();
@@ -1357,6 +1421,30 @@ export async function handleDoctorCardAccess(
             ok: false,
             code: "unpublished",
             error: "الكتالوج المشترك لهذه الصيدلية غير منشور بعد. راجع الإدارة.",
+          },
+        };
+      }
+      if (published === "forbidden") return forbidden();
+      if (published === "conflict") return conflict();
+      return {
+        status: 200,
+        body: { ok: true, image_url: url, content_revision: expected + 1 },
+      };
+    }
+    if (isDirectoryType(target.type)) {
+      const published = await deps.saveDirectoryEntity(
+        target.type,
+        target.id,
+        { imageUrl: url },
+        expected,
+      );
+      if (published === "missing") {
+        return {
+          status: 409,
+          body: {
+            ok: false,
+            code: "unpublished",
+            error: "هذي البطاقة غير منشورة في الدليل المشترك بعد. راجع الإدارة.",
           },
         };
       }

@@ -13,6 +13,7 @@ import '../../widgets/entity_social_sheet.dart';
 import '../radiology_default_images.dart';
 import '../radiology_service.dart';
 import '../widgets/radiology_network_or_asset_image.dart';
+import '../../doctors/doctor_card_password_admin_section.dart';
 
 class RadiologyFormPage extends StatefulWidget {
   const RadiologyFormPage({super.key, this.center});
@@ -401,6 +402,14 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
                 value: _isFeatured,
                 onChanged: (v) => setState(() => _isFeatured = v),
               ),
+              if (widget.center != null &&
+                  widget.center!.id.trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                EntityOwnerAdminPanel(
+                  entityType: 'radiology',
+                  entityId: widget.center!.id,
+                ),
+              ],
               const SizedBox(height: 12),
               SizedBox(
                 height: 50,

@@ -12,6 +12,10 @@ import '../widgets/entity_speak_button.dart';
 import 'physio_models.dart';
 import '../utils/contact_launch.dart';
 import '../utils/ghadeer_card_link.dart';
+import '../doctors/doctor_card_gate.dart';
+import '../widgets/directory_owner_editor_page.dart';
+import '../widgets/owner_access_link.dart';
+import 'physio_store.dart';
 
 /// تفاصيل مركز علاج طبيعي.
 class PhysioProfilePage extends StatefulWidget {
@@ -52,6 +56,45 @@ class _PhysioProfilePageState extends State<PhysioProfilePage> {
         isOpenNow: _v.isOpenNow,
         tags: _v.services,
       );
+
+  /// قفل صاحب البطاقة (3 نقرات): يعدّل حقوله فقط عبر Edge Function.
+  Future<void> _openOwner() async {
+    final session = await showEntityOwnerSession(
+      context,
+      entityType: 'physio',
+      entityId: _v.id,
+      title: _v.name,
+    );
+    if (session == null || !mounted) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => DirectoryOwnerEditorPage(
+          session: session,
+          card: OwnerCardData(
+            id: _v.id,
+            name: _v.name,
+            contentRevision: _v.contentRevision,
+            logoFolder: 'physio',
+            bio: _v.description,
+            services: _v.services,
+            servicesLabel: 'الخدمات، سطر لكل خدمة',
+            openFrom: _v.openFrom,
+            openTo: _v.openTo,
+            splitHours: true,
+            phone: _v.phone,
+            whatsapp: _v.whatsapp,
+            address: _v.address,
+            supportsMapUrl: false,
+            logoUrl: _v.logoUrl,
+          ),
+        ),
+      ),
+    );
+    if (saved != true || !mounted) return;
+    await PhysioStore.instance.reload();
+    final fresh = PhysioStore.instance.byId(_v.id);
+    if (fresh != null && mounted) setState(() => _v = fresh);
+  }
 
   Future<void> _toggleSpeech() async {
     if (_voice.isSpeaking || _speechBusy) {
@@ -139,6 +182,7 @@ class _PhysioProfilePageState extends State<PhysioProfilePage> {
                         style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
+                    OwnerAccess.faint(onTap: _openOwner),
                     IconButton(
                       onPressed: _share,
                       icon: const Icon(Icons.share_outlined),

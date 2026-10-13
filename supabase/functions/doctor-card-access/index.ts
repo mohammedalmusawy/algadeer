@@ -361,6 +361,93 @@ function buildDeps(): CardDeps | null {
       const updated = await res.json();
       return Array.isArray(updated) && updated.length === 1 ? "ok" : "conflict";
     },
+    saveDirectoryEntity: async (type, id, patch, expectedRevision) => {
+      if (type === "radiology") {
+        // أعمدة جدول الأشعة بدل profile.
+        const columns: Record<string, string> = {
+          imageUrl: "image_url",
+          logoUrl: "logo_url",
+          bio: "description",
+          hours: "working_hours",
+          phone: "phone",
+          whatsapp: "whatsapp",
+          address: "address",
+          mapUrl: "map_url",
+        };
+        const row: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(patch)) {
+          const column = columns[key];
+          if (!column) return "forbidden";
+          row[column] = key === "logoUrl" && value === "" ? null : value;
+        }
+        const res = await rest(
+          `/rest/v1/radiology_centers?id=eq.${encodeURIComponent(id)}&content_revision=eq.${expectedRevision}`,
+          {
+            method: "PATCH",
+            headers: restHeaders(serviceKey, {
+              "Content-Type": "application/json",
+              Prefer: "return=representation",
+            }),
+            body: JSON.stringify({ ...row, content_revision: expectedRevision + 1 }),
+          },
+        );
+        if (!res.ok) throw new Error("radiology publish failed");
+        const updated = await res.json();
+        if (Array.isArray(updated) && updated.length === 1) return "ok";
+        const exists = await rest(
+          `/rest/v1/radiology_centers?id=eq.${encodeURIComponent(id)}&select=id`,
+          { headers: restHeaders(serviceKey) },
+        );
+        const found = exists.ok ? await exists.json() : [];
+        return Array.isArray(found) && found.length === 1 ? "conflict" : "missing";
+      }
+      const table = type === "physio" ? "physio_centers" : "supply_vendors";
+      const current = await rest(
+        `/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=profile,content_revision`,
+        { headers: restHeaders(serviceKey) },
+      );
+      if (!current.ok) throw new Error(`${table} read failed`);
+      const rows = await current.json();
+      if (!Array.isArray(rows) || rows.length !== 1) return "missing";
+      const currentRevision = Number(rows[0]?.content_revision ?? 1) || 1;
+      if (currentRevision !== expectedRevision) return "conflict";
+      const prev = rows[0]?.profile && typeof rows[0].profile === "object"
+        ? rows[0].profile
+        : {};
+      // حقول المراكز → أسماء نموذج التطبيق.
+      const mapped: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        if (key === "bio") mapped.description = value;
+        else if (key === "services") {
+          mapped[type === "physio" ? "services" : "categories"] = value;
+        } else if (key === "hours") {
+          const text = String(value ?? "");
+          const parts = text.split(/\s+[-–]\s+/);
+          mapped.openFrom = parts[0] ?? "";
+          mapped.openTo = parts.length > 1 ? parts.slice(1).join(" - ") : "";
+        } else if (key === "mapUrl") mapped.mapUrl = value;
+        else mapped[key] = value;
+      }
+      const profile = { ...prev, ...mapped, id };
+      const res = await rest(
+        `/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&content_revision=eq.${expectedRevision}`,
+        {
+          method: "PATCH",
+          headers: restHeaders(serviceKey, {
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          }),
+          body: JSON.stringify({
+            profile,
+            content_revision: expectedRevision + 1,
+            updated_at: new Date().toISOString(),
+          }),
+        },
+      );
+      if (!res.ok) throw new Error(`${table} publish failed`);
+      const updated = await res.json();
+      return Array.isArray(updated) && updated.length === 1 ? "ok" : "conflict";
+    },
     uploadImage: async (path, bytes, contentType) => {
       const payload = new Uint8Array(bytes.byteLength);
       payload.set(bytes);

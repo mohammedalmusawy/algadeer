@@ -11,6 +11,7 @@ import 'lab_profile_page.dart';
 import 'labs_service.dart';
 import 'widgets/lab_card.dart';
 import '../ads/widgets/home_ad_slot.dart';
+import '../services/favorites_cloud.dart';
 
 /// واجهة المختبرات: رئيسية · مختبراتي · المزيد (مثل تنظيم واجهة الأطباء).
 class LabsPage extends StatefulWidget {
@@ -39,7 +40,10 @@ class _LabsPageState extends State<LabsPage> {
 
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
-    final ids = prefs.getStringList(_favKey) ?? const [];
+    final ids = await FavoritesCloud.instance.merge(
+      _favKey,
+      prefs.getStringList(_favKey) ?? const [],
+    );
     if (!mounted) return;
     setState(() {
       _favoriteIds
@@ -58,6 +62,7 @@ class _LabsPageState extends State<LabsPage> {
       }
     });
     await prefs.setStringList(_favKey, _favoriteIds.toList());
+    await FavoritesCloud.instance.push(_favKey, _favoriteIds.toList());
   }
 
   Future<void> _load() async {

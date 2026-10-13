@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../doctors/doctor_card_links.dart';
 import '../services/admin_password_change_page.dart';
+import '../services/favorites_cloud.dart';
 
 enum PatientAuthStatus { signedIn, confirmationPending, resetRequested, failed }
 
@@ -180,6 +181,8 @@ class SupabasePatientAuthApi implements PatientAuthApi {
           patientAdminEmailRejectedMessage,
         );
       }
+      // المفضلة المحفوظة بالحساب ترجع وتندمج ويا اللي على الجهاز.
+      await FavoritesCloud.instance.syncAll();
       return const PatientAuthResult(PatientAuthStatus.signedIn, 'تم الدخول.');
     } on AuthException catch (error) {
       return PatientAuthResult(

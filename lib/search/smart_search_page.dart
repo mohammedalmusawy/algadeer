@@ -179,7 +179,11 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     );
     WidgetsBinding.instance.addObserver(this);
     final stt = DeviceSpeechRecognitionService();
-    _voiceInput = VoiceInputService(stt: stt);
+    _voiceInput = VoiceInputService(
+      stt: stt,
+      // جملة مكتملة → ثانيتين صمت بدل 3.8 (أسرع جواب بالمايك).
+      completeUtteranceSilence: const Duration(milliseconds: 2000),
+    );
     _voiceInput.addListener(_onVoiceInputChanged);
     _voice = VoiceResponseController(settings: _voiceSettings);
     _assistant = AssistantOrchestrator(
@@ -231,6 +235,11 @@ class _SmartSearchPageState extends State<SmartSearchPage>
       if (!mounted) return;
       // Prefetch doctors cache حتى أول حرف يبحث محليًا بدون انتظار.
       unawaited(_search.prefetchDoctorsCache());
+      // تسخين بقية الأقسام بالتوازي حتى أول سؤال ما ينتظر تحميلها.
+      unawaited(PharmaciesStore.instance.load());
+      unawaited(PhysioStore.instance.load());
+      unawaited(SuppliesStore.instance.load());
+      unawaited(ServiceCentersStore.instance.load());
       // تهيئة صامتة مرة واحدة حتى تكون الضغطة الأولى = listen مباشرة.
       _speechWarmUp = _warmUpSpeechRecognition();
       unawaited(_speechWarmUp!);
@@ -564,9 +573,15 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     }
 
     // Phase 2 Step 4: مسار نية موحّد (نص = صوت) ثم تخطيط فعل آمن.
+    final planWatch = Stopwatch()..start();
     final plan = await _brainPlanner.plan(
       query: trimmed,
       context: _conversation,
+    );
+    // قياس سرعة العقل لكل سؤال (يظهر بسجل التطبيق).
+    debugPrint(
+      '[BRAIN_TIMING] ${planWatch.elapsedMilliseconds}ms '
+      'kind=${plan.kind.name} query="$trimmed"',
     );
     _lastPlan = plan;
     _lastModifiers = plan.modifiers;
@@ -1440,7 +1455,15 @@ class _SmartSearchPageState extends State<SmartSearchPage>
 
     try {
       final needle = command.resolvedSpecialtyName;
-      final results = await _search.search(needle, limit: 24);
+      // الأطباء من الذاكرة أولاً (فوري)؛ البحث الكامل بالسيرفر فقط إن لم نجد.
+      var results = await _search.search(needle, limit: 24, doctorsOnly: true);
+      if (_doctorsForSpecialty(
+        results,
+        specialtyQuery: command.specialtyQuery,
+        resolvedName: command.resolvedSpecialtyName,
+      ).isEmpty) {
+        results = await _search.search(needle, limit: 24);
+      }
       if (!mounted || epoch != _searchEpoch) return;
 
       final doctors = SearchRefiner.apply(

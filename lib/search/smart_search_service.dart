@@ -30,6 +30,7 @@ class SmartSearchService {
 
   /// يفرض إعادة جلب الأطباء من السيرفر في المرة القادمة.
   void invalidateDoctorsCache() {
+    _searchMemo.clear();
     _doctorsCache = null;
     _doctorsCacheAt = null;
     _doctorsLoadFuture = null;
@@ -173,9 +174,48 @@ class SmartSearchService {
     }
   }
 
+  /// ذاكرة قصيرة لنفس البحث: العقل كان يعيد نفس البحث الكامل 3 مرات بالدور
+  /// الواحد (أطباء/مختبرات/أشعة) وكل مرة 4 طلبات شبكة — سبب البطء.
+  static const searchMemoTtl = Duration(seconds: 20);
+  final Map<String, ({DateTime at, Future<List<SmartSearchResult>> future})>
+      _searchMemo = {};
+
+  /// يمسح ذاكرة البحث القصيرة (بعد تعديل إداري أو سحب للتحديث).
+  void invalidateSearchMemo() => _searchMemo.clear();
+
   Future<List<SmartSearchResult>> search(
     String rawQuery, {
     int limit = 24,
+    bool doctorsOnly = false,
+  }) async {
+    final query = rawQuery.trim();
+    if (query.isEmpty) return [];
+    final key = '$limit|$doctorsOnly|$query';
+    final now = DateTime.now();
+    _searchMemo.removeWhere((_, v) => now.difference(v.at) > searchMemoTtl);
+    final hit = _searchMemo[key];
+    if (hit != null) return List.of(await hit.future);
+    final future = _searchUncached(
+      query,
+      limit: limit,
+      doctorsOnly: doctorsOnly,
+    );
+    _searchMemo[key] = (at: now, future: future);
+    try {
+      return List.of(await future);
+    } catch (_) {
+      // الفشل لا يُحفظ: المحاولة الجاية تروح للشبكة من جديد.
+      _searchMemo.remove(key);
+      rethrow;
+    }
+  }
+
+  /// [doctorsOnly]: الأطباء من الذاكرة فقط بلا طلبات مختبرات/أشعة/باقات/تحاليل
+  /// (بحث الاختصاص كان يسأل السيرفر 4 مرات ثم يرمي النتائج).
+  Future<List<SmartSearchResult>> _searchUncached(
+    String rawQuery, {
+    required int limit,
+    bool doctorsOnly = false,
   }) async {
     final query = rawQuery.trim();
     if (query.isEmpty) return [];
@@ -187,25 +227,27 @@ class SmartSearchService {
     // الأطباء أولاً وبشكل متسلسل — الجدول صغير؛ لا نضيع الاسم بسبب سباق/كاش فارغ.
     await _searchDoctorsReliable(query, results);
 
-    await Future.wait<void>([
-      _searchLabs(rawQuery, pattern, results),
-      _searchRadiology(rawQuery, pattern, results),
-      _searchPackages(
-        rawQuery,
-        pattern,
-        results,
-        offerOnly: intent.activeOffersOnly,
-        cheapestFirst: intent.cheapestFirst,
-        labNameHint: intent.labNameHint,
-      ),
-      _searchAnalyses(
-        _stripBoilerplateForAnalyses(query).isEmpty
-            ? pattern
-            : _ilikePattern(_stripBoilerplateForAnalyses(query)),
-        results,
-        originalQuery: query,
-      ),
-    ]);
+    if (!doctorsOnly) {
+      await Future.wait<void>([
+        _searchLabs(rawQuery, pattern, results),
+        _searchRadiology(rawQuery, pattern, results),
+        _searchPackages(
+          rawQuery,
+          pattern,
+          results,
+          offerOnly: intent.activeOffersOnly,
+          cheapestFirst: intent.cheapestFirst,
+          labNameHint: intent.labNameHint,
+        ),
+        _searchAnalyses(
+          _stripBoilerplateForAnalyses(query).isEmpty
+              ? pattern
+              : _ilikePattern(_stripBoilerplateForAnalyses(query)),
+          results,
+          originalQuery: query,
+        ),
+      ]);
+    }
 
     // بعد إيجاد التحاليل: اجلب الباقات التي تحتويها.
     final analysisHits = results

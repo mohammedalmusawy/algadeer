@@ -970,30 +970,30 @@ class SmartBrainPlanner {
     final wantAll = typeHint == null || typeHint == ConversationEntityType.none;
     bool want(ConversationEntityType t) => wantAll || typeHint == t;
 
-    if (want(ConversationEntityType.doctor)) {
-      await absorb(() => _lookupDoctors(hint));
-    }
-    if (want(ConversationEntityType.laboratory)) {
-      await absorb(() => _lookupLabs(hint));
-    }
-    if (want(ConversationEntityType.radiology)) {
-      await absorb(() => _lookupRadiology(hint));
-    }
-    // متاجر محلية: قائمة نشطة كاملة — الاكتشاف بالاسم يتم عبر المطابق.
-    if (want(ConversationEntityType.pharmacy)) {
-      await absorb(() => _lookupPharmacy(''));
-    }
-    if (want(ConversationEntityType.physio)) {
-      await absorb(() => _lookupPhysio(''));
-    }
-    if (want(ConversationEntityType.supply)) {
-      await absorb(() => _lookupSupply(''));
-    }
-    if (want(ConversationEntityType.optics)) {
-      await absorb(() => _lookupServiceCenters(ServiceCenterKind.optics, ''));
-    }
-    if (want(ConversationEntityType.beauty)) {
-      await absorb(() => _lookupServiceCenters(ServiceCenterKind.beauty, ''));
+    // كل المصادر بالتوازي (كانت وحدة ورا الثانية = ثواني انتظار)، ثم الدمج
+    // بنفس الترتيب القديم حتى لا يتغيّر الترتيب ولا إزالة التكرار.
+    final loaders = <Future<List<SmartSearchResult>> Function()>[
+      if (want(ConversationEntityType.doctor)) () => _lookupDoctors(hint),
+      if (want(ConversationEntityType.laboratory)) () => _lookupLabs(hint),
+      if (want(ConversationEntityType.radiology)) () => _lookupRadiology(hint),
+      // متاجر محلية: قائمة نشطة كاملة — الاكتشاف بالاسم يتم عبر المطابق.
+      if (want(ConversationEntityType.pharmacy)) () => _lookupPharmacy(''),
+      if (want(ConversationEntityType.physio)) () => _lookupPhysio(''),
+      if (want(ConversationEntityType.supply)) () => _lookupSupply(''),
+      if (want(ConversationEntityType.optics))
+        () => _lookupServiceCenters(ServiceCenterKind.optics, ''),
+      if (want(ConversationEntityType.beauty))
+        () => _lookupServiceCenters(ServiceCenterKind.beauty, ''),
+    ];
+    final settled = await Future.wait([
+      for (final load in loaders)
+        load().then<Object>((v) => v, onError: (Object e) => e),
+    ]);
+    for (final result in settled) {
+      await absorb(() async {
+        if (result is List<SmartSearchResult>) return result;
+        throw result;
+      });
     }
 
     // إن لم تُبنَ أي نتيجة وفشل مصدر واحد على الأقل → NETWORK/DATA

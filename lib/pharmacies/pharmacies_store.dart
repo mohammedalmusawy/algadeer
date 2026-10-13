@@ -69,7 +69,13 @@ class PharmaciesStore {
   /// أول جلب مشترك نجح (حتى لو كانت النتيجة فارغة).
   bool get sharedCatalogReady => _sharedReady;
 
-  Future<void> load() async {
+  Future<void>? _inFlight;
+
+  /// تحميل واحد حتى لو طُلب من أكثر من مكان بنفس الوقت (تسخين + العقل).
+  Future<void> load() =>
+      _inFlight ??= _loadOnce().whenComplete(() => _inFlight = null);
+
+  Future<void> _loadOnce() async {
     if (_loaded) return;
     final prefs = await SharedPreferences.getInstance();
     _local = _readList(prefs.getString(_prefsKey));

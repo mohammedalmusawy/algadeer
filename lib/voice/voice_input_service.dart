@@ -23,7 +23,36 @@ class VoiceInputService extends ChangeNotifier {
   VoiceInputService({
     SpeechRecognitionService? stt,
     this.silenceAfterSpeech = const Duration(milliseconds: 3800),
+    this.completeUtteranceSilence,
   }) : _stt = stt ?? DeviceSpeechRecognitionService();
+
+  /// صمت أقصر عندما تبدو الجملة مكتملة («أريد طبيب أطفال»): كان المستخدم
+  /// ينتظر 3.8ث بعد كلامه في كل سؤال. null = معطّل (المهلة الطويلة دائماً).
+  /// الجملة الناقصة («اتصل دكتور…») تبقى على [silenceAfterSpeech].
+  final Duration? completeUtteranceSilence;
+
+  static const _incompleteTail = {
+    'اتصل', 'اتصال', 'دز', 'دزله', 'دزلي', 'ارسل', 'راسل', 'واتساب', 'واتس',
+    'على', 'علي', 'ب', 'ل', 'لل', 'الى', 'الي', 'عن', 'في', 'من', 'مع', 'و',
+    'او', 'لـ', 'دكتور', 'الدكتور', 'دكتوره', 'الدكتوره', 'د', 'طبيب', 'الطبيب',
+    'طبيبه', 'مختبر', 'المختبر', 'صيدليه', 'الصيدليه', 'مركز', 'عياده',
+    'اريد', 'ابي', 'ابحث', 'دور', 'وين', 'شنو', 'منو', 'اكو', 'افتح', 'اختصاص',
+  };
+
+  /// هل تبدو الجملة منتهية (كلمتان فأكثر ولا تنتهي بفعل/حرف/لقب ينتظر اسماً)؟
+  static bool looksCompleteUtterance(String text) {
+    var t = text.trim();
+    if (t.isEmpty) return false;
+    t = t
+        .replaceAll(RegExp('[\u064B-\u0652\u0640]'), '')
+        .replaceAll(RegExp('[أإآ]'), 'ا')
+        .replaceAll('ة', 'ه')
+        .replaceAll('ى', 'ي')
+        .replaceAll(RegExp(r'[^\u0600-\u06FF0-9a-zA-Z\s]'), ' ');
+    final words = t.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.length < 2) return false;
+    return !_incompleteTail.contains(words.last);
+  }
 
   final SpeechRecognitionService _stt;
 
@@ -211,7 +240,11 @@ class VoiceInputService extends ChangeNotifier {
     _speechStarted = true;
     _cancelSilenceTimer();
     if (!_sessionActive || _manualStopRequested || _finalizing) return;
-    _silenceTimer = Timer(silenceAfterSpeech, () {
+    final fast = completeUtteranceSilence;
+    final wait = fast != null && looksCompleteUtterance(_transcript)
+        ? fast
+        : silenceAfterSpeech;
+    _silenceTimer = Timer(wait, () {
       if (!_sessionActive ||
           _manualStopRequested ||
           _finalizing ||

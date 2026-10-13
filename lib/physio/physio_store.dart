@@ -22,7 +22,13 @@ class PhysioStore {
 
   List<PhysioCenter> get allForAdmin => List.unmodifiable(_items);
 
-  Future<void> load() async {
+  Future<void>? _inFlight;
+
+  /// تحميل واحد حتى لو طُلب من أكثر من مكان بنفس الوقت (تسخين + العقل).
+  Future<void> load() =>
+      _inFlight ??= _loadOnce().whenComplete(() => _inFlight = null);
+
+  Future<void> _loadOnce() async {
     if (_loaded) return;
     try {
       final prefs = await SharedPreferences.getInstance();

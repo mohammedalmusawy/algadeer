@@ -39,6 +39,8 @@ Approval for one commit, push or deletion does not extend to the next.
 2. Make small, targeted changes. No unrequested refactors, renames, formatting sweeps or dependency changes.
 3. Fix bugs with a regression test in `test/`, following the existing naming style.
 4. Leave changes uncommitted for the user to review unless they order a commit.
+5. At the end of every batch of work, update `FEATURES.md` (the full feature reference, Arabic) and the
+   owner's Claude doc «خصائص تطبيق الغدير» to match, and say in the reply that both were updated.
 
 ## Verification
 

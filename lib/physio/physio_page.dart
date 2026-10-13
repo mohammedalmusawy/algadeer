@@ -8,6 +8,7 @@ import '../widgets/entity_contact_actions.dart';
 import 'physio_store.dart';
 import 'physio_models.dart';
 import 'physio_profile_page.dart';
+import '../utils/contact_launch.dart';
 
 /// قائمة مراكز العلاج الطبيعي والتأهيل.
 class PhysioPage extends StatefulWidget {
@@ -145,7 +146,7 @@ class _PhysioPageState extends State<PhysioPage> {
   }
 
   Future<void> _call(String phone) async {
-    final uri = Uri(scheme: 'tel', path: phone);
+    final uri = clinicTelUri(phone);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 

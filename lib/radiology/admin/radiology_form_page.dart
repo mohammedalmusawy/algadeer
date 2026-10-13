@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../branding/ghadeer_brand_mark.dart';
 import '../../models/entity_social_links.dart';
 import '../../models/radiology_models.dart';
+import '../../services/content_conflict.dart';
 import '../../widgets/clinic_app_bar.dart';
 import '../../widgets/entity_optional_logo.dart';
 import '../../widgets/entity_social_sheet.dart';
@@ -190,6 +191,7 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
           tiktok: _tiktok.text.trim(),
           telegram: _telegram.text.trim(),
         ),
+        contentRevision: widget.center?.contentRevision ?? 1,
       );
 
       await _service.upsertCenter(center, existingId: widget.center?.id);
@@ -208,7 +210,9 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('تعذر الحفظ: $e')));
+          .showSnackBar(
+            SnackBar(content: Text(messageForSaveError(e, 'تعذر الحفظ: $e'))),
+          );
     }
   }
 

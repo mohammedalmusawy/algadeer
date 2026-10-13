@@ -11,6 +11,7 @@ import '../widgets/entity_contact_actions.dart';
 import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_speak_button.dart';
 import 'supply_models.dart';
+import '../utils/contact_launch.dart';
 
 /// تفاصيل محل مستلزمات وتجهيزات طبية.
 class SupplyProfilePage extends StatefulWidget {
@@ -78,7 +79,7 @@ class _SupplyProfilePageState extends State<SupplyProfilePage> {
   }
 
   Future<void> _call() async {
-    final uri = Uri(scheme: 'tel', path: _v.phone);
+    final uri = clinicTelUri(_v.phone);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 

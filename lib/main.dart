@@ -2339,6 +2339,10 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
       return;
     }
 
+    // تحذير قبل إضافة طبيب مضاف أصلاً (نفس الاسم أو نفس الرقم).
+    if (!_isEditing && !await _confirmNotDuplicate()) return;
+    if (!mounted) return;
+
     setState(() => _saving = true);
     debugPrint('SESSION USER = ${_supabase.auth.currentSession?.user.email}');
 
@@ -2555,34 +2559,80 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
     }
   }
 
+  /// تحذير قبل إضافة طبيب يبين مضاف أصلاً (نفس الاسم بلا اللقب أو نفس الرقم).
+  /// فشل الفحص (نت) لا يمنع الحفظ.
+  Future<bool> _confirmNotDuplicate() async {
+    List<Map<String, dynamic>> dups;
+    try {
+      final rows = await _supabase
+          .from('doctors')
+          .select('id,doctor_name,phone,specialty');
+      dups = findPossibleDuplicateDoctors(
+        rows: List<Map<String, dynamic>>.from(rows as List),
+        name: _nameController.text,
+        phone: _phoneController.text,
+      );
+    } catch (e) {
+      debugPrint('Doctor duplicate check skipped: $e');
+      return true;
+    }
+    if (dups.isEmpty || !mounted) return true;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('هذا الطبيب يبين مضاف أصلاً'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('لكينا بالقائمة طبيب بنفس الاسم أو نفس الرقم:'),
+                const SizedBox(height: 10),
+                for (final d in dups.take(3))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      '• ${d['doctor_name'] ?? ''}'
+                      '${(d['specialty'] ?? '').toString().trim().isEmpty ? '' : ' — ${d['specialty']}'}'
+                      '${(d['phone'] ?? '').toString().trim().isEmpty ? '' : '\n   ${d['phone']}'}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                const Text(
+                  'إذا هو نفس الطبيب، ارجع وعدّل بطاقته بدل إضافة نسخة ثانية.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const Key('doctor-duplicate-back'),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('رجوع'),
+            ),
+            TextButton(
+              key: const Key('doctor-duplicate-add-anyway'),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إضافة على أي حال'),
+            ),
+          ],
+        ),
+      ),
+    );
+    return go == true;
+  }
+
   /// يحفظ سجل الطبيب مع تجاهل الأعمدة الاختيارية غير الموجودة في Schema
   /// حتى لا يفشل تحديث الصورة وباقي الحقول الأساسية بسبب عمود واحد مفقود.
-  /// عند الإضافة: إن وُجد نفس الاسم+الهاتف يُحدَّث السجل بدل إدراج مكرر.
+  /// المكرر يُحذَّر منه قبل الحفظ ولا يُدمج تلقائياً.
   Future<void> _persistDoctorRecord(Map<String, dynamic> raw) async {
     final payload = Map<String, dynamic>.from(raw);
-    var editingId = _isEditing ? widget.doctor!['id']?.toString() : null;
-
-    if (editingId == null || editingId.isEmpty) {
-      try {
-        final existing = await _supabase
-            .from('doctors')
-            .select('id,doctor_name,phone');
-        final rows = List<Map<String, dynamic>>.from(existing as List);
-        editingId = findExistingDoctorIdByNamePhone(
-          rows: rows,
-          name: payload['doctor_name']?.toString() ?? '',
-          phone: payload['phone']?.toString() ?? '',
-        );
-        if (editingId != null) {
-          debugPrint(
-            'Doctor save: merging into existing id=$editingId '
-            '(same name+phone — avoid duplicate insert)',
-          );
-        }
-      } catch (e) {
-        debugPrint('Doctor save: duplicate-check skipped: $e');
-      }
-    }
+    // لا دمج صامت مع طبيب موجود: الإدارة تُحذَّر قبل الحفظ
+    // ([_confirmNotDuplicate]) وتقرر بنفسها.
+    final editingId = _isEditing ? widget.doctor!['id']?.toString() : null;
 
     for (var attempt = 0; attempt < 8; attempt++) {
       try {

@@ -11,10 +11,16 @@ class DynamicMessagePlacement {
   static const labs = 'labs';
   static const doctors = 'doctors';
 
-  static const all = [home, labs, doctors];
+  /// سطر رعاية يُنطق بعد تحية الافتتاح (النص = «العبارة»). الإيقاف =
+  /// إطفاء العبارة من القائمة، والتغيير = تعديلها. أعلى أولوية تفوز.
+  static const sponsorVoice = 'sponsor_voice';
+
+  static const all = [home, labs, doctors, sponsorVoice];
 
   static String labelAr(String placement) {
     switch (placement) {
+      case sponsorVoice:
+        return 'الرعاية الصوتية (تُنطق بعد الترحيب)';
       case labs:
         return 'المختبرات';
       case doctors:

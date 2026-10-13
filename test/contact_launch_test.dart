@@ -4,6 +4,12 @@ import 'package:ghadeer_clinic/utils/contact_launch.dart';
 void main() {
   test('اتصال يستخدم tel كما هو', () {
     expect(clinicTelUri('07800000000').toString(), 'tel:07800000000');
+    // رموز الاتجاه المخفية والمسافات من قاعدة البيانات تُشال من رابط الاتصال.
+    expect(
+      clinicTelUri('\u202D0787 540 4000\u202C').toString(),
+      'tel:07875404000',
+    );
+    expect(clinicTelUri('+964 787 540 4000').toString(), 'tel:+9647875404000');
   });
 
   test('واتساب العراقي يتحول إلى wa.me بـ 964', () {

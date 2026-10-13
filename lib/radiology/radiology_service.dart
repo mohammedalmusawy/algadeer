@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../doctors/doctor_admin_persist.dart';
 import '../models/radiology_models.dart';
+import '../services/content_conflict.dart';
 import '../services/offline_rows_cache.dart';
 
 class RadiologyService {
@@ -61,15 +62,32 @@ class RadiologyService {
     String? existingId,
   }) async {
     final payload = Map<String, dynamic>.from(center.toMap());
+    // حماية «اثنين يعدّلون بنفس الوقت»: الحفظ ينجح فقط إن لم يتغيّر الرقم.
+    // قبل تطبيق radiology_content_revision.sql يرجع للحفظ العادي.
+    var useRevision = true;
     for (var attempt = 0; attempt < 8; attempt++) {
       try {
         if (existingId == null || existingId.isEmpty) {
+          if (useRevision) payload['content_revision'] = 1;
           final row = await _client
               .from('radiology_centers')
               .insert(payload)
               .select()
               .single();
           return RadiologyCenter.fromMap(Map<String, dynamic>.from(row));
+        }
+        if (useRevision) {
+          payload['content_revision'] = center.contentRevision + 1;
+          final rows = await _client
+              .from('radiology_centers')
+              .update(payload)
+              .eq('id', existingId)
+              .eq('content_revision', center.contentRevision)
+              .select();
+          if ((rows as List).isEmpty) throw const ContentConflictException();
+          return RadiologyCenter.fromMap(
+            Map<String, dynamic>.from(rows.first as Map),
+          );
         }
         final row = await _client
             .from('radiology_centers')
@@ -79,6 +97,13 @@ class RadiologyService {
             .single();
         return RadiologyCenter.fromMap(Map<String, dynamic>.from(row));
       } on PostgrestException catch (e) {
+        if (useRevision &&
+            (e.code == '42703' || '${e.message}'.contains('content_revision'))) {
+          useRevision = false;
+          payload.remove('content_revision');
+          debugPrint('radiology upsertCenter: content_revision missing — plain save');
+          continue;
+        }
         if (e.code != 'PGRST204') rethrow;
         final missing = missingDoctorColumnFromPostgrest(e.message);
         if (missing == null || !payload.containsKey(missing)) rethrow;

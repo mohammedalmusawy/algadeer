@@ -26,6 +26,9 @@ class RadiologyCenter {
   final DateTime? createdAt;
   final EntitySocialLinks social;
 
+  /// رقم نسخة للحفظ المتفائل (radiology_content_revision.sql).
+  final int contentRevision;
+
   const RadiologyCenter({
     required this.id,
     required this.name,
@@ -43,6 +46,7 @@ class RadiologyCenter {
     this.slogan = '',
     this.createdAt,
     this.social = EntitySocialLinks.empty,
+    this.contentRevision = 1,
   });
 
   factory RadiologyCenter.fromMap(Map<String, dynamic> data) {
@@ -65,6 +69,7 @@ class RadiologyCenter {
       slogan: data['slogan']?.toString() ?? '',
       createdAt: DateTime.tryParse(data['created_at']?.toString() ?? ''),
       social: EntitySocialLinks.fromMap(data),
+      contentRevision: int.tryParse('${data['content_revision'] ?? 1}') ?? 1,
     );
   }
 

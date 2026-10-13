@@ -15,6 +15,7 @@ import 'pharmacies_store.dart';
 import 'pharmacy_distance.dart';
 import 'pharmacy_models.dart';
 import 'pharmacy_profile_page.dart';
+import '../utils/contact_launch.dart';
 
 /// قائمة الصيدليات — مواضع بصرية مطابقة للموكاب (يسار/يمين الشاشة).
 class PharmaciesPage extends StatefulWidget {
@@ -177,7 +178,7 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
   }
 
   Future<void> _call(String phone) async {
-    final uri = Uri(scheme: 'tel', path: phone);
+    final uri = clinicTelUri(phone);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }

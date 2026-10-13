@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
 import '../widgets/app_slot_icon.dart';
 import 'specialty_catalog.dart';
+import '../ads/widgets/home_ad_slot.dart';
 
 /// صفحة كل الاختصاصات الطبية — Design Target (يمين الصورة المرجعية).
 class AllSpecialtiesPage extends StatefulWidget {
@@ -171,6 +172,8 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
                 ),
               ),
               const SizedBox(height: 8),
+              // شريط إعلان قسم الأطباء (موضع «الأطباء» في إدارة الإعلانات).
+              const HomeAdSlot(placement: 'doctors'),
               Expanded(
                 child: GridView.builder(
                   padding: EdgeInsets.fromLTRB(pad, 8, pad, 24),

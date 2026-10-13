@@ -49,7 +49,7 @@ class ServiceCenterQuery {
 
   static final _optics = RegExp(
     r'عوين\S*|نظار\S*|فحص\s*(?:ال)?بصر|فحص\s*نظر|بصريات|عدسات|'
-    r'مراكز?\s*(?:ال)?بصريات',
+    r'(?:مركز|مراكز)\s*(?:ال)?بصريات',
   );
 
   static final _beautyDoctor = RegExp(
@@ -58,12 +58,18 @@ class ServiceCenterQuery {
   );
 
   static final _beautyCenter = RegExp(
-    r'مراكز?\s*(?:ال)?تجميل|صالون\s*(?:ال)?تجميل',
+    // «مركز» بالمفرد كان لا يُطابق («مراكز?» = مراك/مراكز فقط).
+    r'(?:مركز|مراكز)\s*(?:ال)?تجميل|صالون\s*(?:ال)?تجميل',
   );
 
   static final _noise = RegExp(
     r'(?:^|\s)(?:ابحث|دور|اريد|ابي|وين|اين|افتح|اعرض|اتصل|اتصال|'
     r'واتساب|واتس|وتساب|راسل|دز|موقع|عنوان|تفاصيل|ملف|بطاقه|لي)(?=\s|$)',
+  );
+
+  /// حروف/أدوات تبقى بعد حذف كلمة القسم الملتصقة بها (بعوينات، لعوينات…).
+  static final _leftoverParticle = RegExp(
+    r'(?:^|\s)(?:ب|ل|لل|و|ف|على|علي|الى|الي|عن|في|من|مع|ال)(?=\s|$)',
   );
 
   /// null يعني: ليست جملة قسم، وتمر لمسار الأطباء أو الاختصاص.
@@ -86,6 +92,8 @@ class ServiceCenterQuery {
         .replaceAll(_optics, ' ')
         .replaceAll(_beautyCenter, ' ')
         .replaceAll(_noise, ' ')
+        // «اتصل بعوينات الشطرة» كان يبقى «ب الشطره» فلا يُطابق أي مركز.
+        .replaceAll(_leftoverParticle, ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     if (n.length < 2) return null;

@@ -10,6 +10,7 @@ import 'lab_owner_editor_page.dart';
 import 'lab_profile_page.dart';
 import 'labs_service.dart';
 import 'widgets/lab_card.dart';
+import '../ads/widgets/home_ad_slot.dart';
 
 /// واجهة المختبرات: رئيسية · مختبراتي · المزيد (مثل تنظيم واجهة الأطباء).
 class LabsPage extends StatefulWidget {
@@ -204,13 +205,21 @@ class _LabsPageState extends State<LabsPage> {
         ),
       );
     }
-    return RefreshIndicator(
-      color: const Color(0xFF0FAFA3),
-      onRefresh: () async {
-        await _loadFavorites();
-        await _load();
-      },
-      child: _labsList(favorites),
+    return Column(
+      children: [
+        // شريط إعلان قسم المختبرات (موضع «المختبرات» في إدارة الإعلانات).
+        const HomeAdSlot(placement: 'labs'),
+        Expanded(
+          child: RefreshIndicator(
+            color: const Color(0xFF0FAFA3),
+            onRefresh: () async {
+              await _loadFavorites();
+              await _load();
+            },
+            child: _labsList(favorites),
+          ),
+        ),
+      ],
     );
   }
 

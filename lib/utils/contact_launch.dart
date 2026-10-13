@@ -1,6 +1,9 @@
 import 'package:url_launcher/url_launcher.dart';
 
-Uri clinicTelUri(String phone) => Uri.parse('tel:${phone.trim()}');
+/// أرقام و+ فقط: الأرقام المحفوظة قد تحمل رموز اتجاه مخفية (U+202D/U+202C)
+/// تُفسد رابط الاتصال على بعض الهواتف.
+Uri clinicTelUri(String phone) =>
+    Uri.parse('tel:${phone.replaceAll(RegExp(r'[^0-9+]'), '')}');
 
 /// رقم واتساب بالعراق: 07xxxxxxxx → 9647xxxxxxxx. فارغ إن لا أرقام.
 String clinicWhatsAppDigits(String whatsapp) {

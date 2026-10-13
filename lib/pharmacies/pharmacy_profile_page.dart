@@ -21,6 +21,7 @@ import 'pharmacy_owner_editor_page.dart';
 import 'pharmacy_custom_bundle_page.dart';
 import 'pharmacy_fit_image.dart';
 import 'pharmacy_models.dart';
+import '../utils/contact_launch.dart';
 
 /// صفحة تفاصيل صيدلية — مواضع بصرية مطابقة للموكاب (موبايل أولاً).
 class PharmacyProfilePage extends StatefulWidget {
@@ -108,7 +109,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
   }
 
   Future<void> _call() async {
-    final uri = Uri(scheme: 'tel', path: _p.phone);
+    final uri = clinicTelUri(_p.phone);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 

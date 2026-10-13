@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import '../services/dynamic_message_service.dart';
 import '../services/user_profile_service.dart';
 import 'macos_arabic_tts_channel.dart';
 import 'startup_greeting.dart';
@@ -37,15 +38,11 @@ class StartupVoiceGreetingSession {
       final profile = UserProfileService();
       final rawName = await profile.getDisplayName();
       final greeting = PersonalizedGreeting.fromDisplayName(rawName);
-      final text = greeting.spokenGreeting;
-
-      assert(
-        text.startsWith('مرحباً بك'),
-        'startup spoken greeting must begin with مرحباً بك',
-      );
-      assert(
-        !text.contains('صباح الخير') && !text.contains('مساء الخير'),
-        'time-based greetings must not be spoken',
+      final sponsor = await _fetchSponsorLine();
+      final text = timedStartupSpokenGreeting(
+        rawName: rawName,
+        now: DateTime.now(),
+        sponsorLine: sponsor,
       );
 
       final scalars = text.runes
@@ -65,6 +62,15 @@ class StartupVoiceGreetingSession {
 
       final tts = DeviceTextToSpeechService(settings: settings);
       _tts = tts;
+
+      // الآيفون/الأندرويد/الويب: صوت الجهاز العربي العادي. مسار Siri أدناه
+      // للماك فقط — كان يتخطى الترحيب بالكامل على الموبايل.
+      if (!MacOSArabicTtsChannel.isSupported) {
+        debugPrint('StartupGreeting: SPEECH_START device TTS "$text"');
+        await tts.speak(text, genderOverride: gender);
+        debugPrint('StartupGreeting: SPEECH_END device TTS');
+        return;
+      }
 
       final ready = await tts.prepareArabicSiriVoice(gender);
       if (ready == null) {
@@ -90,6 +96,21 @@ class StartupVoiceGreetingSession {
       debugPrint('StartupGreeting: FAILED (no English fallback): $e\n$st');
     } finally {
       _inFlight = false;
+    }
+  }
+
+  /// سطر الرعاية من «العبارات الديناميكية ← الرعاية الصوتية» (مفعّل وضمن
+  /// فترته). بلا نت أو بلا عبارة → بدون رعاية، والترحيب لا يتأخر أكثر من ثانيتين.
+  static Future<String?> _fetchSponsorLine() async {
+    try {
+      final message = await DynamicMessageService()
+          .fetchActiveMessage(placement: DynamicMessagePlacement.sponsorVoice)
+          .timeout(const Duration(seconds: 2));
+      final body = message?.body.trim() ?? '';
+      return body.isEmpty ? null : body;
+    } catch (e) {
+      debugPrint('StartupGreeting: sponsor line skipped: $e');
+      return null;
     }
   }
 

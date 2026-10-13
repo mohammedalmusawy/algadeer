@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 ///
 /// Phase 3B: يستخدم الاسم الأول طبيعياً عند وجود اسم ثلاثي محفوظ.
 /// لا يغيّر مسار TTS — النص المحلول يُمرَّر كما هو للمسار الصوتي القائم.
-/// ملاحظة: التحية الزمنية (صباح/مساء) غير مفعّلة في المعمارية الحالية
-/// وممنوعة باختبارات الإطلاق؛ نبقي «مرحباً بك» كما هي.
+/// ملاحظة: هذا النموذج للنص المعروض و[StartupVoiceGreetingCoordinator]؛
+/// النطق الفعلي عند الافتتاح يستخدم [timedStartupSpokenGreeting].
 class PersonalizedGreeting {
   const PersonalizedGreeting({
     required this.displayGreeting,
@@ -45,6 +45,29 @@ class PersonalizedGreeting {
       firstName: name,
     );
   }
+}
+
+/// تحية الافتتاح الصوتية (طلب صاحب التطبيق 2026-10-13):
+/// «صباح الخير محمد، أهلاً وسهلاً بك في منصة الغدير.» + سطر رعاية اختياري
+/// يكتبه المدير من «العبارات الديناميكية ← الرعاية الصوتية».
+/// النص المعروض في الرئيسية يبقى [PersonalizedGreeting.displayGreeting].
+String timedStartupSpokenGreeting({
+  required String? rawName,
+  required DateTime now,
+  String? sponsorLine,
+}) {
+  final hour = now.hour;
+  final salutation = hour >= 4 && hour < 12 ? 'صباح الخير' : 'مساء الخير';
+  final name = greetingAddressName(rawName);
+  final buffer = StringBuffer(salutation);
+  if (name != null) buffer.write(' $name');
+  buffer.write('، أهلاً وسهلاً بك في منصة الغدير.');
+  final sponsor = sponsorLine?.trim() ?? '';
+  if (sponsor.isNotEmpty) {
+    buffer.write(' $sponsor');
+    if (!RegExp(r'[.!؟?]$').hasMatch(sponsor)) buffer.write('.');
+  }
+  return buffer.toString();
 }
 
 /// يرفض null/فارغ/بريد/هاتف/قيم وهمية — لا تُعرض ولا تُنطق.

@@ -164,6 +164,20 @@ class DeviceTextToSpeechService implements TextToSpeechService {
     try {
       await _settings.migrateInvalidLegacyVoicePrefs();
       await _tts.awaitSpeakCompletion(true);
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        // بدونها الآيفون يكتم النطق بوضع الصامت؛ playAndRecord يبقى
+        // متوافقاً مع الميكروفون.
+        await _tts.setSharedInstance(true);
+        await _tts.setIosAudioCategory(
+          IosTextToSpeechAudioCategory.playAndRecord,
+          [
+            IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
+            IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+            IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+          ],
+          IosTextToSpeechAudioMode.voicePrompt,
+        );
+      }
       _tts.setStartHandler(() {
         if (!_usingNativeMacSpeak) _speaking.value = true;
       });

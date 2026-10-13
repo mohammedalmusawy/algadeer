@@ -87,6 +87,11 @@ void main() {
     expect(ServiceCenterQuery.kindFor('تجميل جلدي'), isNull);
     expect(ServiceCenterQuery.kindFor('تجميل'), isNull);
     expect(ServiceCenterQuery.nameHint('عوينات الرحاب'), 'الرحاب');
+    // حرف الجر الملتصق بكلمة القسم لا يبقى ضمن الاسم.
+    expect(ServiceCenterQuery.nameHint('اتصل بعوينات الشطرة'), 'الشطره');
+    expect(ServiceCenterQuery.nameHint('دز واتساب لعوينات الرحاب'), 'الرحاب');
+    expect(ServiceCenterQuery.nameHint('اتصل على مركز التجميل النور'), 'النور');
+    expect(ServiceCenterQuery.nameHint('اتصل بعوينات'), isNull);
   });
 
   test('محلّل النية يفتح القسم لا اختصاص الطبيب', () {

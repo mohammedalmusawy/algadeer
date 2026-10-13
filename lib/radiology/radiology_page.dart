@@ -7,6 +7,7 @@ import '../widgets/clinic_app_bar.dart';
 import 'radiology_profile_page.dart';
 import 'radiology_service.dart';
 import 'widgets/radiology_card.dart';
+import '../ads/widgets/home_ad_slot.dart';
 
 /// واجهة الأشعة العامة — قائمة مراكز الأشعة.
 class RadiologyPage extends StatefulWidget {
@@ -120,7 +121,12 @@ class _RadiologyPageState extends State<RadiologyPage> {
                     ? const Center(
                         child: Text('لا توجد مراكز أشعة مفعّلة حالياً'),
                       )
-                    : RefreshIndicator(
+                    : Column(
+                        children: [
+                          // شريط إعلان قسم الأشعة (موضع «الأشعة»).
+                          const HomeAdSlot(placement: 'radiology'),
+                          Expanded(
+                            child: RefreshIndicator(
                         onRefresh: _load,
                         child: ListView.separated(
                           padding: EdgeInsets.fromLTRB(
@@ -143,6 +149,9 @@ class _RadiologyPageState extends State<RadiologyPage> {
                             );
                           },
                         ),
+                      ),
+                          ),
+                        ],
                       ),
       ),
     );

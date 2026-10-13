@@ -58,7 +58,11 @@ class MacOSArabicTtsChannel {
   }
 
   /// Voices that need the System Voice / `say` path (not AVSpeech/flutter_tts).
+  ///
+  /// على الماك فقط: الآيفون يعطي معرّفات مثل `com.apple.ttsbundle.Maged`
+  /// أيضاً، وتوجيهها لقناة الماك كان يُسكت النبذة والترحيب على الآيفون.
   static bool needsSystemVoiceSpeak(String? identifier) {
+    if (!isSupported) return false;
     if (identifier == null || identifier.isEmpty) return false;
     final id = identifier.toLowerCase();
     return id.contains('ttsbundle') || id.contains('gryphon');

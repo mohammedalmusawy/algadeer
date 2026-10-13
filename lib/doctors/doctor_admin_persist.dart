@@ -89,3 +89,35 @@ String? findExistingDoctorIdByNamePhone({
   }
   return null;
 }
+
+/// الاسم بدون لقب (الدكتور / الدكتورة / دكتور / د.) حتى «د. علي» = «علي».
+String doctorNameCore(String raw) {
+  var t = normalizeDoctorNameKey(raw);
+  t = t.replaceFirst(RegExp(r'^(الدكتوره?|دكتوره?|د\s*\.)\s*'), '');
+  return t.trim();
+}
+
+/// أطباء موجودون يشبهون الطبيب الجديد: نفس الاسم (بدون اللقب) أو نفس الهاتف.
+/// لتحذير الإدارة قبل إضافة مكررة — لا يدمج ولا يحذف شيئاً.
+List<Map<String, dynamic>> findPossibleDuplicateDoctors({
+  required List<Map<String, dynamic>> rows,
+  required String name,
+  required String phone,
+  String? excludeId,
+}) {
+  final core = doctorNameCore(name);
+  final digits = normalizeDoctorPhoneKey(phone);
+  final phoneKey = digits.length >= 7 ? digits.substring(digits.length - 7) : '';
+  return [
+    for (final row in rows)
+      if ((row['id']?.toString() ?? '').isNotEmpty &&
+          row['id']?.toString() != excludeId &&
+          ((core.isNotEmpty &&
+                  doctorNameCore(row['doctor_name']?.toString() ?? '') ==
+                      core) ||
+              (phoneKey.isNotEmpty &&
+                  normalizeDoctorPhoneKey(row['phone']?.toString() ?? '')
+                      .endsWith(phoneKey))))
+        row,
+  ];
+}

@@ -10,6 +10,7 @@ class ExtractedEntities {
     this.supply,
     this.optics,
     this.beauty,
+    this.nursing,
     this.packageName,
     this.offerName,
     this.analysis,
@@ -33,6 +34,9 @@ class ExtractedEntities {
   final String? supply;
   final String? optics;
   final String? beauty;
+
+  /// اسم ممرض/ممرضة من جملة التمريض المنزلي.
+  final String? nursing;
   final String? packageName;
   final String? offerName;
 
@@ -77,6 +81,7 @@ class ExtractedEntities {
       supply == null &&
       optics == null &&
       beauty == null &&
+      nursing == null &&
       packageName == null &&
       offerName == null &&
       analysis == null &&
@@ -99,6 +104,7 @@ class ExtractedEntities {
     Object? supply = _unset,
     Object? optics = _unset,
     Object? beauty = _unset,
+    Object? nursing = _unset,
     Object? packageName = _unset,
     Object? offerName = _unset,
     Object? analysis = _unset,
@@ -132,6 +138,8 @@ class ExtractedEntities {
       supply: identical(supply, _unset) ? this.supply : supply as String?,
       optics: identical(optics, _unset) ? this.optics : optics as String?,
       beauty: identical(beauty, _unset) ? this.beauty : beauty as String?,
+      nursing:
+          identical(nursing, _unset) ? this.nursing : nursing as String?,
       packageName: identical(packageName, _unset)
           ? this.packageName
           : packageName as String?,

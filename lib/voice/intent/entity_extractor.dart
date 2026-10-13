@@ -657,7 +657,7 @@ class RuleBasedEntityExtractor implements EntityExtractor {
     s = s.replaceFirst(RegExp(r'^ل(?=اشعه|اشعة|أشعة)'), '').trim();
     s = s.replaceFirst(
       RegExp(
-        r'^(?:ب)?(?:ال)?(?:اشعه|اشعة|أشعة|مركز\s*(?:ال)?(?:اشعه|اشعة|أشعة))\s*',
+        r'^(?:ب)?(?:ال)?(?:اشعه|اشعة|أشعة|(?:مركز|مراكز)\s*(?:ال)?(?:اشعه|اشعة|أشعة))\s*',
         caseSensitive: false,
       ),
       '',

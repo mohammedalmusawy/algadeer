@@ -24,9 +24,9 @@ void main() {
     expect(ServiceCenterKind.nursing.accent, isNot(ServiceCenterKind.beauty.accent));
   });
 
-  test('جملة الدماغ ما تتحول لتمريض (القسم بالدليل فقط حالياً)', () {
+  test('عقل الغدير يعرف التمريض المنزلي (التفاصيل بـ smart_brain_nursing_test)', () {
     expect(ServiceCenterQuery.kindFor('اريد عوينات'), ServiceCenterKind.optics);
-    expect(ServiceCenterQuery.kindFor('ممرض للبيت'), isNot(ServiceCenterKind.nursing));
+    expect(ServiceCenterQuery.kindFor('ممرض للبيت'), ServiceCenterKind.nursing);
   });
 
   testWidgets('الرئيسية تعرض التمريض المنزلي بعرض الموبايل بلا قص', (tester) async {

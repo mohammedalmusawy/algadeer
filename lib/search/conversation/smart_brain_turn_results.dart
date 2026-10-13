@@ -68,6 +68,8 @@ class SmartBrainTurnResults {
         return (r.opticsId ?? '').trim();
       case SmartSearchResultType.beauty:
         return (r.beautyId ?? '').trim();
+      case SmartSearchResultType.nursing:
+        return (r.nursingId ?? '').trim();
       case SmartSearchResultType.package:
       case SmartSearchResultType.offer:
         return (r.packageId ?? '').trim();

@@ -193,14 +193,15 @@ class ArabicTextUtils {
   /// تجهيز استعلام اسم مركز أشعة — عام لأي مركز يُضاف لاحقاً.
   static String prepareRadiologyNameQuery(String input) {
     var s = _prepareNameQuery(input);
-    s = s.replaceFirst(RegExp(r'^ل{1,2}(?=اشعه|اشعة|أشعة|مركز)'), '').trim();
+    s = s.replaceFirst(RegExp(r'^ل{1,2}(?=اشعه|اشعة|أشعة|مركز|مراكز)'), '').trim();
     s = s
         .replaceFirst(
-          RegExp(r'^(?:ب|ل|على)?(?:ال)?(?:اشعه|اشعة|أشعة|مركز\s*اشعه|مركز\s*أشعة)\s*'),
+          RegExp(r'^(?:ب|ل|على)?(?:ال)?(?:اشعه|اشعة|أشعة|(?:مركز|مراكز)\s*(?:ال)?(?:اشعه|اشعة|أشعة))\s*'),
           '',
         )
+        // «مراكز الأشعة» (جمع) كانت تبقى «مراكز» وتنحسب اسم مركز.
         .replaceAll(
-          RegExp(r'(?:^|\s)(?:ال)?(?:اشعه|اشعة|أشعة|مركز)(?=\s|$)'),
+          RegExp(r'(?:^|\s)(?:ال)?(?:اشعه|اشعة|أشعة|مركز|مراكز)(?=\s|$)'),
           ' ',
         )
         .replaceAll(RegExp(r'\s+'), ' ')

@@ -12,6 +12,9 @@ enum SmartSearchResultType {
   supply,
   optics,
   beauty,
+
+  /// ممرض/ممرضة زيارات منزلية (قسم التمريض المنزلي).
+  nursing,
 }
 
 /// نتيجة بحث غنية بما يكفي لعرض Card حقيقية والتنقل المباشر.
@@ -30,6 +33,7 @@ class SmartSearchResult {
     this.supplyId,
     this.opticsId,
     this.beautyId,
+    this.nursingId,
     this.score = 0,
     this.imageUrl,
     this.specialty,
@@ -68,6 +72,7 @@ class SmartSearchResult {
   final String? supplyId;
   final String? opticsId;
   final String? beautyId;
+  final String? nursingId;
   final int score;
 
   /// حقول اختيارية لبطاقات البحث الغنية.
@@ -142,6 +147,8 @@ class SmartSearchResult {
         return opticsId != null && opticsId!.isNotEmpty;
       case SmartSearchResultType.beauty:
         return beautyId != null && beautyId!.isNotEmpty;
+      case SmartSearchResultType.nursing:
+        return nursingId != null && nursingId!.isNotEmpty;
       case SmartSearchResultType.specialty:
         return title.trim().isNotEmpty;
     }
@@ -174,6 +181,7 @@ class SmartSearchResult {
         if (supplyId != null) 'supply_id': supplyId,
         if (opticsId != null) 'optics_id': opticsId,
         if (beautyId != null) 'beauty_id': beautyId,
+        if (nursingId != null) 'nursing_id': nursingId,
         if (discountPercent != null) 'discount_percent': discountPercent,
         if (newPrice != null) 'price': newPrice,
       };

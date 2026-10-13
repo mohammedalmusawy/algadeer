@@ -181,13 +181,16 @@ class ServiceCenter {
     final location = locationText;
     final image = displayImage;
     return SmartSearchResult(
-      type: kind == ServiceCenterKind.optics
-          ? SmartSearchResultType.optics
-          : SmartSearchResultType.beauty,
+      type: switch (kind) {
+        ServiceCenterKind.optics => SmartSearchResultType.optics,
+        ServiceCenterKind.beauty => SmartSearchResultType.beauty,
+        ServiceCenterKind.nursing => SmartSearchResultType.nursing,
+      },
       title: name,
       subtitle: address.trim().isNotEmpty ? address.trim() : kind.sectionTitle,
       opticsId: kind == ServiceCenterKind.optics ? id : null,
       beautyId: kind == ServiceCenterKind.beauty ? id : null,
+      nursingId: kind == ServiceCenterKind.nursing ? id : null,
       score: score,
       imageUrl: image.isEmpty ? null : image,
       bioSnippet: bio.trim().isEmpty ? null : bio.trim(),

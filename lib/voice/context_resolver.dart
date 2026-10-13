@@ -327,7 +327,8 @@ class ContextResolver {
       ConversationEntityType.physio => null,
       ConversationEntityType.supply => null,
       ConversationEntityType.optics ||
-      ConversationEntityType.beauty =>
+      ConversationEntityType.beauty ||
+      ConversationEntityType.nursing =>
         context.selectServiceCenterByOrdinal(type, index),
       ConversationEntityType.none => null,
     };

@@ -1056,14 +1056,19 @@ class RuleBasedIntentResolver implements IntentResolver {
     final kind = ServiceCenterQuery.kindFor(normalized);
     if (kind == null) return null;
     final name = ServiceCenterQuery.nameHint(normalized);
-    final optics = kind == ServiceCenterKind.optics;
     final AssistantIntent intent;
     if (_looksLikeWhatsAppVocab(normalized)) {
-      intent = optics
-          ? AssistantIntent.messageOptics
-          : AssistantIntent.messageBeauty;
+      intent = switch (kind) {
+        ServiceCenterKind.optics => AssistantIntent.messageOptics,
+        ServiceCenterKind.beauty => AssistantIntent.messageBeauty,
+        ServiceCenterKind.nursing => AssistantIntent.messageNursing,
+      };
     } else if (_looksLikeCallVocab(normalized)) {
-      intent = optics ? AssistantIntent.callOptics : AssistantIntent.callBeauty;
+      intent = switch (kind) {
+        ServiceCenterKind.optics => AssistantIntent.callOptics,
+        ServiceCenterKind.beauty => AssistantIntent.callBeauty,
+        ServiceCenterKind.nursing => AssistantIntent.callNursing,
+      };
     } else if (RegExp(
       r'(?:^|\s)(?:وين|اين|موقع|عنوان)(?=\s|$)',
     ).hasMatch(normalized)) {
@@ -1071,7 +1076,11 @@ class RuleBasedIntentResolver implements IntentResolver {
     } else if (_looksLikeProfile(normalized)) {
       intent = AssistantIntent.showProfile;
     } else {
-      intent = optics ? AssistantIntent.findOptics : AssistantIntent.findBeauty;
+      intent = switch (kind) {
+        ServiceCenterKind.optics => AssistantIntent.findOptics,
+        ServiceCenterKind.beauty => AssistantIntent.findBeauty,
+        ServiceCenterKind.nursing => AssistantIntent.findNursing,
+      };
     }
     return IntentResult(
       intent: intent,
@@ -1079,8 +1088,9 @@ class RuleBasedIntentResolver implements IntentResolver {
       normalizedText: normalized,
       searchMeaning: meaning,
       entities: entities.copyWith(
-        optics: optics ? name : null,
-        beauty: optics ? null : name,
+        optics: kind == ServiceCenterKind.optics ? name : null,
+        beauty: kind == ServiceCenterKind.beauty ? name : null,
+        nursing: kind == ServiceCenterKind.nursing ? name : null,
         doctorName: null,
         specialty: null,
       ),
@@ -1150,6 +1160,9 @@ class RuleBasedIntentResolver implements IntentResolver {
     }
     if (centerKind == ServiceCenterKind.beauty) {
       return AssistantIntent.findBeauty;
+    }
+    if (centerKind == ServiceCenterKind.nursing) {
+      return AssistantIntent.findNursing;
     }
     if (ServiceCenterQuery.kindFor(focus) == ServiceCenterKind.optics) {
       return AssistantIntent.findOptics;
@@ -1688,7 +1701,7 @@ class RuleBasedIntentResolver implements IntentResolver {
   static bool _hasExplicitRadiologyName(String? name) {
     final cleaned = ArabicTextUtils.prepareRadiologyNameQuery(name ?? '');
     if (cleaned.isEmpty || cleaned.length <= 1) return false;
-    if (RegExp(r'^(?:ال)?(?:اشعه|اشعة|أشعة|مركز)$').hasMatch(cleaned)) {
+    if (RegExp(r'^(?:ال)?(?:اشعه|اشعة|أشعة|مركز|مراكز)$').hasMatch(cleaned)) {
       return false;
     }
     if (RegExp(

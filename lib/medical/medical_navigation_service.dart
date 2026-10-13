@@ -120,6 +120,7 @@ class MedicalNavigationService {
         );
       case SmartSearchResultType.optics:
       case SmartSearchResultType.beauty:
+      case SmartSearchResultType.nursing:
         return MedicalNavigationDecision(
           action: MedicalNavigationAction.openLab,
           safeMessage: 'فتح ملف ${result.title}',

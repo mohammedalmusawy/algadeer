@@ -379,6 +379,32 @@ class ConversationReferenceResolver {
       );
     }
 
+    // النوع المذكور بالجملة يغلب التركيز: «اتصل بالمختبر» بعد صيدلية كان
+    // يتصل بالصيدلية، وبلا سياق كان يسأل «تقصد أي طبيب؟».
+    final wanted = _namedContactType(intent.intent);
+    if (wanted != null) {
+      // نفس قاعدة «هذا المختبر»: المختار من النوع المطلوب يرجع للتركيز.
+      final sameType = _currentTypedAntecedent(context, wanted);
+      if (sameType != null) {
+        return ConversationReferenceResolution(
+          confidence: ReferenceConfidence.explicit,
+          focusEntityType: wanted,
+          target: sameType,
+        );
+      }
+      // قائمة من نفس النوع معروضة بلا اختيار → المسار المختص يسأل منها.
+      if (context.currentResultContext?.entityType == wanted &&
+          context.currentResultContext!.isNotEmpty) {
+        return ConversationReferenceResolution.unresolved;
+      }
+      return ConversationReferenceResolution(
+        confidence: ReferenceConfidence.unresolved,
+        focusEntityType: wanted,
+        requiresClarification: true,
+        message: GhadeerFollowUpContext.noPronounTargetMessage(type: wanted),
+      );
+    }
+
     if (active == ConversationEntityType.doctor &&
         context.selectedDoctor != null) {
       return ConversationReferenceResolution(
@@ -439,6 +465,38 @@ class ConversationReferenceResolver {
       requiresClarification: true,
       message: GhadeerFollowUpContext.noPronounTargetMessage(),
     );
+  }
+
+  /// نية اتصال/واتساب تسمّي نوع الكيان صراحة (مو طبيب عام).
+  static ConversationEntityType? _namedContactType(AssistantIntent intent) {
+    switch (intent) {
+      case AssistantIntent.callLab:
+      case AssistantIntent.messageLab:
+        return ConversationEntityType.laboratory;
+      case AssistantIntent.callRadiology:
+      case AssistantIntent.messageRadiology:
+        return ConversationEntityType.radiology;
+      case AssistantIntent.callPharmacy:
+      case AssistantIntent.messagePharmacy:
+        return ConversationEntityType.pharmacy;
+      case AssistantIntent.callPhysio:
+      case AssistantIntent.messagePhysio:
+        return ConversationEntityType.physio;
+      case AssistantIntent.callSupply:
+      case AssistantIntent.messageSupply:
+        return ConversationEntityType.supply;
+      case AssistantIntent.callOptics:
+      case AssistantIntent.messageOptics:
+        return ConversationEntityType.optics;
+      case AssistantIntent.callBeauty:
+      case AssistantIntent.messageBeauty:
+        return ConversationEntityType.beauty;
+      case AssistantIntent.callNursing:
+      case AssistantIntent.messageNursing:
+        return ConversationEntityType.nursing;
+      default:
+        return null;
+    }
   }
 
   static bool _isBareContextualAction(String n, IntentResult intent) {
@@ -569,6 +627,7 @@ class ConversationReferenceResolver {
       ConversationEntityType.supply => (selected.supplyId ?? '').trim(),
       ConversationEntityType.optics => (selected.opticsId ?? '').trim(),
       ConversationEntityType.beauty => (selected.beautyId ?? '').trim(),
+      ConversationEntityType.nursing => (selected.nursingId ?? '').trim(),
       ConversationEntityType.none => '',
     };
     if (id.isEmpty || id != selectedId) return null;
@@ -601,6 +660,8 @@ class ConversationReferenceResolver {
         return 'ما عندي مركز بصريات محفوظ بالسياق. ابحث عن العوينات أولاً.';
       case ConversationEntityType.beauty:
         return 'ما عندي مركز تجميل محفوظ بالسياق. ابحث عن مراكز التجميل أولاً.';
+      case ConversationEntityType.nursing:
+        return 'ما عندي ممرض محفوظ بالسياق. ابحث عن التمريض المنزلي أولاً.';
       case ConversationEntityType.none:
         return 'ما عندي كيان محفوظ للعودة إليه.';
     }

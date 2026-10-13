@@ -984,6 +984,8 @@ class SmartBrainPlanner {
         () => _lookupServiceCenters(ServiceCenterKind.optics, ''),
       if (want(ConversationEntityType.beauty))
         () => _lookupServiceCenters(ServiceCenterKind.beauty, ''),
+      if (want(ConversationEntityType.nursing))
+        () => _lookupServiceCenters(ServiceCenterKind.nursing, ''),
     ];
     final settled = await Future.wait([
       for (final load in loaders)
@@ -1040,6 +1042,8 @@ class SmartBrainPlanner {
           await _lookupServiceCenters(ServiceCenterKind.optics, query),
         ConversationEntityType.beauty =>
           await _lookupServiceCenters(ServiceCenterKind.beauty, query),
+        ConversationEntityType.nursing =>
+          await _lookupServiceCenters(ServiceCenterKind.nursing, query),
         ConversationEntityType.none ||
         ConversationEntityType.analysis ||
         ConversationEntityType.package =>
@@ -1149,6 +1153,9 @@ class SmartBrainPlanner {
       case AssistantIntent.findBeauty:
       case AssistantIntent.callBeauty:
       case AssistantIntent.messageBeauty:
+      case AssistantIntent.findNursing:
+      case AssistantIntent.callNursing:
+      case AssistantIntent.messageNursing:
       case AssistantIntent.findPharmacy:
       case AssistantIntent.callPharmacy:
       case AssistantIntent.messagePharmacy:
@@ -1417,13 +1424,16 @@ class SmartBrainPlanner {
         );
       case SmartSearchResultType.optics:
       case SmartSearchResultType.beauty:
+      case SmartSearchResultType.nursing:
         context.selectEntity(target);
         return _planForResolvedServiceCenter(
           _actionIntentForEntity(
             intent,
-            target.type == SmartSearchResultType.optics
-                ? ConversationEntityType.optics
-                : ConversationEntityType.beauty,
+            switch (target.type) {
+              SmartSearchResultType.optics => ConversationEntityType.optics,
+              SmartSearchResultType.nursing => ConversationEntityType.nursing,
+              _ => ConversationEntityType.beauty,
+            },
             query: query,
           ),
           target,
@@ -1503,6 +1513,7 @@ class SmartBrainPlanner {
             ConversationEntityType.supply => AssistantIntent.callSupply,
             ConversationEntityType.optics => AssistantIntent.callOptics,
             ConversationEntityType.beauty => AssistantIntent.callBeauty,
+            ConversationEntityType.nursing => AssistantIntent.callNursing,
             ConversationEntityType.pharmacy => AssistantIntent.callPharmacy,
             ConversationEntityType.laboratory => AssistantIntent.callLab,
             _ => AssistantIntent.callDoctor,
@@ -1513,6 +1524,7 @@ class SmartBrainPlanner {
             ConversationEntityType.supply => AssistantIntent.messageSupply,
             ConversationEntityType.optics => AssistantIntent.messageOptics,
             ConversationEntityType.beauty => AssistantIntent.messageBeauty,
+            ConversationEntityType.nursing => AssistantIntent.messageNursing,
             ConversationEntityType.pharmacy => AssistantIntent.messagePharmacy,
             ConversationEntityType.laboratory => AssistantIntent.messageLab,
             _ => AssistantIntent.messageDoctor,
@@ -1525,6 +1537,7 @@ class SmartBrainPlanner {
             ConversationEntityType.supply => AssistantIntent.findSupply,
             ConversationEntityType.optics => AssistantIntent.findOptics,
             ConversationEntityType.beauty => AssistantIntent.findBeauty,
+            ConversationEntityType.nursing => AssistantIntent.findNursing,
             ConversationEntityType.pharmacy => AssistantIntent.findPharmacy,
             ConversationEntityType.laboratory => AssistantIntent.findLab,
             _ => intent.intent,
@@ -1813,6 +1826,9 @@ class SmartBrainPlanner {
       case AssistantIntent.findBeauty:
       case AssistantIntent.callBeauty:
       case AssistantIntent.messageBeauty:
+      case AssistantIntent.findNursing:
+      case AssistantIntent.callNursing:
+      case AssistantIntent.messageNursing:
       case AssistantIntent.showLocation:
       case AssistantIntent.showProfile:
       case AssistantIntent.bookAppointment:
@@ -3889,6 +3905,9 @@ class SmartBrainPlanner {
       case AssistantIntent.findBeauty:
       case AssistantIntent.callBeauty:
       case AssistantIntent.messageBeauty:
+      case AssistantIntent.findNursing:
+      case AssistantIntent.callNursing:
+      case AssistantIntent.messageNursing:
       case AssistantIntent.bookAppointment:
       case AssistantIntent.showProfile:
       case AssistantIntent.showLocation:
@@ -6652,7 +6671,7 @@ class SmartBrainPlanner {
       return AssistantActionPlan(
         kind: AssistantActionKind.showMessage,
         intentResult: intent,
-        message: 'ما حددت قسم العوينات أو مراكز التجميل.',
+        message: 'ما حددت القسم: العوينات أو مراكز التجميل أو التمريض المنزلي.',
         canExecute: false,
       );
     }
@@ -6666,18 +6685,24 @@ class SmartBrainPlanner {
         canExecute: false,
       );
     }
-    final entityType = kind == ServiceCenterKind.optics
-        ? ConversationEntityType.optics
-        : ConversationEntityType.beauty;
+    final entityType = switch (kind) {
+      ServiceCenterKind.optics => ConversationEntityType.optics,
+      ServiceCenterKind.beauty => ConversationEntityType.beauty,
+      ServiceCenterKind.nursing => ConversationEntityType.nursing,
+    };
     final all = await _lookupServiceCenters(kind, '');
-    final hinted = kind == ServiceCenterKind.optics
-        ? (intent.entities.optics ?? '').trim()
-        : (intent.entities.beauty ?? '').trim();
+    final hinted = (switch (kind) {
+      ServiceCenterKind.optics => intent.entities.optics ?? '',
+      ServiceCenterKind.beauty => intent.entities.beauty ?? '',
+      ServiceCenterKind.nursing => intent.entities.nursing ?? '',
+    })
+        .trim();
     final nameQuery =
         hinted.isNotEmpty ? hinted : (ServiceCenterQuery.nameHint(normalized) ?? '');
     final listing = nameQuery.isEmpty &&
         (intent.intent == AssistantIntent.findOptics ||
             intent.intent == AssistantIntent.findBeauty ||
+            intent.intent == AssistantIntent.findNursing ||
             intent.intent == AssistantIntent.generalSearch ||
             intent.intent == AssistantIntent.showProfile);
     if (listing) {
@@ -6707,7 +6732,9 @@ class SmartBrainPlanner {
         kind: AssistantActionKind.runGeneralSearch,
         intentResult: intent,
         candidates: all,
-        message: 'هذي ${kind.sectionTitle} المتوفرة.',
+        message: kind == ServiceCenterKind.nursing
+            ? 'هذولي الممرضين المتوفرين بالتمريض المنزلي.'
+            : 'هذي ${kind.sectionTitle} المتوفرة.',
         canExecute: true,
       );
     }
@@ -6731,14 +6758,18 @@ class SmartBrainPlanner {
       final selected = context.selectedOf(entityType);
       if (selected != null && nameQuery.isEmpty) ranked = [selected];
     }
+    // التمريض أشخاص لا مراكز — الصياغة تتبع القسم.
+    final nurse = kind == ServiceCenterKind.nursing;
     if (ranked.isEmpty) {
       return AssistantActionPlan(
         kind: AssistantActionKind.showMessage,
         intentResult: intent,
         message: nameQuery.isEmpty
-            ? 'أي مركز تقصد؟ اذكر اسمه أو ابحث أولاً.'
+            ? (nurse
+                ? 'أي ممرض تقصد؟ اذكر اسمه أو ابحث أولاً.'
+                : 'أي مركز تقصد؟ اذكر اسمه أو ابحث أولاً.')
             : PlatformGrounding.noMatchFor(
-                entityLabelAr: 'مركز مطابق',
+                entityLabelAr: nurse ? 'ممرض مطابق' : 'مركز مطابق',
                 nameQuery: nameQuery,
               ),
         canExecute: false,
@@ -6750,7 +6781,9 @@ class SmartBrainPlanner {
         kind: AssistantActionKind.showClarification,
         intentResult: intent,
         candidates: ranked,
-        message: 'لقيت أكثر من مركز. أي واحد تقصد؟',
+        message: nurse
+            ? 'لقيت أكثر من ممرض. أي واحد تقصد؟'
+            : 'لقيت أكثر من مركز. أي واحد تقصد؟',
         canExecute: true,
       );
     }
@@ -6772,6 +6805,10 @@ class SmartBrainPlanner {
       case AssistantIntent.callBeauty:
       case AssistantIntent.messageBeauty:
         return ServiceCenterKind.beauty;
+      case AssistantIntent.findNursing:
+      case AssistantIntent.callNursing:
+      case AssistantIntent.messageNursing:
+        return ServiceCenterKind.nursing;
       default:
         return null;
     }
@@ -6783,6 +6820,8 @@ class SmartBrainPlanner {
         return ServiceCenterKind.optics;
       case ConversationEntityType.beauty:
         return ServiceCenterKind.beauty;
+      case ConversationEntityType.nursing:
+        return ServiceCenterKind.nursing;
       default:
         return null;
     }
@@ -6795,6 +6834,7 @@ class SmartBrainPlanner {
     switch (intent.intent) {
       case AssistantIntent.callOptics:
       case AssistantIntent.callBeauty:
+      case AssistantIntent.callNursing:
       case AssistantIntent.callDoctor:
         if (!target.canCall) {
           return AssistantActionPlan(
@@ -6813,6 +6853,7 @@ class SmartBrainPlanner {
         );
       case AssistantIntent.messageOptics:
       case AssistantIntent.messageBeauty:
+      case AssistantIntent.messageNursing:
       case AssistantIntent.messageDoctor:
         if (!target.canWhatsApp) {
           return AssistantActionPlan(
@@ -6860,6 +6901,7 @@ class SmartBrainPlanner {
       case AssistantIntent.showProfile:
       case AssistantIntent.findOptics:
       case AssistantIntent.findBeauty:
+      case AssistantIntent.findNursing:
         return AssistantActionPlan(
           kind: AssistantActionKind.openProfile,
           intentResult: intent,
@@ -8766,6 +8808,7 @@ class SmartBrainPlanner {
           break;
         case ConversationEntityType.optics:
         case ConversationEntityType.beauty:
+        case ConversationEntityType.nursing:
           break;
         case ConversationEntityType.supply:
           final supplyTarget = _supplyTargetResolver.resolve(

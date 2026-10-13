@@ -185,6 +185,7 @@ class SmartNavigationResolver {
           confidence: target.score,
         );
       case SmartSearchResultType.beauty:
+      case SmartSearchResultType.nursing:
         return SmartNavigationDecision(
           action: SmartNavAction.openLab,
           message: 'فتح ملف ${target.title}',
@@ -329,6 +330,8 @@ class SmartNavigationResolver {
         return 'وجدت أكثر من مركز بصريات ($count)، اختر المقصود.';
       case SmartSearchResultType.beauty:
         return 'وجدت أكثر من مركز تجميل ($count)، اختر المقصود.';
+      case SmartSearchResultType.nursing:
+        return 'وجدت أكثر من ممرض ($count)، اختر المقصود.';
       case SmartSearchResultType.package:
         return 'وجدت أكثر من باقة ($count)، اختر الباقة المقصودة.';
       case SmartSearchResultType.offer:

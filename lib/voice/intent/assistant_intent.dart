@@ -34,6 +34,11 @@ enum AssistantIntent {
   findBeauty,
   callBeauty,
   messageBeauty,
+
+  /// التمريض المنزلي: بحث/اتصال/واتساب ممرض.
+  findNursing,
+  callNursing,
+  messageNursing,
   showLocation,
   showProfile,
   showMore,

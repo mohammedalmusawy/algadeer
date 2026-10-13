@@ -166,13 +166,17 @@ class EntityTargetResolver {
       case AssistantIntent.findBeauty:
       case AssistantIntent.callBeauty:
       case AssistantIntent.messageBeauty:
+      case AssistantIntent.findNursing:
+      case AssistantIntent.callNursing:
+      case AssistantIntent.messageNursing:
         return true;
       default:
         break;
     }
     final active = context.activeEntityType;
     if (active != ConversationEntityType.optics &&
-        active != ConversationEntityType.beauty) {
+        active != ConversationEntityType.beauty &&
+        active != ConversationEntityType.nursing) {
       return false;
     }
     switch (intent.intent) {

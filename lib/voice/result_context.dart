@@ -79,7 +79,8 @@ class EntityActionCompatibility {
       t == ConversationEntityType.physio ||
       t == ConversationEntityType.supply ||
       t == ConversationEntityType.optics ||
-      t == ConversationEntityType.beauty;
+      t == ConversationEntityType.beauty ||
+      t == ConversationEntityType.nursing;
 
   static bool supportsWhatsApp(ConversationEntityType t) =>
       t == ConversationEntityType.doctor ||
@@ -89,7 +90,8 @@ class EntityActionCompatibility {
       t == ConversationEntityType.physio ||
       t == ConversationEntityType.supply ||
       t == ConversationEntityType.optics ||
-      t == ConversationEntityType.beauty;
+      t == ConversationEntityType.beauty ||
+      t == ConversationEntityType.nursing;
 
   static bool supportsLocation(ConversationEntityType t) =>
       t == ConversationEntityType.doctor ||
@@ -100,6 +102,7 @@ class EntityActionCompatibility {
       t == ConversationEntityType.supply ||
       t == ConversationEntityType.optics ||
       t == ConversationEntityType.beauty ||
+      t == ConversationEntityType.nursing ||
       t == ConversationEntityType.package; // → مختبر أب
 
   static bool supportsPrice(ConversationEntityType t) =>
@@ -136,6 +139,8 @@ class EntityActionCompatibility {
         return ConversationEntityType.optics;
       case SmartSearchResultType.beauty:
         return ConversationEntityType.beauty;
+      case SmartSearchResultType.nursing:
+        return ConversationEntityType.nursing;
       case SmartSearchResultType.specialty:
         return null;
     }

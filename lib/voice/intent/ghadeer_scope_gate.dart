@@ -27,6 +27,7 @@ class GhadeerScopeGate {
       case AssistantIntent.findSupply:
       case AssistantIntent.findOptics:
       case AssistantIntent.findBeauty:
+      case AssistantIntent.findNursing:
       case AssistantIntent.doctorAvailability:
       case AssistantIntent.bookAppointment:
       case AssistantIntent.callDoctor:
@@ -45,6 +46,8 @@ class GhadeerScopeGate {
       case AssistantIntent.messageOptics:
       case AssistantIntent.callBeauty:
       case AssistantIntent.messageBeauty:
+      case AssistantIntent.callNursing:
+      case AssistantIntent.messageNursing:
       case AssistantIntent.showLocation:
       case AssistantIntent.showProfile:
       case AssistantIntent.showMore:

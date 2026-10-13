@@ -2565,6 +2565,8 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         return (r.opticsId ?? '').trim();
       case SmartSearchResultType.beauty:
         return (r.beautyId ?? '').trim();
+      case SmartSearchResultType.nursing:
+        return (r.nursingId ?? '').trim();
       case SmartSearchResultType.package:
       case SmartSearchResultType.offer:
         return (r.packageId ?? '').trim();
@@ -2622,6 +2624,10 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         case SmartSearchResultType.beauty:
           if (result.beautyId != null) {
             await _openServiceCenter(result.beautyId!);
+          }
+        case SmartSearchResultType.nursing:
+          if (result.nursingId != null) {
+            await _openServiceCenter(result.nursingId!);
           }
         case SmartSearchResultType.package:
         case SmartSearchResultType.offer:

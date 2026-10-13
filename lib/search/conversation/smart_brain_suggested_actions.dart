@@ -265,7 +265,8 @@ class SmartBrainSuggestedActionsBuilder {
           type == SmartSearchResultType.radiology ||
           type == SmartSearchResultType.physio ||
           type == SmartSearchResultType.optics ||
-          type == SmartSearchResultType.beauty) {
+          type == SmartSearchResultType.beauty ||
+          type == SmartSearchResultType.nursing) {
         final lead = type == SmartSearchResultType.doctor
             ? 'تريد تفاصيل أي طبيب؟ اضغط اسمه أو اكتب رقمه.'
             : 'أي نتيجة تريد تفاصيلها؟ اضغط اسمها أو اكتب رقمها.';
@@ -407,6 +408,8 @@ class SmartBrainSuggestedActionsBuilder {
         return (r.opticsId ?? '').trim();
       case SmartSearchResultType.beauty:
         return (r.beautyId ?? '').trim();
+      case SmartSearchResultType.nursing:
+        return (r.nursingId ?? '').trim();
       case SmartSearchResultType.package:
       case SmartSearchResultType.offer:
         return (r.packageId ?? '').trim();

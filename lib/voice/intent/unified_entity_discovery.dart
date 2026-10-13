@@ -163,6 +163,9 @@ class UnifiedEntityDiscovery {
     if (centerKind == ServiceCenterKind.beauty) {
       return ConversationEntityType.beauty;
     }
+    if (centerKind == ServiceCenterKind.nursing) {
+      return ConversationEntityType.nursing;
+    }
     if (RegExp(r'(?:صيدليه|صيدلية|صيدليات)').hasMatch(n)) {
       return ConversationEntityType.pharmacy;
     }
@@ -188,6 +191,7 @@ class UnifiedEntityDiscovery {
       SmartSearchResultType.supply => ConversationEntityType.supply,
       SmartSearchResultType.optics => ConversationEntityType.optics,
       SmartSearchResultType.beauty => ConversationEntityType.beauty,
+      SmartSearchResultType.nursing => ConversationEntityType.nursing,
       _ => ConversationEntityType.none,
     };
     final id = switch (r.type) {
@@ -199,6 +203,7 @@ class UnifiedEntityDiscovery {
       SmartSearchResultType.supply => (r.supplyId ?? '').trim(),
       SmartSearchResultType.optics => (r.opticsId ?? '').trim(),
       SmartSearchResultType.beauty => (r.beautyId ?? '').trim(),
+      SmartSearchResultType.nursing => (r.nursingId ?? '').trim(),
       _ => '',
     };
     return SearchablePlatformEntity(
@@ -305,6 +310,7 @@ class UnifiedEntityDiscovery {
       case ConversationEntityType.supply:
       case ConversationEntityType.optics:
       case ConversationEntityType.beauty:
+      case ConversationEntityType.nursing:
       case ConversationEntityType.radiology:
         final batch = const CatalogNameMatcher().match(
           query: query,

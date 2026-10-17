@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'trending_entity.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 /// قسم أفقي: الأكثر طلبًا (أطباء أو مختبرات).
 class HomeTrendingSection extends StatelessWidget {
@@ -147,9 +148,10 @@ class _TrendingChip extends StatelessWidget {
                                 color: const Color(0xFF0FAFA3),
                               ),
                             )
-                          : Image.network(
+                          : GhadeerNetImage(
                               image,
                               fit: BoxFit.cover,
+                              cacheWidth: 240,
                               errorBuilder: (_, _, _) => const ColoredBox(
                                 color: Color(0xFFE8F7F5),
                                 child: Icon(

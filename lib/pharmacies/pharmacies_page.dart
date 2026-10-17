@@ -16,6 +16,7 @@ import 'pharmacy_distance.dart';
 import 'pharmacy_models.dart';
 import 'pharmacy_profile_page.dart';
 import '../utils/contact_launch.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 /// قائمة الصيدليات — مواضع بصرية مطابقة للموكاب (يسار/يمين الشاشة).
 class PharmaciesPage extends StatefulWidget {
@@ -784,9 +785,10 @@ class _PharmacyCardState extends State<_PharmacyCard> {
                                     size: 34,
                                   ),
                                 )
-                              : Image.network(
+                              : GhadeerNetImage(
                                   p.imageUrl,
                                   fit: BoxFit.cover,
+                                  cacheWidth: 240,
                                   errorBuilder: (_, _, _) => Container(
                                     color: const Color(0xFFE8F6FB),
                                     child: const Icon(

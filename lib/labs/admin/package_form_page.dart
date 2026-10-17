@@ -564,6 +564,9 @@ class _PackageFormPageState extends State<PackageFormPage> {
   Future<void> _pickDeviceImage() async {
     final image = await ImagePicker().pickImage(
       source: ImageSource.gallery,
+      // صورة الكاميرا الكاملة (٤٠٠٠px) تبطّئ التحميل عند الكل.
+      maxWidth: 1600,
+      maxHeight: 1600,
       imageQuality: 85,
     );
     if (image == null) return;

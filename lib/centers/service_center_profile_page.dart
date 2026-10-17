@@ -13,6 +13,7 @@ import 'service_center_models.dart';
 import 'service_center_owner_editor_page.dart';
 import '../widgets/owner_access_link.dart';
 import '../utils/ghadeer_card_link.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 /// بطاقة المركز بهوية قريبة من بطاقة الطبيب: صورة، اسم، وتفاصيل بلا حجز.
 class ServiceCenterProfilePage extends StatelessWidget {
@@ -209,10 +210,11 @@ class _Hero extends StatelessWidget {
                     key: const Key('service_center_image'),
                     flex: 9,
                     child: image.startsWith('http')
-                        ? Image.network(
+                        ? GhadeerNetImage(
                             image,
                             fit: BoxFit.cover,
                             height: height,
+                            cacheWidth: 1200,
                             errorBuilder: (_, _, _) => _placeholder(accent),
                           )
                         : _placeholder(accent),

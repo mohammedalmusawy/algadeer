@@ -24,6 +24,20 @@ void main() {
     expect(shortcuts, hasLength(3));
   });
 
+  test('الترتيب الثابت: باطنية، كسور ومفاصل، أطفال، جراحة، أسنان، جلدية، عيون', () {
+    final ids = SpecialtyCatalog.gridEntries(const {})
+        .take(SpecialtyCatalog.pinnedOrderIds.length)
+        .map((e) => e.def?.id)
+        .toList();
+    expect(ids, SpecialtyCatalog.pinnedOrderIds);
+    expect(SpecialtyCatalog.pinnedOrderIds.first, 'internal');
+    expect(SpecialtyCatalog.pinnedOrderIds.last, 'ophthalmology');
+    // اختصاص بيه أطباء أكثر بس مو ضمن الثابتة يجي بعدها.
+    final withCounts = SpecialtyCatalog.gridEntries(const {'القلب': 9});
+    final heartIndex = withCounts.indexWhere((e) => e.def?.id == 'cardiology');
+    expect(heartIndex, SpecialtyCatalog.pinnedOrderIds.length);
+  });
+
   test('counts group synonym specialties', () {
     final counts = SpecialtyCatalog.countBySpecialty(const [
       'الأطفال',

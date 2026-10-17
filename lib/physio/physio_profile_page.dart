@@ -16,6 +16,7 @@ import '../doctors/doctor_card_gate.dart';
 import '../widgets/directory_owner_editor_page.dart';
 import '../widgets/owner_access_link.dart';
 import 'physio_store.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 /// تفاصيل مركز علاج طبيعي.
 class PhysioProfilePage extends StatefulWidget {
@@ -203,9 +204,10 @@ class _PhysioProfilePageState extends State<PhysioProfilePage> {
                             color: GhadeerHomeColors.physioAccent,
                           ),
                         )
-                      : Image.network(
+                      : GhadeerNetImage(
                           _v.imageUrl,
                           fit: BoxFit.cover,
+                          cacheWidth: 1200,
                           errorBuilder: (_, _, _) => const ColoredBox(
                             color: Color(0xFFE8F8F0),
                             child: Icon(

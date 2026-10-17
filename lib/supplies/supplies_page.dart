@@ -9,6 +9,7 @@ import 'supplies_store.dart';
 import 'supply_models.dart';
 import 'supply_profile_page.dart';
 import '../utils/contact_launch.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 /// قائمة محلات المستلزمات والتجهيزات الطبية.
 class SuppliesPage extends StatefulWidget {
@@ -390,9 +391,10 @@ class _SupplyCard extends StatelessWidget {
                                 color: GhadeerHomeColors.suppliesAccent,
                               ),
                             )
-                          : Image.network(
+                          : GhadeerNetImage(
                               vendor.imageUrl,
                               fit: BoxFit.cover,
+                              cacheWidth: 192,
                               errorBuilder: (_, _, _) => const ColoredBox(
                                 color: Color(0xFFFFF3E6),
                                 child: Icon(

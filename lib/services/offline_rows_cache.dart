@@ -55,14 +55,18 @@ abstract final class OfflineRowsCache {
     return DateTime.tryParse(prefs.getString('$_prefix$key$_atSuffix') ?? '');
   }
 
-  /// يجرب الشبكة؛ عند النجاح يحفظ نسخة، وعند الفشل يرجع آخر نسخة.
+  /// أقصى انتظار للشبكة قبل ما نعرض النسخة المحفوظة (نت ضعيف = لا تعليق).
+  static const defaultTimeout = Duration(seconds: 10);
+
+  /// يجرب الشبكة؛ عند النجاح يحفظ نسخة، وعند الفشل أو التأخر يرجع آخر نسخة.
   /// إن لم توجد نسخة يُعاد رمي الخطأ الأصلي حتى تبقى رسائل الخطأ كما هي.
   static Future<List<Map<String, dynamic>>> fetchOrCache(
     String key,
-    Future<List<Map<String, dynamic>>> Function() fetch,
-  ) async {
+    Future<List<Map<String, dynamic>>> Function() fetch, {
+    Duration timeout = defaultTimeout,
+  }) async {
     try {
-      final rows = await fetch();
+      final rows = await fetch().timeout(timeout);
       await save(key, rows);
       return rows;
     } catch (e) {

@@ -9,6 +9,7 @@ import 'physio_store.dart';
 import 'physio_models.dart';
 import 'physio_profile_page.dart';
 import '../utils/contact_launch.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 /// قائمة مراكز العلاج الطبيعي والتأهيل.
 class PhysioPage extends StatefulWidget {
@@ -390,9 +391,10 @@ class _PhysioCard extends StatelessWidget {
                                 color: GhadeerHomeColors.physioAccent,
                               ),
                             )
-                          : Image.network(
+                          : GhadeerNetImage(
                               center.imageUrl,
                               fit: BoxFit.cover,
+                              cacheWidth: 192,
                               errorBuilder: (_, _, _) => const ColoredBox(
                                 color: Color(0xFFE8F8F0),
                                 child: Icon(

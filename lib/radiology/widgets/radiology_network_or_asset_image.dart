@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../branding/ghadeer_brand_mark.dart';
 import '../radiology_default_images.dart';
+import '../../widgets/ghadeer_net_image.dart';
 
 class RadiologyNetworkOrAssetImage extends StatelessWidget {
   const RadiologyNetworkOrAssetImage(
@@ -38,7 +39,7 @@ class RadiologyNetworkOrAssetImage extends StatelessWidget {
         errorBuilder: errorBuilder,
       );
     }
-    return Image.network(
+    return GhadeerNetImage(
       p,
       fit: fit,
       alignment: alignment,

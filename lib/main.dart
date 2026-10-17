@@ -18,6 +18,7 @@ import 'ads/ads_local_preview.dart';
 import 'ads/widgets/home_ad_slot.dart';
 import 'core/app_config.dart';
 import 'doctors/all_specialties_page.dart';
+import 'doctors/specialty_stats.dart';
 import 'doctors/app_stats_admin_page.dart';
 import 'doctors/clinic_doctor_list_card.dart';
 import 'doctors/doctor_absences_admin_page.dart';
@@ -60,6 +61,7 @@ import 'services/dynamic_message_admin_page.dart';
 import 'services/dynamic_message_service.dart';
 import 'services/favorites_cloud.dart';
 import 'utils/card_link_router.dart';
+import 'utils/contact_launch.dart' show ghadeerMessengerKey;
 import 'utils/ghadeer_card_link.dart';
 import 'utils/responsive.dart';
 import 'utils/dom_input_value.dart'
@@ -152,6 +154,7 @@ class _GhadeerClinicAppState extends State<GhadeerClinicApp> {
 
     return MaterialApp(
       navigatorKey: _navKey,
+      scaffoldMessengerKey: ghadeerMessengerKey,
       debugShowCheckedModeBanner: false,
       title: 'عيادة الغدير',
       theme: ThemeData(
@@ -513,12 +516,37 @@ class _HomePageState extends State<HomePage> {
     _saveFavorites();
   }
 
+  static List<Map<String, dynamic>> _sortedDoctorRows(
+    List<Map<String, dynamic>> data,
+  ) {
+    return List<Map<String, dynamic>>.from(data)
+      ..sort((a, b) {
+        final av = int.tryParse('${a['profile_views'] ?? 0}') ?? 0;
+        final bv = int.tryParse('${b['profile_views'] ?? 0}') ?? 0;
+        if (av != bv) return bv.compareTo(av);
+        final ao = int.tryParse('${a['display_order'] ?? 0}') ?? 0;
+        final bo = int.tryParse('${b['display_order'] ?? 0}') ?? 0;
+        return ao.compareTo(bo);
+      });
+  }
+
   Future<void> loadDoctors() async {
     try {
       debugPrint('loadDoctors: fetching from Supabase...');
       // فلترة على السيرفر: نشط أو null (للتوافق مع صفوف قديمة)
       // الترتيب حسب المشاهدات يتم محليًا حتى لا يفشل الطلب إن غاب العمود.
       // بدون نت: آخر قائمة ناجحة من الجهاز بدل شاشة الخطأ.
+      // فتح فوري: آخر قائمة محفوظة تطلع قبل ما يرد السيرفر (مثل إنستا)،
+      // وبعدها تتحدّث بهدوء.
+      if (doctors.isEmpty) {
+        final cached = await OfflineRowsCache.read('doctors');
+        if (cached != null && cached.isNotEmpty && mounted && doctors.isEmpty) {
+          setState(() {
+            doctors = _sortedDoctorRows(cached);
+            isLoadingDoctors = false;
+          });
+        }
+      }
       final offlineBefore = OfflineRowsCache.lastOfflineServe.value;
       final List<dynamic> data = await OfflineRowsCache.fetchOrCache(
         'doctors',
@@ -540,15 +568,7 @@ class _HomePageState extends State<HomePage> {
 
       if (!mounted) return;
 
-      final rows = List<Map<String, dynamic>>.from(data)
-        ..sort((a, b) {
-          final av = int.tryParse('${a['profile_views'] ?? 0}') ?? 0;
-          final bv = int.tryParse('${b['profile_views'] ?? 0}') ?? 0;
-          if (av != bv) return bv.compareTo(av);
-          final ao = int.tryParse('${a['display_order'] ?? 0}') ?? 0;
-          final bo = int.tryParse('${b['display_order'] ?? 0}') ?? 0;
-          return ao.compareTo(bo);
-        });
+      final rows = _sortedDoctorRows(List<Map<String, dynamic>>.from(data));
 
       setState(() {
         doctors = rows;
@@ -846,6 +866,7 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(
         builder: (_) => AllSpecialtiesPage(
           doctorSpecialties: specialties,
+          stats: SpecialtyStats.fromDoctorRows(doctors),
           onSpecialtySelected: (specialty) {
             final list = _doctorsMatchingSpecialty(specialty);
             WidgetsBinding.instance.addPostFrameCallback((_) {

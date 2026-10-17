@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../branding/ghadeer_brand_mark.dart';
 import '../lab_default_images.dart';
+import '../../widgets/ghadeer_net_image.dart';
 
 /// يعرض صورة مختبر من مسار asset أو رابط شبكة.
 class LabNetworkOrAssetImage extends StatelessWidget {
@@ -38,7 +39,7 @@ class LabNetworkOrAssetImage extends StatelessWidget {
         errorBuilder: errorBuilder,
       );
     }
-    return Image.network(
+    return GhadeerNetImage(
       p,
       fit: fit,
       alignment: alignment,

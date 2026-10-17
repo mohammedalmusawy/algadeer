@@ -1,4 +1,17 @@
+import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'internet_probe.dart';
+
+/// مفتاح الرسائل العام (مربوط بـ MaterialApp) حتى نكدر نبلّغ من أي مكان.
+final ghadeerMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+/// رسالة انقطاع النت عند طلب واتساب: الاتصال العادي يشتغل بدون نت.
+const whatsappOfflineMessage =
+    'ماكو إنترنت حالياً. الواتساب يحتاج إنترنت، بس تكدر تتصل اتصال عادي.';
+
+/// يُستبدل بالاختبارات.
+Future<bool> Function() whatsappInternetCheck = hasInternet;
 
 /// أرقام و+ فقط: الأرقام المحفوظة قد تحمل رموز اتجاه مخفية (U+202D/U+202C)
 /// تُفسد رابط الاتصال على بعض الهواتف.
@@ -61,6 +74,18 @@ Future<void> launchClinicWhatsApp(
 }) async {
   final uri = clinicWhatsAppUri(whatsapp, message: message);
   if (uri == null) return;
+  // بدون نت كان الواتساب ينفتح ويعلّق؛ نبلّغ المستخدم ونقترح الاتصال.
+  if (!await whatsappInternetCheck()) {
+    ghadeerMessengerKey.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(whatsappOfflineMessage, textDirection: TextDirection.rtl),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    return;
+  }
   await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 

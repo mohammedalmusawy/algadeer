@@ -363,17 +363,21 @@ class SpecialtyCatalog {
     return match(specialty)?.shortNameAr ?? specialty.trim();
   }
 
-  /// ترتيب فلاتر الشاشة الرئيسية (بعد «الكل»).
-  static const List<String> homeChipIds = [
-    'general_surgery', // الجراحة
-    'pediatrics', // الأطفال
-    'ent', // الأنف والأذن
-    'ortho', // العظام
-    'ultrasound', // السونار
+  /// ترتيب ثابت لأول خانات الاختصاصات (طلب صاحب المشروع، أكتوبر 2026).
+  /// بعدين لما تتجمع بيانات كافية نرتبها حسب الأكثر طلباً.
+  static const List<String> pinnedOrderIds = [
+    'internal', // الباطنية
+    'ortho', // العظام والكسور والمفاصل
     'joints', // المفاصل
-    'neurology', // الجملة العصبية
-    'dentistry', // أطباء الأسنان
+    'pediatrics', // الأطفال
+    'general_surgery', // الجراحة
+    'dentistry', // الأسنان
+    'dermatology', // الجلدية
+    'ophthalmology', // العيون
   ];
+
+  /// ترتيب فلاتر الشاشة الرئيسية (بعد «الكل») — نفس الترتيب الثابت.
+  static const List<String> homeChipIds = pinnedOrderIds;
 
   /// اختصارات الشاشة الرئيسية: قائمة ثابتة بالترتيب المطلوب.
   static List<String> homeShortcuts(
@@ -435,7 +439,15 @@ class SpecialtyCatalog {
       result.add((def: match(entry.key), name: entry.key, count: entry.value));
     }
 
+    // الثابتة أولاً بترتيبها، وبعدها الأكثر أطباء.
+    int pin(SpecialtyDefinition? def) {
+      final i = def == null ? -1 : pinnedOrderIds.indexOf(def.id);
+      return i < 0 ? pinnedOrderIds.length : i;
+    }
+
     result.sort((a, b) {
+      final p = pin(a.def).compareTo(pin(b.def));
+      if (p != 0) return p;
       if (a.count != b.count) return b.count.compareTo(a.count);
       return a.name.compareTo(b.name);
     });

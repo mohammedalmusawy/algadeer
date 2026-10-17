@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
 import '../widgets/app_slot_icon.dart';
 import 'specialty_catalog.dart';
+import 'specialty_stats.dart';
 import '../ads/widgets/home_ad_slot.dart';
 
 /// صفحة كل الاختصاصات الطبية — Design Target (يمين الصورة المرجعية).
@@ -11,11 +12,15 @@ class AllSpecialtiesPage extends StatefulWidget {
     super.key,
     required this.doctorSpecialties,
     required this.onSpecialtySelected,
+    this.stats = const SpecialtyStats(),
   });
 
   /// نصوص الاختصاص كما هي من الأطباء (Supabase).
   final List<String> doctorSpecialties;
   final void Function(String specialty) onSpecialtySelected;
+
+  /// الطلب الحقيقي والمتوفر اليوم لكل اختصاص (من صفوف الأطباء).
+  final SpecialtyStats stats;
 
   @override
   State<AllSpecialtiesPage> createState() => _AllSpecialtiesPageState();
@@ -24,7 +29,7 @@ class AllSpecialtiesPage extends StatefulWidget {
 class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
   final _search = TextEditingController();
   String _query = '';
-  String _chip = 'all'; // all | popular | with_doctors
+  String _chip = 'all'; // all | popular | today
 
   @override
   void dispose() {
@@ -37,13 +42,22 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
     final counts = SpecialtyCatalog.countBySpecialty(widget.doctorSpecialties);
     var entries = SpecialtyCatalog.gridEntries(counts);
 
+    final demand = widget.stats.demand;
+    final today = widget.stats.availableToday;
     if (_chip == 'popular') {
-      entries = entries
-          .where((e) => e.def?.popular == true || e.count > 0)
-          .toList();
-      entries.sort((a, b) => b.count.compareTo(a.count));
-    } else if (_chip == 'with_doctors') {
+      // الأكثر طلباً فعلاً: مشاهدات + اتصال + واتساب الناس، مو عدد الأطباء.
       entries = entries.where((e) => e.count > 0).toList();
+      entries.sort((a, b) {
+        final d = (demand[b.name] ?? 0).compareTo(demand[a.name] ?? 0);
+        if (d != 0) return d;
+        return b.count.compareTo(a.count);
+      });
+    } else if (_chip == 'today') {
+      // اختصاصات بيها طبيب دوامه اليوم ومو مجاز.
+      entries = entries.where((e) => (today[e.name] ?? 0) > 0).toList();
+      entries.sort(
+        (a, b) => (today[b.name] ?? 0).compareTo(today[a.name] ?? 0),
+      );
     }
 
     if (_query.trim().isNotEmpty) {
@@ -167,13 +181,34 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
                     const SizedBox(width: 8),
                     _chipButton('popular', 'الأكثر طلباً'),
                     const SizedBox(width: 8),
-                    _chipButton('with_doctors', 'المتوفرة'),
+                    _chipButton('today', 'متوفر اليوم'),
                   ],
                 ),
               ),
               const SizedBox(height: 8),
               // شريط إعلان قسم الأطباء (موضع «الأطباء» في إدارة الإعلانات).
               const HomeAdSlot(placement: 'doctors'),
+              if (entries.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _chip == 'today'
+                            ? 'ماكو طبيب دوامه مؤكد اليوم. شوف «الكل».'
+                            : 'ما لكينا اختصاص بهذا الاسم.',
+                        key: const Key('specialties-empty'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF6D8084),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else
               Expanded(
                 child: GridView.builder(
                   padding: EdgeInsets.fromLTRB(pad, 8, pad, 24),
@@ -181,7 +216,8 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
                     crossAxisCount: crossAxisCount,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 0.92,
+                    // 0.92 كان يقص اسم الاختصاص بسطرين على موبايل 360px.
+                    childAspectRatio: 0.8,
                   ),
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
@@ -228,16 +264,23 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  e.count > 0
-                                      ? '${e.count} طبيب'
-                                      : 'قريباً',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: e.count > 0
-                                        ? const Color(0xFF6D8084)
-                                        : const Color(0xFF9AA8AB),
+                                // سطر واحد يصغر إذا ضاق المربع، حتى «N متوفر اليوم» ما ينزل لسطر ثاني ويقص.
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    _chip == 'today'
+                                        ? '${today[e.name] ?? 0} متوفر اليوم'
+                                        : e.count > 0
+                                            ? '${e.count} طبيب'
+                                            : 'قريباً',
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: e.count > 0
+                                          ? const Color(0xFF6D8084)
+                                          : const Color(0xFF9AA8AB),
+                                    ),
                                   ),
                                 ),
                               ],

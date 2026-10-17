@@ -63,6 +63,9 @@ class _LabOwnerEditorPageState extends State<LabOwnerEditorPage> {
   Future<void> _pickImage() async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
+      // صورة الكاميرا الكاملة (٤٠٠٠px) تبطّئ التحميل عند الكل.
+      maxWidth: 1600,
+      maxHeight: 1600,
       imageQuality: 85,
     );
     if (picked == null) return;

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'ghadeer_net_image.dart';
 
 /// شعار اختياري بجانب صورة المقدّم. بلا عنوان لا يأخذ مساحة ولا شعارًا افتراضيًا.
 class EntityOptionalLogo extends StatelessWidget {
@@ -61,9 +62,10 @@ class _LogoImage extends StatelessWidget {
         return const SizedBox.shrink();
       }
     }
-    return Image.network(
+    return GhadeerNetImage(
       source,
       fit: BoxFit.contain,
+      cacheWidth: 240,
       filterQuality: FilterQuality.medium,
       errorBuilder: _logoError,
     );

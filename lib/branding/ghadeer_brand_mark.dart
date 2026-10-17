@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 /// هوية الغدير المعتمدة — مصدر واحد للوغو في كل التطبيق.
 class GhadeerBranding {
@@ -223,7 +224,7 @@ class GhadeerResolvedImage extends StatelessWidget {
         errorBuilder: errorBuilder,
       );
     }
-    return Image.network(
+    return GhadeerNetImage(
       resolved,
       fit: fit,
       alignment: alignment,
@@ -238,7 +239,7 @@ ImageProvider? ghadeerResolvedImageProvider(String path) {
   final resolved = GhadeerBranding.normalizeEntityImageUrl(path.trim());
   if (resolved.isEmpty) return null;
   if (GhadeerBranding.isAssetPath(resolved)) return AssetImage(resolved);
-  if (resolved.startsWith('http')) return NetworkImage(resolved);
+  if (resolved.startsWith('http')) return ghadeerNetImageProvider(resolved);
   // نص غير رابط (مثل «لوغو الغدير») بعد التطبيع يجب أن يكون asset
   if (GhadeerBranding.looksLikeGhadeerLogo(path)) {
     return const AssetImage(GhadeerBranding.officialLogoAsset);

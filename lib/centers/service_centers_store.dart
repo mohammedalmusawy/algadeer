@@ -33,7 +33,9 @@ class ServiceCentersStore {
           .from('service_centers')
           .select(
             'id,kind,name,is_active,display_order,profile,content_revision',
-          );
+          )
+          // نت ضعيف: لا نعلّق القسم، نعرض آخر نسخة محفوظة.
+          .timeout(const Duration(seconds: 10));
       final parsed = <ServiceCenter>[];
       for (final row in rows) {
         try {

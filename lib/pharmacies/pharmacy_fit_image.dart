@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../home/ghadeer_home_colors.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 /// رفع صورة من الجهاز مضغوطة على قد الموبايل (التخطيط ثابت؛ الصورة تتكيّف).
 class PharmacyImageHelper {
@@ -101,7 +102,7 @@ class PharmacyFitImage extends StatelessWidget {
     }
 
     if (PharmacyImageHelper.isNetworkUrl(url)) {
-      return Image.network(
+      return GhadeerNetImage(
         url,
         fit: BoxFit.cover,
         width: width,

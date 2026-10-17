@@ -86,6 +86,9 @@ class _PharmacyOwnerEditorPageState extends State<PharmacyOwnerEditorPage> {
   Future<void> _pickEntityPhoto() async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
+      // صورة الكاميرا الكاملة (٤٠٠٠px) تبطّئ التحميل عند الكل.
+      maxWidth: 1600,
+      maxHeight: 1600,
       imageQuality: 85,
     );
     if (picked == null) return;

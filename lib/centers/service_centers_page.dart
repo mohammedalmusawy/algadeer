@@ -9,6 +9,7 @@ import 'service_center_style.dart';
 import 'service_center_models.dart';
 import 'service_center_profile_page.dart';
 import 'service_centers_store.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 class ServiceCenterSnapshot {
   const ServiceCenterSnapshot({
@@ -319,7 +320,7 @@ class _CenterTile extends StatelessWidget {
                   width: 64,
                   height: 64,
                   child: image.startsWith('http')
-                      ? Image.network(image, fit: BoxFit.cover)
+                      ? GhadeerNetImage(image, cacheWidth: 192)
                       : ColoredBox(
                           color: const Color(0xFFE8F4FC),
                           child: Icon(

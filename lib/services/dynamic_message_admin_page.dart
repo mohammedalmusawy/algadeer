@@ -567,6 +567,9 @@ class _MessageEditorSheetState extends State<_MessageEditorSheet> {
   Future<void> _pickImage() async {
     final image = await ImagePicker().pickImage(
       source: ImageSource.gallery,
+      // صورة الكاميرا الكاملة (٤٠٠٠px) تبطّئ التحميل عند الكل.
+      maxWidth: 1600,
+      maxHeight: 1600,
       imageQuality: 88,
     );
     if (image == null) return;

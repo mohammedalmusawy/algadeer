@@ -16,6 +16,7 @@ import '../doctors/doctor_card_gate.dart';
 import '../widgets/directory_owner_editor_page.dart';
 import '../widgets/owner_access_link.dart';
 import 'supplies_store.dart';
+import '../widgets/ghadeer_net_image.dart';
 
 /// تفاصيل محل مستلزمات وتجهيزات طبية.
 class SupplyProfilePage extends StatefulWidget {
@@ -203,9 +204,10 @@ class _SupplyProfilePageState extends State<SupplyProfilePage> {
                             color: GhadeerHomeColors.suppliesAccent,
                           ),
                         )
-                      : Image.network(
+                      : GhadeerNetImage(
                           _v.imageUrl,
                           fit: BoxFit.cover,
+                          cacheWidth: 1200,
                           errorBuilder: (_, _, _) => const ColoredBox(
                             color: Color(0xFFFFF3E6),
                             child: Icon(

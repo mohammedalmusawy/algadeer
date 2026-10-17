@@ -25,7 +25,8 @@ class DirectorySharedTable {
     try {
       final rows = await Supabase.instance.client
           .from(table)
-          .select('id,name,is_active,profile,content_revision');
+          .select('id,name,is_active,profile,content_revision')
+          .timeout(const Duration(seconds: 10));
       final list = [for (final r in rows) Map<String, dynamic>.from(r)];
       try {
         await prefs?.setString(_cacheKey, jsonEncode(list));

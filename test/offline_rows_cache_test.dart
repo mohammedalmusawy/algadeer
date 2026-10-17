@@ -36,6 +36,25 @@ void main() {
     expect(LabItem.fromMap(rows.single).id, 'l1');
   });
 
+  test('slow network falls back to the saved copy instead of hanging', () async {
+    await OfflineRowsCache.save('doctors', [
+      {'id': 'd1', 'name': 'د. علي'},
+    ]);
+    OfflineRowsCache.lastOfflineServe.value = null;
+    final rows = await OfflineRowsCache.fetchOrCache(
+      'doctors',
+      () => Future.delayed(
+        const Duration(seconds: 5),
+        () => [
+          {'id': 'late', 'name': 'متأخر'},
+        ],
+      ),
+      timeout: const Duration(milliseconds: 50),
+    );
+    expect(rows.single['id'], 'd1');
+    expect(OfflineRowsCache.lastOfflineServe.value, isNotNull);
+  });
+
   test('no saved copy keeps the original error (existing error UI)', () async {
     expect(
       () => OfflineRowsCache.fetchOrCache(

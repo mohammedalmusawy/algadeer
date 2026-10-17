@@ -1,4 +1,5 @@
 import {
+  ACTIVATION_TTL_MS,
   CONTENT_CONFLICT_MESSAGE,
   pharmacyBundlesPermissionDenied,
   type AttemptKind,
@@ -723,6 +724,32 @@ Deno.test("missing server secret fails closed", async () => {
 });
 
 const labA = "33333333-3333-4333-8333-333333333333";
+
+Deno.test("admin picks the activation code duration", async () => {
+  assertEquals(ACTIVATION_TTL_MS, 2 * 60 * 60 * 1000);
+  const issue = async (minutes: unknown, ip: string) => {
+    const box = memoryDeps({ adminJwt: true });
+    const res = await handleDoctorCardAccess(
+      {
+        action: "admin_configure",
+        doctor_id: doctorA,
+        enabled: true,
+        reset: true,
+        code_ttl_minutes: minutes as number,
+      },
+      box.deps,
+      ip,
+      "Bearer admin",
+    );
+    assertEquals(res.status, 200);
+    return Number(res.body.expires_at) - Math.floor(box.deps.now() / 1000);
+  };
+  assertEquals(await issue(30, "10.9.1.1"), 30 * 60);
+  assertEquals(await issue(1440, "10.9.1.2"), 24 * 60 * 60);
+  // أي قيمة غير المسموحة ترجع للافتراضي (ساعتين).
+  assertEquals(await issue(99999, "10.9.1.3"), 2 * 60 * 60);
+  assertEquals(await issue(undefined, "10.9.1.4"), 2 * 60 * 60);
+});
 
 Deno.test("activation code is single use, expiring, and replaced", async () => {
   const box = memoryDeps({ adminJwt: true });

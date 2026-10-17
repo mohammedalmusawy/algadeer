@@ -101,6 +101,7 @@ class _EntityOwnerAdminPanelState extends State<EntityOwnerAdminPanel> {
   String _mode = 'disabled';
   int? _codeExpiresAt;
   String? _code;
+  int _ttlMinutes = defaultOwnerCodeTtlMinutes;
   late Set<String> _permissions;
 
   @override
@@ -141,6 +142,7 @@ class _EntityOwnerAdminPanelState extends State<EntityOwnerAdminPanel> {
         permissions: _permissions.toList(),
         reset: reset,
         reissue: reissue,
+        codeTtlMinutes: _ttlMinutes,
       );
       if (!mounted) return;
       setState(() {
@@ -196,7 +198,7 @@ class _EntityOwnerAdminPanelState extends State<EntityOwnerAdminPanel> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'التعديل متوقف حتى تسمح به. الرمز يُسلَّم للمالك يدويًا، وهو صالح لساعتين ولمرة واحدة.',
+          'التعديل متوقف حتى تسمح به. الرمز يُسلَّم للمالك يدويًا، وهو لمرة واحدة، ومدته تختارها أنت.',
           style: TextStyle(fontSize: 12.5, height: 1.35),
         ),
         if (_loading)
@@ -249,6 +251,25 @@ class _EntityOwnerAdminPanelState extends State<EntityOwnerAdminPanel> {
             ),
           ],
           const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text('مدة الرمز: '),
+              const SizedBox(width: 8),
+              DropdownButton<int>(
+                key: const Key('owner-code-ttl'),
+                value: _ttlMinutes,
+                items: [
+                  for (final entry in ownerCodeTtlChoices.entries)
+                    DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+                ],
+                onChanged: _busy
+                    ? null
+                    : (value) => setState(
+                          () => _ttlMinutes = value ?? defaultOwnerCodeTtlMinutes,
+                        ),
+              ),
+            ],
+          ),
           FilledButton(
             onPressed: _busy ? null : () => _save(),
             child: Text(_busy ? 'جاري الحفظ...' : 'حفظ صلاحيات المالك'),

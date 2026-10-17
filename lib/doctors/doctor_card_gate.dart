@@ -1,9 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../home/ghadeer_home_colors.dart';
 import '../models/doctor_item.dart';
+import '../patient_health/patient_auth.dart';
+import '../services/entity_access_pin_service.dart';
+import '../utils/contact_launch.dart';
 import 'doctor_card_access_client.dart';
 import 'doctor_card_editor_page.dart';
+
+/// رسالة «نسيت كلمة السر» الجاهزة لواتساب إدارة الغدير.
+String ownerForgotPasswordMessage(String title) {
+  final name = title.trim().isEmpty ? 'البطاقة' : title.trim();
+  return 'السلام عليكم، نسيت كلمة سر بطاقة «$name» بتطبيق الغدير. '
+      'أريد رمز تفعيل جديد.';
+}
+
+Uri? ownerForgotPasswordUri(String title) => clinicWhatsAppUri(
+      EntityAccessPinService.adminSupportWhatsApp,
+      message: ownerForgotPasswordMessage(title),
+    );
+
+/// هل التلفون داخل بحساب إدارة الغدير؟ (الخادم يتحقق مرة ثانية.)
+bool clinicAdminSignedIn() {
+  try {
+    return isClinicAdminEmail(Supabase.instance.client.auth.currentUser?.email);
+  } catch (_) {
+    return false;
+  }
+}
 
 /// النقرات تفتح هذه النافذة فقط. التحقق يتم في Edge Function.
 Future<DoctorCardEditResult?> openDoctorCardAccess(
@@ -35,6 +62,8 @@ Future<DoctorCardSession?> showEntityOwnerSession(
   required String entityType,
   required String entityId,
   required String title,
+  DoctorCardAccessClient? client,
+  bool Function()? adminSignedIn,
 }) {
   return showModalBottomSheet<DoctorCardSession>(
     context: context,
@@ -47,6 +76,8 @@ Future<DoctorCardSession?> showEntityOwnerSession(
       entityType: entityType,
       entityId: entityId,
       title: title,
+      client: client,
+      adminSignedIn: (adminSignedIn ?? clinicAdminSignedIn)(),
     ),
   );
 }
@@ -56,11 +87,15 @@ class _OwnerAccessSheet extends StatefulWidget {
     required this.entityType,
     required this.entityId,
     required this.title,
+    this.client,
+    this.adminSignedIn = false,
   });
 
   final String entityType;
   final String entityId;
   final String title;
+  final DoctorCardAccessClient? client;
+  final bool adminSignedIn;
 
   @override
   State<_OwnerAccessSheet> createState() => _OwnerAccessSheetState();
@@ -70,7 +105,8 @@ class _OwnerAccessSheetState extends State<_OwnerAccessSheet> {
   final _code = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
-  final _client = DoctorCardAccessClient();
+  late final DoctorCardAccessClient _client =
+      widget.client ?? DoctorCardAccessClient();
   bool _busy = false;
   bool _obscure = true;
   bool _loading = true;
@@ -165,6 +201,101 @@ class _OwnerAccessSheetState extends State<_OwnerAccessSheet> {
       });
     } finally {
       if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
+  /// للإدارة فقط: يبطل كلمة السر القديمة ويطلع رمز تفعيل جديد للمالك.
+  Future<void> _adminIssueCode() async {
+    final minutes = await showDialog<int>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: SimpleDialog(
+          title: const Text('مدة الرمز'),
+          children: [
+            for (final entry in ownerCodeTtlChoices.entries)
+              SimpleDialogOption(
+                key: Key('owner-code-ttl-${entry.key}'),
+                onPressed: () => Navigator.pop(ctx, entry.key),
+                child: Text(
+                  entry.key == defaultOwnerCodeTtlMinutes
+                      ? '${entry.value} (المقترح)'
+                      : entry.value,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (minutes == null || !mounted) return;
+    setState(() {
+      _error = null;
+      _busy = true;
+    });
+    try {
+      final state = await _client.adminConfigure(
+        entityType: widget.entityType,
+        entityId: widget.entityId,
+        enabled: true,
+        reset: true,
+        codeTtlMinutes: minutes,
+      );
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _mode = state.mode;
+        _activationToken = null;
+      });
+      final code = state.activationCode ?? '';
+      if (code.isEmpty) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('رمز تفعيل جديد'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SelectableText(
+                  code,
+                  key: const Key('owner-admin-code'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'صالح لـ${ownerCodeTtlChoices[minutes] ?? 'ساعتين'} ولمرة وحدة. أرسله للمالك بالواتساب.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: code));
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: const Text('نسخ الرمز'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('تم'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } on DoctorCardAccessException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _busy = false;
+      });
     }
   }
 
@@ -274,15 +405,16 @@ class _OwnerAccessSheetState extends State<_OwnerAccessSheet> {
                 ],
               ],
               const SizedBox(height: 8),
-              if (!activating)
-                const Text(
-                  'إذا نسيت كلمة المرور، راجع الإدارة.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: GhadeerHomeColors.muted,
-                  ),
+              if (_mode == 'password')
+                TextButton(
+                  key: const Key('owner-forgot-password'),
+                  onPressed: () async {
+                    final uri = ownerForgotPasswordUri(widget.title);
+                    if (uri != null) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: const Text('نسيت كلمة السر؟ راسل الإدارة بالواتساب'),
                 ),
               const SizedBox(height: 8),
               FilledButton(
@@ -299,6 +431,15 @@ class _OwnerAccessSheetState extends State<_OwnerAccessSheet> {
                       )
                     : Text(activating ? 'حفظ كلمة المرور' : 'متابعة'),
               ),
+              if (widget.adminSignedIn) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  key: const Key('owner-admin-issue-code'),
+                  onPressed: _busy ? null : _adminIssueCode,
+                  icon: const Icon(Icons.admin_panel_settings_outlined),
+                  label: const Text('إصدار رمز جديد للمالك (للإدارة)'),
+                ),
+              ],
             ],
             if (_error != null) ...[
               const SizedBox(height: 8),

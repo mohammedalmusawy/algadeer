@@ -89,6 +89,14 @@ class DoctorCardStatus {
   final List<String> permissions;
 }
 
+/// مدد رمز التفعيل اللي تختارها الإدارة (بالدقائق). الخادم يقبل هذي بس.
+const ownerCodeTtlChoices = <int, String>{
+  30: 'نص ساعة',
+  120: 'ساعتين',
+  1440: 'يوم كامل',
+};
+const defaultOwnerCodeTtlMinutes = 120;
+
 /// يستدعي Edge Function. التحقق والصلاحيات هناك، لا في الواجهة.
 class DoctorCardAccessClient {
   DoctorCardAccessClient({SupabaseClient? client}) : _override = client;
@@ -245,6 +253,7 @@ class DoctorCardAccessClient {
     bool reset = false,
     bool reissue = false,
     String? cardToken,
+    int? codeTtlMinutes,
   }) async {
     final body = <String, dynamic>{
       'action': 'admin_configure',
@@ -256,6 +265,7 @@ class DoctorCardAccessClient {
     };
     if (permissions != null) body['permissions'] = permissions;
     if (cardToken != null) body['token'] = cardToken;
+    if (codeTtlMinutes != null) body['code_ttl_minutes'] = codeTtlMinutes;
     final data = await _call(body);
     return _adminState(data);
   }

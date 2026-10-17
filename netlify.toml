@@ -25,6 +25,12 @@
   to = "/open.html"
   status = 200
 
+# سياسة الخصوصية (رابط Google Play).
+[[redirects]]
+  from = "/privacy"
+  to = "/privacy.html"
+  status = 200
+
 # Flutter Web is a client-side SPA — deep links must fall back to index.html.
 [[redirects]]
   from = "/*"

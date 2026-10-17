@@ -5,7 +5,14 @@ export const PBKDF2_ITERATIONS = 210_000;
 export const MAX_FAILURES = 5;
 export const ATTEMPT_WINDOW_MS = 5 * 60 * 1000;
 export const LOCK_MS = 5 * 60 * 1000;
+// رمز التفعيل لمرة وحدة. الإدارة تختار المدة: نص ساعة / ساعتين / يوم.
 export const ACTIVATION_TTL_MS = 2 * 60 * 60 * 1000;
+export const ACTIVATION_TTL_CHOICES_MIN = [30, 120, 1440];
+
+export function activationTtlMs(minutes: unknown): number {
+  const m = Number(minutes);
+  return ACTIVATION_TTL_CHOICES_MIN.includes(m) ? m * 60 * 1000 : ACTIVATION_TTL_MS;
+}
 export const TOKEN_TTL_SEC = 20 * 60;
 export const ACTIVATION_TOKEN_TTL_SEC = 10 * 60;
 export const CONTENT_CONFLICT_MESSAGE =
@@ -124,6 +131,7 @@ export type AccessBody = {
   permissions?: unknown;
   reset?: boolean;
   reissue?: boolean;
+  code_ttl_minutes?: number;
   package?: Record<string, unknown>;
   package_id?: string;
   package_image?: boolean;
@@ -918,9 +926,10 @@ async function assertAdmin(
 async function issueCode(
   deps: CardDeps,
   access: OwnerAccess,
+  ttlMs: number = ACTIVATION_TTL_MS,
 ): Promise<{ access: OwnerAccess; code: string; expiresAt: number }> {
   const code = generateActivationCode();
-  const expiresAt = deps.now() + ACTIVATION_TTL_MS;
+  const expiresAt = deps.now() + ttlMs;
   return {
     code,
     expiresAt,
@@ -1116,13 +1125,14 @@ export async function handleDoctorCardAccess(
       permissions: cleanPermissions(target.type, body.permissions ?? current.permissions),
     };
     let issued: { code: string; expiresAt: number } | null = null;
+    const ttlMs = activationTtlMs(body.code_ttl_minutes);
     if (body.reset === true) {
       const issuedCode = await issueCode(deps, {
         ...next,
         enabled: true,
         passwordHash: null,
         sessionVersion: current.sessionVersion + 1,
-      });
+      }, ttlMs);
       next = issuedCode.access;
       issued = { code: issuedCode.code, expiresAt: issuedCode.expiresAt };
     } else if (!enabled) {
@@ -1137,7 +1147,7 @@ export async function handleDoctorCardAccess(
         next.activationExpiresAt != null &&
         next.activationExpiresAt > deps.now();
       if (!stillValid) {
-        const issuedCode = await issueCode(deps, next);
+        const issuedCode = await issueCode(deps, next, ttlMs);
         next = issuedCode.access;
         issued = { code: issuedCode.code, expiresAt: issuedCode.expiresAt };
       }

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dynamic_message_service.dart';
 import '../widgets/clinic_app_bar.dart';
 import '../widgets/dynamic_highlight_card.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// إدارة كاملة للعبارات الديناميكية (CRUD + تفعيل + أولوية).
 class DynamicMessageAdminPage extends StatefulWidget {
@@ -143,8 +144,9 @@ class _DynamicMessageAdminPageState extends State<DynamicMessageAdminPage> {
         backgroundColor: const Color(0xFFF4F8F8),
         appBar: ClinicAppBar(
           title: const Text('المكان الإعلاني'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
           ],
@@ -510,7 +512,7 @@ class _MessageEditorSheetState extends State<_MessageEditorSheet> {
     _priority = TextEditingController(text: '${e?.priority ?? 10}');
     _hint = TextEditingController(text: e?.contextHint ?? '');
     _badge = TextEditingController(
-      text: e?.badge.trim().isNotEmpty == true ? e!.badge : 'عيادة الغدير',
+      text: e?.badge.trim().isNotEmpty == true ? e!.badge : 'منصة الغدير',
     );
     _linkUrl = TextEditingController(text: e?.linkUrl ?? '');
     _imageUrl = TextEditingController(text: e?.imageUrl ?? '');
@@ -647,7 +649,7 @@ class _MessageEditorSheetState extends State<_MessageEditorSheet> {
       }
       final message = DynamicMessage(
         id: widget.existing?.id ?? '',
-        title: title.isEmpty ? 'عيادة الغدير' : title,
+        title: title.isEmpty ? 'منصة الغدير' : title,
         body: body,
         placement: _placement,
         priority: int.tryParse(_priority.text.trim()) ?? 0,
@@ -680,11 +682,11 @@ class _MessageEditorSheetState extends State<_MessageEditorSheet> {
     final inset = MediaQuery.viewInsetsOf(context).bottom;
     final preview = DynamicMessage(
       id: 'preview',
-      title: _title.text.trim().isEmpty ? 'عيادة الغدير' : _title.text.trim(),
+      title: _title.text.trim().isEmpty ? 'منصة الغدير' : _title.text.trim(),
       body: _body.text.trim().isEmpty
           ? 'ستظهر النبذة هنا...'
           : _body.text.trim(),
-      badge: _badge.text.trim().isEmpty ? 'عيادة الغدير' : _badge.text.trim(),
+      badge: _badge.text.trim().isEmpty ? 'منصة الغدير' : _badge.text.trim(),
       imageUrl: _imageUrl.text.trim(),
       destinationKind: _destinationKind,
       destinationId: _destinationId ?? '',

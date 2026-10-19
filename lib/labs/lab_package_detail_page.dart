@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../theme/ghadeer_tokens.dart';
 import '../home/app_shell_bottom_nav.dart';
 import '../models/lab_models.dart';
 import '../services/app_stats_service.dart';
@@ -239,8 +240,10 @@ class _LabPackageDetailPageState extends State<LabPackageDetailPage> {
         child: Scaffold(
           appBar: ClinicAppBar(
             title: Text(package?.name ?? 'تفاصيل الباقة'),
-            backgroundColor: const Color(0xFF0FAFA3),
-            foregroundColor: Colors.white,
+            // رأس هادي موحّد (Phase 5C).
+            backgroundColor: GhadeerTokens.mist,
+            foregroundColor: GhadeerTokens.ink,
+            surfaceTintColor: Colors.transparent,
           ),
           bottomNavigationBar: !_loading && _error == null && package != null
               ? PackageWhatsAppAboveShell(

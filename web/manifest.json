@@ -1,11 +1,11 @@
 {
-    "name": "عيادة الغدير",
+    "name": "منصة الغدير",
     "short_name": "الغدير",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#E8F7F5",
     "theme_color": "#0FAFA3",
-    "description": "عيادة الغدير — أطباء، مختبرات، أشعة. معاً لصحة أفضل.",
+    "description": "منصة الغدير — أطباء، مختبرات، أشعة. معاً لصحة أفضل.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

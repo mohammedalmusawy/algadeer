@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghadeer_clinic/doctors/doctor_profile_page.dart';
 import 'package:ghadeer_clinic/models/doctor_item.dart';
+import 'package:ghadeer_clinic/widgets/entity_contact_actions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,8 +13,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await Supabase.initialize(
       url: 'https://example.supabase.co',
-      anonKey:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIn0.local',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIn0.local',
     );
   });
 
@@ -36,53 +36,61 @@ void main() {
     absenceTo: '',
   );
 
-  testWidgets(
-    'Name uses د. sits under branding and wraps on mobile width',
-    (tester) async {
-      final view = tester.view;
-      view.physicalSize = const Size(390, 844);
-      view.devicePixelRatio = 1.0;
-      addTearDown(view.resetPhysicalSize);
-      addTearDown(view.resetDevicePixelRatio);
+  testWidgets('Name uses د. sits under branding and wraps on mobile width', (
+    tester,
+  ) async {
+    final view = tester.view;
+    view.physicalSize = const Size(390, 844);
+    view.devicePixelRatio = 1.0;
+    addTearDown(view.resetPhysicalSize);
+    addTearDown(view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: DoctorProfilePage(
-            doctor: doctor,
-            isFavorite: false,
-            onToggleFavorite: () {},
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DoctorProfilePage(
+          doctor: doctor,
+          isFavorite: false,
+          onToggleFavorite: () {},
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.byKey(const Key('hero_doctor_name_specialty')), findsOneWidget);
-      expect(find.textContaining('د. علي ناصر السعيدي'), findsOneWidget);
-      expect(find.text('الدكتور علي ناصر السعيدي'), findsNothing);
+    expect(find.byKey(const Key('hero_doctor_name_specialty')), findsOneWidget);
+    expect(find.textContaining('د. علي ناصر السعيدي'), findsOneWidget);
+    expect(find.text('الدكتور علي ناصر السعيدي'), findsNothing);
 
-      final brand = find.text('عيادة الغدير');
-      final name = find.textContaining('د. علي ناصر السعيدي');
-      final specialty = find.textContaining('أخصائي طب الأطفال');
+    final brand = find.text('منصة الغدير');
+    final name = find.textContaining('د. علي ناصر السعيدي');
+    final specialty = find.textContaining('أخصائي طب الأطفال');
 
-      final brandBottom = tester.getBottomLeft(brand).dy;
-      final nameTop = tester.getTopLeft(name).dy;
-      final nameSize = tester.getSize(name);
+    final brandBottom = tester.getBottomLeft(brand).dy;
+    final nameTop = tester.getTopLeft(name).dy;
+    final nameSize = tester.getSize(name);
 
-      expect(nameTop, greaterThan(brandBottom + 8));
-      expect(specialty, findsOneWidget);
-      expect(
-        tester.getTopLeft(specialty).dy,
-        greaterThan(tester.getBottomLeft(name).dy - 1),
-      );
-      expect(find.text('بورد'), findsNothing);
-      expect(find.text('خبرة طويلة'), findsNothing);
-      // ضمن عمود الرجوع/الشعار — ليس ممتدًا نحو صورة الطبيب.
-      expect(nameSize.height, greaterThan(28));
-      expect(nameSize.width, lessThanOrEqualTo(300));
-      expect(tester.getTopLeft(name).dx, lessThan(40));
-    },
-  );
+    expect(nameTop, greaterThan(brandBottom + 8));
+    expect(specialty, findsOneWidget);
+    expect(
+      tester.getTopLeft(specialty).dy,
+      greaterThan(tester.getBottomLeft(name).dy - 1),
+    );
+    expect(find.text('بورد'), findsNothing);
+    expect(find.text('خبرة طويلة'), findsNothing);
+    // طبيب موثّق بالإدارة ← «طبيب موثّق» (مو «طبيب في منصة الغدير»).
+    expect(find.text('طبيب موثّق'), findsOneWidget);
+    expect(find.text('عيادة الغدير'), findsNothing);
+    // ضمن عمود الشعار — ليس ممتدًا نحو صورة الطبيب.
+    expect(nameSize.height, greaterThan(28));
+    expect(nameSize.width, lessThanOrEqualTo(300));
+    expect(tester.getTopLeft(name).dx, lessThan(40));
+    // Phase 5C: الرجوع الموحّد أعلى يمين الهوية، وماكو overflow.
+    expect(
+      tester.getCenter(find.byType(GhadeerBackButton)).dx,
+      greaterThan(390 / 2),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'Consultant name stays full with specialty under it and no chips',

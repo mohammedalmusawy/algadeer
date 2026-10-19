@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../widgets/app_slot_icon.dart';
 import 'app_shell_bridge.dart';
-import 'ghadeer_home_colors.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// شريط التبويبات الرئيسي الوحيد — نفس المظهر في الغلاف وصفحات التفاصيل.
 class AppShellBottomNav extends StatelessWidget {
@@ -24,8 +24,9 @@ class AppShellBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const teal = GhadeerHomeColors.primary;
-    const muted = Color(0xFF8A9A9E);
+    // شريط هادئ: التبويب النشط بحبّة فيروزية فاتحة حول الأيقونة.
+    const activeInk = GhadeerTokens.tealDeep;
+    const idleInk = GhadeerTokens.inkFaint;
 
     Widget item({
       required int index,
@@ -36,48 +37,55 @@ class AppShellBottomNav extends StatelessWidget {
     }) {
       final active = activeIndex == index;
       return Expanded(
-        child: InkWell(
-          key: Key('app_shell_nav_$navSlot'),
-          onTap: () {
-            if (onSelect != null) {
-              onSelect!(index);
-            } else {
-              AppShellBridge.goToTab(index);
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: active
-                        ? teal.withValues(alpha: 0.12)
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
+        child: Semantics(
+          selected: active,
+          button: true,
+          child: InkWell(
+            key: Key('app_shell_nav_$navSlot'),
+            onTap: () {
+              if (onSelect != null) {
+                onSelect!(index);
+              } else {
+                AppShellBridge.goToTab(index);
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 6),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    width: 56,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: active
+                          ? GhadeerTokens.tealWash
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    alignment: Alignment.center,
+                    child: AppSlotIcon(
+                      slotId: 'nav.$navSlot',
+                      fallback: active ? activeIcon : icon,
+                      size: 22,
+                      color: active ? activeInk : idleInk,
+                    ),
                   ),
-                  child: AppSlotIcon(
-                    slotId: 'nav.$navSlot',
-                    fallback: active ? activeIcon : icon,
-                    size: 22,
-                    color: active ? teal : muted,
+                  const SizedBox(height: 3),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                      color: active ? GhadeerTokens.ink : idleInk,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                    color: active ? teal : muted,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -118,13 +126,11 @@ class AppShellBottomNav extends StatelessWidget {
     );
 
     final bar = Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      decoration: const BoxDecoration(
+        color: GhadeerTokens.surface,
+        border: Border(top: BorderSide(color: GhadeerTokens.line)),
       ),
-      child: wrapSafeArea
-          ? SafeArea(top: false, child: row)
-          : row,
+      child: wrapSafeArea ? SafeArea(top: false, child: row) : row,
     );
     return bar;
   }
@@ -143,7 +149,7 @@ class PackageWhatsAppAboveShell extends StatelessWidget {
   final bool enabled;
   final String label;
 
-  static const Color green = Color(0xFF25D366);
+  static const Color green = GhadeerTokens.whatsapp;
 
   @override
   Widget build(BuildContext context) {

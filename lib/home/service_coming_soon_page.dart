@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'ghadeer_home_colors.dart';
+import '../widgets/clinic_app_bar.dart';
 
 /// شاشة مؤقتة لخدمات لم تُفعَّل بياناتها بعد (مرحلة 1).
 class ServiceComingSoonPage extends StatelessWidget {
@@ -23,8 +24,8 @@ class ServiceComingSoonPage extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: GhadeerHomeColors.pageBg,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
+        appBar: ClinicAppBar(
+          backgroundColor: GhadeerHomeColors.pageBg,
           foregroundColor: GhadeerHomeColors.secondary,
           elevation: 0,
           title: Text(
@@ -76,10 +77,7 @@ class ServiceComingSoonPage extends StatelessWidget {
                 const Text(
                   'قريباً — نجهّز هذا القسم بعناية دون التأثير على خدماتك الحالية.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF8A9A9E),
-                  ),
+                  style: TextStyle(fontSize: 13, color: Color(0xFF8A9A9E)),
                 ),
               ],
             ),

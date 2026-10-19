@@ -156,7 +156,7 @@ class _LabPickAnalysesSheetState extends State<_LabPickAnalysesSheet> {
       buf.writeln(note);
       buf.writeln();
     }
-    buf.write('من تطبيق عيادة الغدير');
+    buf.write('من منصة الغدير');
     return ClinicContactMessage.appendPatientNameIfPresent(
       buf.toString(),
       patientFullName: patientFullName,

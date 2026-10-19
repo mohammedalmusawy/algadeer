@@ -9,6 +9,7 @@ import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_social_sheet.dart';
 import 'physio_models.dart';
 import 'physio_store.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// إدارة مراكز العلاج الطبيعي — محلي.
 class PhysioAdminPage extends StatefulWidget {
@@ -91,8 +92,9 @@ class _PhysioAdminPageState extends State<PhysioAdminPage> {
         backgroundColor: Colors.white,
         appBar: ClinicAppBar(
           title: const Text('إدارة العلاج الطبيعي'),
-          backgroundColor: GhadeerHomeColors.physioAccent,
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _edit(null),
@@ -330,8 +332,9 @@ class _PhysioEditPageState extends State<_PhysioEditPage> {
         backgroundColor: Colors.white,
         appBar: ClinicAppBar(
           title: Text(widget.initial == null ? 'إضافة مركز' : 'تعديل مركز'),
-          backgroundColor: GhadeerHomeColors.physioAccent,
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Stack(
           children: [

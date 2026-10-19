@@ -7,6 +7,7 @@ import '../lab_default_images.dart';
 import '../labs_service.dart';
 import '../widgets/lab_network_or_asset_image.dart';
 import 'lab_form_page.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class LabsAdminPage extends StatefulWidget {
   const LabsAdminPage({super.key});
@@ -93,8 +94,9 @@ class _LabsAdminPageState extends State<LabsAdminPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('المختبرات'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
           ],

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../doctors/doctor_card_links.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// بريد حساب الإدارة (نفس المستخدم في دخول اللوحة).
 const kAdminEmail = 'almusawyalmusawy90@gmail.com';
@@ -171,8 +172,9 @@ class _AdminPasswordChangePageState extends State<AdminPasswordChangePage> {
           title: Text(
             widget.recoveryMode ? 'تعيين كلمة مرور جديدة' : 'تغيير كلمة المرور',
           ),
-          backgroundColor: teal,
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Center(
           child: SingleChildScrollView(

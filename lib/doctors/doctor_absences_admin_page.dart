@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/content_conflict.dart';
 import 'doctor_availability_service.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// إدارة إجازات طبيب واحد — تقويم من/إلى + مزامنة حالة الإجازة للبطاقة.
 class DoctorAbsencesAdminPage extends StatefulWidget {
@@ -206,8 +207,9 @@ class _DoctorAbsencesAdminPageState extends State<DoctorAbsencesAdminPage> {
         backgroundColor: const Color(0xFFF7FBFC),
         appBar: ClinicAppBar(
           title: Text('إجازات ${widget.doctorName}'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
           ],

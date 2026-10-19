@@ -5,6 +5,7 @@ import '../services/app_stats_service.dart';
 import '../voice/intent/app_function_catalog.dart';
 import '../voice/intent/brain_quality_metrics.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// لوحة إحصائية عامة لإدارة الغدير — مع اختيار يومي/أسبوعي/شهري/سنوي.
 class AppStatsAdminPage extends StatefulWidget {
@@ -62,8 +63,9 @@ class _AppStatsAdminPageState extends State<AppStatsAdminPage> {
         backgroundColor: const Color(0xFFF7FBFC),
         appBar: ClinicAppBar(
           title: const Text('الإحصائيات'),
-          backgroundColor: teal,
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             IconButton(
               tooltip: 'تحديث',

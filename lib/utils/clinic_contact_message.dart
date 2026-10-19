@@ -16,6 +16,9 @@ class ClinicContactMessage {
   /// متغيّر اسم الطبيب/المختبر/المركز داخل القالب.
   static const String providerVariable = '{طبيب}';
 
+  /// نفس [providerVariable] باسم عام لكل الأقسام (نماذج الإدارة).
+  static const String placeVariable = '{الجهة}';
+
   /// بلا رموز تعبيرية: بعضها يظهر كـ � في مسودة واتساب/ويب حسب الترميز.
   static const String defaultTemplate =
       'السلام عليكم\n'
@@ -40,8 +43,8 @@ class ClinicContactMessage {
   /// - `{اسم}`: الاسم الصالح فقط. إن غاب يُحذف من بداية السطر حتى أول فاصل
   ///   (— أو - أو ،) بعد المتغيّر ويبقى الباقي («أتواصل وياكم من تطبيق
   ///   الغدير»)، وإن لم يوجد فاصل يُحذف السطر كله.
-  /// - `{طبيب}`: «د. الاسم» للطبيب، والاسم كما هو للمختبر/المركز. إن غاب
-  ///   يُحذف سطره.
+  /// - `{طبيب}` أو `{الجهة}`: «د. الاسم» للطبيب، والاسم كما هو للمختبر/المركز.
+  ///   إن غاب يُحذف سطره.
   /// - أي `{متغيّر}` آخر يبقى كما كتبه المستخدم.
   static String render({
     String? template,
@@ -57,7 +60,10 @@ class ClinicContactMessage {
         : (providerIsDoctor ? _doctorLabel(providerRaw) : providerRaw);
 
     final out = <String>[];
-    for (final original in raw.replaceAll('\r\n', '\n').split('\n')) {
+    final normalized = raw
+        .replaceAll('\r\n', '\n')
+        .replaceAll(placeVariable, providerVariable);
+    for (final original in normalized.split('\n')) {
       var line = original;
 
       if (line.contains(nameVariable)) {

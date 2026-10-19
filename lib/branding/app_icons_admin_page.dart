@@ -5,6 +5,7 @@ import '../branding/app_icon_slots.dart';
 import '../services/app_icons_service.dart';
 import '../widgets/app_slot_icon.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// إدارة أيقونات الواجهة — الشعار الرسمي ثابت وغير قابل للتغيير هنا.
 class AppIconsAdminPage extends StatefulWidget {
@@ -111,8 +112,9 @@ class _AppIconsAdminPageState extends State<AppIconsAdminPage> {
         backgroundColor: Colors.white,
         appBar: ClinicAppBar(
           title: const Text('إدارة الأيقونات'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())

@@ -14,6 +14,7 @@ import '../../widgets/entity_social_sheet.dart';
 import '../lab_default_images.dart';
 import '../labs_service.dart';
 import '../widgets/lab_network_or_asset_image.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class LabFormPage extends StatefulWidget {
   const LabFormPage({super.key, this.lab});
@@ -234,8 +235,9 @@ class _LabFormPageState extends State<LabFormPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: Text(_isEditing ? 'تعديل مختبر' : 'إضافة مختبر'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Form(
           key: _formKey,

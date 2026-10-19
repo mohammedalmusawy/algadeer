@@ -10,7 +10,9 @@ import '../doctors/doctor_card_tap.dart';
 import '../voice/entity_profile_speech.dart';
 import '../voice/voice_response_controller.dart';
 import '../widgets/entity_contact_actions.dart';
+import '../theme/ghadeer_tokens.dart';
 import '../widgets/entity_optional_logo.dart';
+import '../widgets/ghadeer_identity_card.dart';
 import '../widgets/entity_speak_button.dart';
 import '../widgets/owner_access_link.dart';
 import 'pharmacy_all_bundles_page.dart';
@@ -23,6 +25,8 @@ import 'pharmacy_models.dart';
 import '../utils/contact_launch.dart';
 import '../utils/ghadeer_card_link.dart';
 import '../services/favorites_cloud.dart';
+import '../settings/whatsapp_templates.dart';
+import '../settings/whatsapp_contact_flow.dart';
 
 /// صفحة تفاصيل صيدلية — مواضع بصرية مطابقة للموكاب (موبايل أولاً).
 class PharmacyProfilePage extends StatefulWidget {
@@ -55,14 +59,19 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
 
   Future<void> _loadFavorite() async {
     final prefs = await SharedPreferences.getInstance();
-    final ids = prefs.getStringList(PharmacyProfilePageFavorites.key) ?? const <String>[];
+    final ids =
+        prefs.getStringList(PharmacyProfilePageFavorites.key) ??
+        const <String>[];
     if (!mounted) return;
     setState(() => _favorite = ids.contains(_p.id));
   }
 
   Future<void> _toggleFavorite() async {
     final prefs = await SharedPreferences.getInstance();
-    final ids = [...(prefs.getStringList(PharmacyProfilePageFavorites.key) ?? const <String>[])];
+    final ids = [
+      ...(prefs.getStringList(PharmacyProfilePageFavorites.key) ??
+          const <String>[]),
+    ];
     if (_favorite) {
       ids.remove(_p.id);
     } else if (!ids.contains(_p.id)) {
@@ -116,11 +125,12 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
   }
 
   Future<void> _whatsapp() async {
-    final digits = _p.whatsapp.replaceAll(RegExp(r'[^0-9]'), '');
-    final uri = Uri.parse('https://wa.me/$digits');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    await WhatsAppContactFlow.open(
+      context,
+      whatsapp: _p.whatsapp,
+      section: WhatsAppSection.pharmacies,
+      providerTitle: _p.name,
+    );
   }
 
   Future<void> _maps() async {
@@ -149,22 +159,19 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final openColor =
-        _p.isOpenNow ? const Color(0xFF2ECC71) : const Color(0xFFE74C3C);
-    final openText = _p.isOpenNow ? 'مفتوح الآن' : 'مغلق الآن';
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7FBFC),
-      body: SafeArea(
-        child: Column(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: GhadeerTokens.mist,
+        body: ListView(
+          padding: const EdgeInsets.only(bottom: 28),
           children: [
-            _topBar(),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+            _identityCard(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _profileCard(openColor, openText),
-                  const SizedBox(height: 12),
                   _primaryActions(),
                   const SizedBox(height: 12),
                   _productSearch(),
@@ -189,217 +196,53 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
     );
   }
 
-  Widget _topBar() {
-    // رجوع يسار (نفس جهة هوية الطبيب) · عنوان وسط · مفضلة+مشاركة يمين
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: Row(
-          children: [
-            GhadeerBackButton(
-              onPressed: () => Navigator.pop(context),
-              color: GhadeerHomeColors.pharmacyTitle,
-            ),
-            Expanded(
-              child: DoctorCardTripleTap(
-                tapCount: 5,
-                onTripleTap: _openBundlesManage,
-                child: const Text(
-                  'الصيدلية',
-                  textAlign: TextAlign.center,
-                  textDirection: TextDirection.rtl,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: GhadeerHomeColors.secondary,
-                  ),
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: 'مفضلة',
-              onPressed: _toggleFavorite,
-              icon: Icon(
-                _favorite ? Icons.favorite_rounded : Icons.favorite_border,
-                color: _favorite
-                    ? const Color(0xFFE74C3C)
-                    : GhadeerHomeColors.secondary,
-              ),
-            ),
-            IconButton(
-              tooltip: 'مشاركة',
-              onPressed: _share,
-              icon: const Icon(
-                Icons.ios_share_rounded,
-                color: GhadeerHomeColors.secondary,
-              ),
-            ),
-            OwnerAccess.faint(onTap: _openBundlesManage),
-          ],
+  /// نفس هوية الطبيب والمختبر: الصورة يمين، الكتابة يسار، الرجوع أعلى اليمين،
+  /// والدوام وحالة الفتح تحتهم.
+  Widget _identityCard() {
+    final hasImage = _p.imageUrl.trim().isNotEmpty;
+    return GhadeerIdentityCard(
+      photo: LayoutBuilder(
+        builder: (context, c) => PharmacyFitImage(
+          source: _p.imageUrl,
+          fallback: Icons.local_pharmacy_rounded,
+          borderRadius: 0,
+          width: c.maxWidth,
+          height: c.maxHeight,
         ),
       ),
-    );
-  }
-
-  Widget _profileCard(Color openColor, String openText) {
-    // صورة يسار · اسم/شعار يمين · موقع+حالة أسفل
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      elevation: 1,
-      shadowColor: Colors.black12,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Directionality(
-              textDirection: TextDirection.ltr,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: SizedBox(
-                      width: 110,
-                      height: 110,
-                      child: PharmacyFitImage(
-                        source: _p.imageUrl,
-                        fallback: Icons.local_pharmacy_rounded,
-                        borderRadius: 0,
-                        width: 110,
-                        height: 110,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Directionality(
-                      textDirection: TextDirection.rtl,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (_p.logoUrl.trim().isNotEmpty) ...[
-                                      EntityOptionalLogo(url: _p.logoUrl),
-                                      const SizedBox(height: 6),
-                                    ],
-                                    Text(
-                                      _p.name,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w900,
-                                        color: GhadeerHomeColors.secondary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _p.slogan,
-                                      style: const TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: GhadeerHomeColors.muted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE8F6FB),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFFD6EAF5),
-                                  ),
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: _p.logoUrl.isNotEmpty
-                                    ? PharmacyFitImage(
-                                        source: _p.logoUrl,
-                                        fallback: Icons.medication_outlined,
-                                        borderRadius: 999,
-                                        width: 48,
-                                        height: 48,
-                                      )
-                                    : const Icon(
-                                        Icons.medication_outlined,
-                                        color: GhadeerHomeColors.primary,
-                                      ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+      onPhotoTap: hasImage
+          ? () => showGhadeerPhotoViewer(
+              context,
+              PharmacyFitImage(
+                source: _p.imageUrl,
+                fallback: Icons.local_pharmacy_rounded,
+                borderRadius: 0,
+                width: MediaQuery.sizeOf(context).width,
+                height: MediaQuery.sizeOf(context).width,
               ),
-            ),
-            const SizedBox(height: 12),
-            Directionality(
-              textDirection: TextDirection.rtl,
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on_rounded,
-                        size: 16,
-                        color: GhadeerHomeColors.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          _p.address,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: GhadeerHomeColors.muted,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(Icons.schedule_rounded, size: 15, color: openColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        openText,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: openColor,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'من ${_p.openFrom} إلى ${_p.openTo}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: GhadeerHomeColors.muted,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+            )
+          : null,
+      name: _p.name,
+      subtitle: _p.slogan,
+      logo: _p.logoUrl.trim().isNotEmpty
+          ? EntityOptionalLogo(url: _p.logoUrl)
+          : null,
+      // ٥ ضغطات على الاسم = إدارة باقات الصيدلية (جانت على عنوان «الصيدلية»).
+      wrapName: (name) => DoctorCardTripleTap(
+        tapCount: 5,
+        onTripleTap: _openBundlesManage,
+        child: name,
+      ),
+      favorite: _favorite,
+      onToggleFavorite: _toggleFavorite,
+      onShare: _share,
+      onBack: () => Navigator.pop(context),
+      ownerAccess: OwnerAccess.faint(onTap: _openBundlesManage),
+      below: GhadeerIdentityInfoBox(
+        icon: Icons.schedule_rounded,
+        label: _p.isOpenNow ? 'مفتوح الآن' : 'مغلق الآن',
+        labelColor: _p.isOpenNow ? GhadeerTokens.ok : GhadeerTokens.danger,
+        text: 'من ${_p.openFrom} إلى ${_p.openTo}',
       ),
     );
   }
@@ -526,17 +369,13 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
               ListTile(
                 leading: const Icon(Icons.local_offer_outlined),
                 title: const Text('العروض (بيها خصم)'),
-                trailing: Text(
-                  '${PharmacyBundleFilter.offers(all).length}',
-                ),
+                trailing: Text('${PharmacyBundleFilter.offers(all).length}'),
                 onTap: () => Navigator.pop(ctx, 'offers'),
               ),
               ListTile(
                 leading: const Icon(Icons.star_border_rounded),
                 title: const Text('الأكثر طلباً'),
-                trailing: Text(
-                  '${PharmacyBundleFilter.popular(all).length}',
-                ),
+                trailing: Text('${PharmacyBundleFilter.popular(all).length}'),
                 onTap: () => Navigator.pop(ctx, 'popular'),
               ),
               for (final c in cats)
@@ -1012,10 +851,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => PharmacyOwnerEditorPage(
-          pharmacy: _p,
-          session: session,
-        ),
+        builder: (_) => PharmacyOwnerEditorPage(pharmacy: _p, session: session),
       ),
     );
   }
@@ -1032,11 +868,7 @@ class _PharmacyProfilePageState extends State<PharmacyProfilePage> {
         label: 'ساعات العمل',
         onTap: () => _snack('من ${_p.openFrom} إلى ${_p.openTo}'),
       ),
-      _secTile(
-        icon: Icons.share_outlined,
-        label: 'مشاركة',
-        onTap: _share,
-      ),
+      _secTile(icon: Icons.share_outlined, label: 'مشاركة', onTap: _share),
       _secTile(
         icon: Icons.star_border_rounded,
         label: 'المفضلة',

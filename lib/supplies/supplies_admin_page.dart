@@ -9,6 +9,7 @@ import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_social_sheet.dart';
 import 'supplies_store.dart';
 import 'supply_models.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// إدارة محلات المستلزمات — محلي (SharedPreferences).
 class SuppliesAdminPage extends StatefulWidget {
@@ -91,8 +92,9 @@ class _SuppliesAdminPageState extends State<SuppliesAdminPage> {
         backgroundColor: Colors.white,
         appBar: ClinicAppBar(
           title: const Text('إدارة المستلزمات والتجهيزات'),
-          backgroundColor: GhadeerHomeColors.suppliesAccent,
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _edit(null),
@@ -332,8 +334,9 @@ class _SupplyEditPageState extends State<_SupplyEditPage> {
         backgroundColor: Colors.white,
         appBar: ClinicAppBar(
           title: Text(widget.initial == null ? 'إضافة محل' : 'تعديل محل'),
-          backgroundColor: GhadeerHomeColors.suppliesAccent,
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Stack(
           children: [

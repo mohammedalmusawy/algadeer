@@ -35,7 +35,7 @@ class DynamicMessagePlacement {
 /// شارات جاهزة لهوية الغدير (إعلان مصغّر).
 class DynamicMessageBadges {
   static const suggestions = <String>[
-    'عيادة الغدير',
+    'منصة الغدير',
     'أشعة الغدير',
     'تطبيق الغدير',
     'مختبرات الغدير',
@@ -281,8 +281,8 @@ class DynamicMessageService {
   static const emergencyFallback = DynamicMessage(
     id: 'fallback',
     title: 'رسالة اليوم',
-    body: 'عيادة الغدير تهتم بصحتك — راجع طبيبك عند الحاجة.',
-    badge: 'عيادة الغدير',
+    body: 'منصة الغدير تهتم بصحتك — راجع طبيبك عند الحاجة.',
+    badge: 'منصة الغدير',
     source: 'fallback',
   );
 
@@ -370,7 +370,7 @@ class DynamicMessageService {
           id: 'ai_home',
           title: 'رسالة اليوم',
           body: aiText.trim(),
-          badge: 'عيادة الغدير',
+          badge: 'منصة الغدير',
           source: 'ai',
         );
       }

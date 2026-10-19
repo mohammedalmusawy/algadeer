@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/ghadeer_state_message.dart';
+import '../theme/ghadeer_tokens.dart';
+import '../widgets/ghadeer_skeleton.dart';
 import '../doctors/doctor_card_gate.dart';
 import '../models/lab_models.dart';
 import '../settings/settings_page.dart';
@@ -27,6 +30,7 @@ class _LabsPageState extends State<LabsPage> {
   final Set<String> _favoriteIds = <String>{};
   bool _loading = true;
   String? _error;
+  Object? _errorCause;
   int _tabIndex = 0;
 
   static const _favKey = 'favoriteLabIds';
@@ -69,6 +73,7 @@ class _LabsPageState extends State<LabsPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _errorCause = null;
     });
     try {
       final labs = await _service.fetchPublicLabs();
@@ -81,7 +86,8 @@ class _LabsPageState extends State<LabsPage> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'تعذر تحميل المختبرات. تأكد من تنفيذ جداول Supabase.';
+        _error = 'load';
+        _errorCause = e;
       });
     }
   }
@@ -128,8 +134,10 @@ class _LabsPageState extends State<LabsPage> {
         backgroundColor: const Color(0xFFF7FAFA),
         appBar: ClinicAppBar(
           title: Text(_tabIndex == 1 ? 'مختبراتي' : 'المختبرات'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          // رأس هادي موحّد (Phase 5C).
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             IconButton(
               tooltip: 'تحديث',
@@ -141,10 +149,7 @@ class _LabsPageState extends State<LabsPage> {
         body: SafeArea(
           child: IndexedStack(
             index: _tabIndex.clamp(0, 1),
-            children: [
-              _buildHomeTab(),
-              _buildFavoritesTab(),
-            ],
+            children: [_buildHomeTab(), _buildFavoritesTab()],
           ),
         ),
         bottomNavigationBar: _buildBottomNav(),
@@ -154,40 +159,22 @@ class _LabsPageState extends State<LabsPage> {
 
   Widget _buildHomeTab() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const GhadeerSkeletonList();
     }
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 15),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton(
-                  onPressed: _load,
-                  child: const Text('إعادة المحاولة'),
-                ),
-              ),
-            ],
-          ),
-        ),
+      return GhadeerStateMessage.loadError(
+        error: _errorCause,
+        what: 'المختبرات',
+        onRetry: _load,
       );
     }
     if (_labs.isEmpty) {
-      return const Center(
-        child: Text(
-          'لا توجد مختبرات مفعّلة حالياً',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
+      return GhadeerStateMessage(
+        icon: Icons.biotech_outlined,
+        title: 'ماكو مختبرات منشورة هسه',
+        body: 'راح تطلع هنا أول ما تنضاف.',
+        actionLabel: 'تحديث',
+        onAction: _load,
       );
     }
     return RefreshIndicator(
@@ -200,14 +187,13 @@ class _LabsPageState extends State<LabsPage> {
   Widget _buildFavoritesTab() {
     final favorites = _favoriteLabs;
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const GhadeerSkeletonList();
     }
     if (favorites.isEmpty) {
-      return const Center(
-        child: Text(
-          'لم تحفظ أي مختبر بعد',
-          style: TextStyle(color: Color(0xFF6B7C80)),
-        ),
+      return const GhadeerStateMessage(
+        icon: Icons.favorite_border_rounded,
+        title: 'ما حفظت أي مختبر بعد',
+        body: 'دوس على القلب ببطاقة أي مختبر حتى يوصلك هنا بسرعة.',
       );
     }
     return Column(
@@ -383,9 +369,7 @@ class _LabsPageState extends State<LabsPage> {
                       Navigator.pop(ctx);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsPage(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const SettingsPage()),
                       );
                     },
                   ),

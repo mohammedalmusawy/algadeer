@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,8 +9,12 @@ import '../models/doctor_item.dart';
 import '../services/app_stats_service.dart';
 import '../companion/personal_companion_profile_service.dart';
 import '../settings/whatsapp_message_settings.dart';
+import '../settings/whatsapp_templates.dart';
+import '../theme/ghadeer_tokens.dart';
 import '../utils/contact_launch.dart';
+import '../utils/ghadeer_haptics.dart';
 import '../voice/voice_response_controller.dart';
+import '../widgets/entity_contact_actions.dart';
 import '../widgets/entity_optional_logo.dart';
 import '../widgets/entity_social_sheet.dart';
 import 'doctor_availability_service.dart';
@@ -20,8 +23,10 @@ import 'doctor_card_links.dart';
 import 'doctor_card_tap.dart';
 import 'doctor_engagement_service.dart';
 import 'doctor_gender.dart';
+import 'doctor_today_status.dart';
 import 'doctor_week_schedule.dart';
 import '../widgets/owner_access_link.dart';
+import '../settings/whatsapp_contact_flow.dart';
 
 export 'doctor_week_schedule.dart'
     show DoctorWeekDayEntry, doctorWeekDayOrder, parseDoctorWeekSchedule;
@@ -59,10 +64,10 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
   bool _bioSpeechBusy = false;
 
   // هوية الغدير الطبية — Accent وليس إغراقًا.
-  static const _navy = Color(0xFF123B42);
-  static const _actionBlue = Color(0xFF1197A8);
-  static const _muted = Color(0xFF5B6C70);
-  static const _pageBg = Color(0xFFF7FBFC);
+  static const _navy = GhadeerTokens.ink;
+  static const _actionBlue = GhadeerTokens.tealDeep;
+  static const _muted = GhadeerTokens.inkMuted;
+  static const _pageBg = GhadeerTokens.mist;
 
   @override
   void initState() {
@@ -267,10 +272,22 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
   /// سطر داعم قصير تحت الاختصاص — من بيانات حقيقية فقط.
   String get _heroSupportLine {
     final short = doctor.shortDescription.trim();
-    if (short.isNotEmpty) return short;
+    if (short.isNotEmpty && !_sameText(short, doctor.specialty)) return short;
     final quote = doctor.profileQuote.trim();
     if (quote.isNotEmpty) return quote;
     return '';
+  }
+
+  /// نفس الكلام؟ (نتجاهل المسافات والتشكيل) — حتى ما يتكرر الاختصاص مرتين.
+  static bool _sameText(String a, String b) {
+    String n(String x) => x
+        .replaceAll(RegExp(r'[\s\.\u064B-\u0652…]'), '')
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا');
+    final x = n(a);
+    final y = n(b);
+    if (x.isEmpty || y.isEmpty) return false;
+    return x == y || x.startsWith(y) || y.startsWith(x);
   }
 
   /// رسالة إجازة الطبيب (فترة من–إلى) للعرض تحت الكتابة.
@@ -320,8 +337,11 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
                       physics: const BouncingScrollPhysics(),
                       slivers: [
                         SliverToBoxAdapter(child: _buildHero()),
-                        SliverToBoxAdapter(child: _buildActions()),
-                        SliverToBoxAdapter(child: _buildBioAndClinicAddress()),
+                        SliverToBoxAdapter(child: _buildEngagementRow()),
+                        if (doctor.showBookingButton)
+                          SliverToBoxAdapter(child: _buildBookingButton()),
+                        SliverToBoxAdapter(child: _buildAddressCard()),
+                        SliverToBoxAdapter(child: _buildAboutCard()),
                         const SliverToBoxAdapter(child: SizedBox(height: 24)),
                       ],
                     ),
@@ -342,378 +362,537 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     );
   }
 
-  Widget _circleIconBtn({
+  // ── الهوية (الشكل المعتمد): صورة كبيرة يمين، والاسم والشعار والدوام يسار ──
+
+  Widget _heroIconBtn({
     required IconData icon,
+    required String label,
     required VoidCallback onTap,
-    Color? iconColor,
-    bool mirrorIconLtr = false,
+    Color? color,
   }) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 0,
-      shadowColor: Colors.transparent,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            border: Border.all(color: const Color(0xFFE8EEF2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Icon(
-            icon,
-            size: 18,
-            color: iconColor ?? _navy,
-            textDirection: mirrorIconLtr ? TextDirection.ltr : null,
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: GhadeerTokens.surface,
+        shape: const CircleBorder(side: BorderSide(color: GhadeerTokens.line)),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(icon, size: 20, color: color ?? GhadeerTokens.ink),
           ),
         ),
       ),
     );
   }
 
-  /// Hero مطابق للمرجع: صورة مهيمنة يمينًا + هوية يسارًا + أزرار علوية.
+  /// حالة اليوم على الصورة — نفس منطق بطاقة القائمة (عطلة اليوم، الفترة…).
+  ({String text, Color color}) _status() {
+    if (_onLeave) {
+      return (text: 'في إجازة', color: GhadeerTokens.warn);
+    }
+    final s = doctorTodayStatus(doctor);
+    return (text: s.text, color: s.color);
+  }
+
   Widget _buildHero() {
+    final status = _status();
+    final weekDays = parseDoctorWeekSchedule(
+      workingDays: doctor.workingDays,
+      workingHours: doctor.workingHours,
+    );
+    final leaveMessage = _leaveMessage;
+    final showPresencePanel = leaveMessage.isNotEmpty || weekDays.isNotEmpty;
+
     return SafeArea(
       bottom: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final cardW = constraints.maxWidth;
-            final narrow = cardW < 400;
-            // ارتفاع يكفي للاسم + الاختصاص + جدول الأيام العمودي.
-            final heroH = (cardW * (narrow ? 1.02 : 0.90)).clamp(390.0, 520.0);
-            // صورة أوضح على الموبايل مع الإبقاء على نسبة العرض دون تمديد.
-            final imageW = cardW * (narrow ? 0.66 : 0.60);
-            final showBadge = doctor.ghadeerBadge;
-            // عمود اليسار الموحّد (رجوع → هوية → اسم → تواجد).
-            final leftColW =
-                (cardW * (narrow ? 0.52 : 0.48)).clamp(168.0, 220.0);
-            final weekDays = parseDoctorWeekSchedule(
-              workingDays: doctor.workingDays,
-              workingHours: doctor.workingHours,
-            );
-            final leaveMessage = _leaveMessage;
-            final showPresencePanel =
-                leaveMessage.isNotEmpty || weekDays.isNotEmpty;
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(GhadeerTokens.radiusXl),
+            border: Border.all(color: GhadeerTokens.line),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFFFFFFF), _heroBase],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: GhadeerTokens.deepWater.withValues(alpha: 0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(12),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final innerW = constraints.maxWidth;
+              // الصورة بإطار خاص يمين، والكتابة بعمود مستقل يسار — ماكو تداخل.
+              final photoW = (innerW * 0.42).clamp(124.0, 200.0);
+              final photoH = photoW * 1.32;
 
-            return SizedBox(
-              width: cardW,
-              height: heroH,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildHeroTextColumn()),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: photoW,
+                          height: photoH,
+                          child: _buildHeroPhoto(status),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (showPresencePanel) ...[
+                    const SizedBox(height: 12),
+                    _HeroPresencePanel(
+                      leaveMessage: leaveMessage,
+                      weekDays: weekDays,
+                      today: _todayName(DateTime.now()),
                     ),
                   ],
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// عمود الكتابة: المفضلة والمشاركة → شارة المنصة → شعار الغدير → الاسم.
+  Widget _buildHeroTextColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            _heroIconBtn(
+              icon: _favorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              label: _favorite ? 'إزالة من المفضلة' : 'إضافة للمفضلة',
+              color: _favorite ? const Color(0xFFE25555) : GhadeerTokens.ink,
+              onTap: () {
+                ghadeerToggleFeedback();
+                setState(() => _favorite = !_favorite);
+                widget.onToggleFavorite();
+              },
+            ),
+            const SizedBox(width: 8),
+            _heroIconBtn(
+              icon: Icons.ios_share_rounded,
+              label: 'مشاركة البطاقة',
+              onTap: _share,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        if (doctor.ghadeerBadge) ...[
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: _GhadeerVerifiedPill(),
+          ),
+          const SizedBox(height: 8),
+        ],
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: GhadeerBrandHeaderRow(logoSize: 40),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'التشخيص قبل كل شيء',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.left,
+          textDirection: TextDirection.rtl,
+          style: TextStyle(
+            fontSize: 12,
+            height: 1.2,
+            fontWeight: FontWeight.w700,
+            color: GhadeerTokens.tealDeep,
+          ),
+        ),
+        if (doctor.logoUrl.trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: EntityOptionalLogo(url: doctor.logoUrl),
+          ),
+        ],
+        const SizedBox(height: 14),
+        DoctorCardTripleTap(
+          onTripleTap: () => unawaited(_openCardAccess()),
+          child: _HeroDoctorNameSpecialty(
+            key: const Key('hero_doctor_name_specialty'),
+            name: _doctorProfileDisplayName(doctor.name),
+            specialty: doctor.specialty,
+            supportLine: _heroSupportLine,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// الصورة كاملة بشاشة غامقة، تتكبّر بالأصابع.
+  void _openPhoto() {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.88),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                maxScale: 4,
+                child: Center(
+                  child: GhadeerResolvedImage(
+                    _heroPortraitUrl,
+                    fit: BoxFit.contain,
+                    cacheWidth: 1400,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(26),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    clipBehavior: Clip.hardEdge,
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.paddingOf(ctx).top + 12,
+              right: 16,
+              child: GhadeerBackButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// إطار الصورة: الرجوع فوق يمين، وحالة اليوم تحت.
+  Widget _buildHeroPhoto(({String text, Color color}) status) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(GhadeerTokens.radiusLg),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // الضغط على الصورة يكبّرها (بعض الصور بوسترات بيها كتابة).
+          GestureDetector(
+            key: const Key('doctor_photo_open'),
+            onTap: _heroPortraitUrl.trim().isEmpty ? null : _openPhoto,
+            child: _HeroDoctorImage(imageUrl: _heroPortraitUrl),
+          ),
+          // الرجوع أعلى اليمين — موحّد بكل التطبيق.
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GhadeerBackButton(
+              onPressed: () => unawaited(_stopSpeechAndPop()),
+            ),
+          ),
+          Positioned(
+            top: 8 + 44 + 6,
+            right: 8,
+            child: OwnerAccess.faint(onTap: () => unawaited(_openCardAccess())),
+          ),
+          Positioned(
+            left: 8,
+            right: 8,
+            bottom: 8,
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Center(
+                child: _HeroStatusChip(text: status.text, color: status.color),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── التقييم ومواقع التواصل ───────────────────────────────────────────
+
+  Widget _buildEngagementRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Material(
+              color: GhadeerTokens.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+                side: const BorderSide(color: GhadeerTokens.line),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+                onTap: () => showEntitySocialSheet(
+                  context,
+                  links: doctor.social,
+                  title: 'مواقع تواصل ${doctor.name}',
+                ),
+                child: const SizedBox(
+                  height: 64,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const _HeroDepthBackground(),
-                      Positioned(
-                        top: 0,
-                        bottom: -12,
-                        right: -6,
-                        width: imageW,
-                        child: _HeroDoctorImage(imageUrl: _heroPortraitUrl),
+                      Icon(
+                        Icons.public_rounded,
+                        color: GhadeerTokens.tealDeep,
+                        size: 22,
                       ),
-                      // عمود اليسار: مسافات متساوية بين الصفوف لملء ارتفاع الصورة يمينًا.
-                      Positioned(
-                        top: 10,
-                        left: 12,
-                        bottom: 12,
-                        width: leftColW,
-                        child: Directionality(
-                          textDirection: TextDirection.ltr,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: _circleIconBtn(
-                                  icon: Icons.chevron_right_rounded,
-                                  onTap: () => unawaited(_stopSpeechAndPop()),
-                                ),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  if (showBadge) ...[
-                                    const Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: _GhadeerVerifiedPill(),
-                                    ),
-                                    const SizedBox(height: 6),
-                                  ],
-                                  const Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: GhadeerBrandHeaderRow(),
-                                  ),
-                                ],
-                              ),
-                              const Text(
-                                'التشخيص قبل كل شئ',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.left,
-                                textDirection: TextDirection.rtl,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1A4F58),
-                                ),
-                              ),
-                              if (doctor.logoUrl.trim().isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                EntityOptionalLogo(url: doctor.logoUrl),
-                              ],
-                              DoctorCardTripleTap(
-                                onTripleTap: () => unawaited(_openCardAccess()),
-                                child: _HeroDoctorNameSpecialty(
-                                  key: const Key(
-                                    'hero_doctor_name_specialty',
-                                  ),
-                                  name: _doctorProfileDisplayName(
-                                    doctor.name,
-                                  ),
-                                  specialty: doctor.specialty,
-                                  supportLine: _heroSupportLine,
-                                ),
-                              ),
-                              if (showPresencePanel)
-                                _HeroPresencePanel(
-                                  leaveMessage: leaveMessage,
-                                  weekDays: weekDays,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // يمين الهيدر: مشاركة بمحاذاة زر الرجوع، والتفضيل أسفلها مباشرة.
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: _circleIconBtn(
-                          icon: Icons.ios_share_rounded,
-                          onTap: _share,
-                        ),
-                      ),
-                      Positioned(
-                        top: 10 + 38 + 8,
-                        right: 10,
-                        child: _circleIconBtn(
-                          icon: _favorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          iconColor: _favorite
-                              ? const Color(0xFFE25555)
-                              : _navy,
-                          onTap: () {
-                            setState(() => _favorite = !_favorite);
-                            widget.onToggleFavorite();
-                          },
-                        ),
-                      ),
-                      Positioned(
-                        top: 10 + (38 + 8) * 2,
-                        right: 10,
-                        child: OwnerAccess.faint(
-                          onTap: () => unawaited(_openCardAccess()),
+                      SizedBox(height: 4),
+                      Text(
+                        'مواقع التواصل',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: GhadeerTokens.ink,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _CompactRatingAction(
+              average: _rating.average,
+              count: _rating.count,
+              myRating: _myRating,
+              busy: _ratingBusy,
+              onRate: _submitRating,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingButton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          key: const Key('doctor-booking-button'),
+          onPressed: _onBookingPressed,
+          icon: const Icon(Icons.event_available_rounded, size: 18),
+          label: const Text('حجز موعد'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: GhadeerTokens.tealDeep,
+            backgroundColor: GhadeerTokens.surface,
+            side: const BorderSide(color: GhadeerTokens.line),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBioAndClinicAddress() {
-    final bio = doctor.bio.trim();
-    final location = doctor.location.trim();
+  // ── بطاقات المحتوى ───────────────────────────────────────────────────
 
+  Widget _section({required String title, required Widget child}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: GhadeerTokens.card(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: GhadeerTokens.heading),
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// اسم اليوم الحالي بنفس صيغة الجدول — لتمييزه بمربع الدوام.
+  static String _todayName(DateTime now) => switch (now.weekday) {
+    DateTime.saturday => 'السبت',
+    DateTime.sunday => 'الأحد',
+    DateTime.monday => 'الاثنين',
+    DateTime.tuesday => 'الثلاثاء',
+    DateTime.wednesday => 'الأربعاء',
+    DateTime.thursday => 'الخميس',
+    _ => 'الجمعة',
+  };
+
+  // ── العنوان ─────────────────────────────────────────────────────────
+
+  Widget _buildAddressCard() {
+    final location = doctor.location.trim();
+    if (location.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Material(
+        color: GhadeerTokens.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusLg),
+          side: const BorderSide(color: GhadeerTokens.line),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusLg),
+          onTap: () => LabCardLinks.openMapUrl(location),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: GhadeerTokens.tealWash,
+                    borderRadius: BorderRadius.circular(GhadeerTokens.radiusSm),
+                  ),
+                  child: const Icon(
+                    Icons.location_on_rounded,
+                    color: GhadeerTokens.tealDeep,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('عنوان العيادة', style: GhadeerTokens.caption),
+                      const SizedBox(height: 2),
+                      Text(
+                        location,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          height: 1.5,
+                          fontWeight: FontWeight.w600,
+                          color: GhadeerTokens.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'الخريطة',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: GhadeerTokens.tealDeep,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── النبذة والخدمات ─────────────────────────────────────────────────
+
+  Widget _buildAboutCard() {
+    final bio = doctor.bio.trim();
+    return _section(
+      title: 'نبذة عن الطبيب',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AnimatedBuilder(
             animation: _voice,
             builder: (context, _) {
               final speaking = _voice.isSpeaking;
               final canSpeak = _bioSpeechText.isNotEmpty;
-              return Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'نبذة عن الطبيب',
-                      textAlign: TextAlign.right,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: _navy,
-                      ),
-                    ),
+              return Material(
+                color: speaking
+                    ? GhadeerTokens.tealWash
+                    : GhadeerTokens.surface,
+                shape: StadiumBorder(
+                  side: BorderSide(
+                    color: canSpeak
+                        ? _actionBlue.withValues(alpha: 0.35)
+                        : GhadeerTokens.line,
                   ),
-                  const SizedBox(width: 8),
-                  Material(
-                    color: speaking
-                        ? const Color(0xFFE6F8F6)
-                        : Colors.white,
-                    shape: const StadiumBorder(),
-                    child: InkWell(
-                      customBorder: const StadiumBorder(),
-                      onTap: canSpeak ? () => unawaited(_toggleBioSpeech()) : null,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                ),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: canSpeak ? () => unawaited(_toggleBioSpeech()) : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          speaking
+                              ? Icons.stop_rounded
+                              : Icons.volume_up_rounded,
+                          size: 18,
+                          color: canSpeak ? _actionBlue : _muted,
                         ),
-                        decoration: ShapeDecoration(
-                          shape: StadiumBorder(
-                            side: BorderSide(
-                              color: canSpeak
-                                  ? _actionBlue.withValues(alpha: 0.35)
-                                  : const Color(0xFFE8EEF2),
-                            ),
+                        const SizedBox(width: 6),
+                        Text(
+                          speaking ? 'إيقاف' : 'اسمع النبذة',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: canSpeak ? _navy : _muted,
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              speaking
-                                  ? Icons.stop_rounded
-                                  : Icons.volume_up_rounded,
-                              size: 18,
-                              color: canSpeak ? _actionBlue : _muted,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              speaking ? 'إيقاف' : 'اسمع النبذة',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800,
-                                color: canSpeak ? _navy : _muted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               );
             },
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
-            bio.isNotEmpty
-                ? bio
-                : 'لم تتم إضافة نبذة عن الطبيب حتى الآن.',
-            textAlign: TextAlign.right,
+            bio.isNotEmpty ? bio : 'لم تتم إضافة نبذة عن الطبيب حتى الآن.',
             style: TextStyle(
               fontSize: 14.5,
-              height: 1.85,
-              fontWeight: FontWeight.w500,
-              color: bio.isNotEmpty
-                  ? const Color(0xFF33454F)
-                  : _muted,
+              height: 1.8,
+              fontWeight: FontWeight.w400,
+              color: bio.isNotEmpty ? _navy : _muted,
             ),
           ),
           if (doctor.services.trim().isNotEmpty) ...[
-            const SizedBox(height: 22),
-            const Text(
-              'الخدمات الطبية',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: _navy,
-              ),
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 18),
+            const Text('الخدمات الطبية', style: GhadeerTokens.heading),
+            const SizedBox(height: 8),
             Text(
               doctor.services.trim(),
-              textAlign: TextAlign.right,
               style: const TextStyle(
                 fontSize: 14.5,
                 height: 1.7,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF33454F),
-              ),
-            ),
-          ],
-          if (location.isNotEmpty) ...[
-            const SizedBox(height: 22),
-            const Text(
-              'عنوان العيادة',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w400,
                 color: _navy,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => LabCardLinks.openMapUrl(location),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.location_on_rounded,
-                        color: _actionBlue,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          location,
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            height: 1.55,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF33454F),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ),
           ],
@@ -722,20 +901,19 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
     );
   }
 
-  Widget _buildActions() {
-    // تحت الهيرو مباشرة: اتصال | واتساب | تقييم — صغيرة وموحّدة اللون.
-    const unified = Color(0xFF1197A8);
-    final children = <Widget>[];
+  // ── الشريط الثابت تحت: اتصال · واتساب · QR ───────────────────────────
 
+  Widget _buildBottomBar() {
+    final actions = <Widget>[];
     if (doctor.showCallButton) {
-      children.add(
+      actions.add(
         Expanded(
-          child: _CompactContactAction(
+          flex: 2,
+          child: _BarAction(
             key: const Key('doctor-call-button'),
             icon: Icons.phone_in_talk_rounded,
-            title: 'اتصال',
-            subtitle: 'مباشر',
-            color: unified,
+            label: 'اتصال',
+            color: GhadeerTokens.teal,
             onTap: (!_canContact || doctor.phone.trim().isEmpty)
                 ? null
                 : () {
@@ -746,26 +924,30 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
         ),
       );
     }
-
     if (doctor.showWhatsAppButton) {
-      if (children.isNotEmpty) children.add(const SizedBox(width: 8));
-      children.add(
+      if (actions.isNotEmpty) actions.add(const SizedBox(width: 8));
+      actions.add(
         Expanded(
-          child: _CompactContactAction(
+          flex: 2,
+          child: _BarAction(
             key: const Key('doctor-whatsapp-button'),
             icon: Icons.chat_rounded,
-            title: 'واتساب',
-            subtitle: 'مباشر',
-            color: unified,
+            label: 'واتساب',
+            color: GhadeerTokens.whatsapp,
             onTap: (!_canContact || doctor.whatsapp.trim().isEmpty)
                 ? null
                 : () async {
                     _stats.recordWhatsAppTap(doctor.id);
-                    final message =
-                        await WhatsAppMessageSettingsService().buildPrefill(
-                      providerTitle: doctor.name,
+                    await WhatsAppNamePrompt.maybeAsk(
+                      context,
                       profileService: _profileService,
                     );
+                    final message = await WhatsAppMessageSettingsService()
+                        .buildPrefill(
+                          providerTitle: doctor.name,
+                          profileService: _profileService,
+                          section: WhatsAppSection.doctors,
+                        );
                     await launchClinicWhatsApp(
                       doctor.whatsapp,
                       message: message,
@@ -775,115 +957,41 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
         ),
       );
     }
-
-    if (children.isNotEmpty) children.add(const SizedBox(width: 8));
-    children.add(
-      Expanded(
-        child: _CompactContactAction(
-          icon: Icons.public_rounded,
-          title: 'مواقع التواصل',
-          subtitle: '',
-          color: unified,
-          onTap: () => showEntitySocialSheet(
-            context,
-            links: doctor.social,
-            title: 'مواقع تواصل ${doctor.name}',
+    if (actions.isNotEmpty) actions.add(const SizedBox(width: 8));
+    actions.add(
+      Semantics(
+        button: true,
+        label: 'البطاقة الرقمية QR',
+        excludeSemantics: true,
+        child: Material(
+          color: GhadeerTokens.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+            side: const BorderSide(color: GhadeerTokens.line),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+            onTap: _showDigitalCard,
+            child: const SizedBox(
+              width: 52,
+              height: 52,
+              child: Icon(Icons.qr_code_2_rounded, color: GhadeerTokens.ink),
+            ),
           ),
         ),
       ),
     );
 
-    if (children.isNotEmpty) children.add(const SizedBox(width: 8));
-    children.add(
-      Expanded(
-        child: _CompactRatingAction(
-          average: _rating.average,
-          count: _rating.count,
-          myRating: _myRating,
-          busy: _ratingBusy,
-          onRate: _submitRating,
-        ),
+    return Container(
+      decoration: const BoxDecoration(
+        color: GhadeerTokens.surface,
+        border: Border(top: BorderSide(color: GhadeerTokens.line)),
       ),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: children,
-          ),
-          if (doctor.showBookingButton) ...[
-            const SizedBox(height: 6),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                key: const Key('doctor-booking-button'),
-                onPressed: _onBookingPressed,
-                icon: const Icon(Icons.event_available_rounded, size: 18),
-                label: const Text('حجز موعد'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: unified,
-                  side: BorderSide(color: unified.withValues(alpha: 0.35)),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0E8F9A),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextButton.icon(
-                onPressed: _showDigitalCard,
-                icon: const Icon(Icons.qr_code_2_rounded, color: Colors.white),
-                label: const Text(
-                  'عرض QR الخاص بالطبيب',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12.5,
-                  ),
-                ),
-              ),
-            ),
-            Container(width: 1, height: 28, color: Colors.white24),
-            Expanded(
-              child: TextButton.icon(
-                onPressed: _share,
-                icon: const Icon(Icons.share_outlined, color: Colors.white),
-                label: const Text(
-                  'مشاركة البطاقة',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ),
-          ],
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Row(children: actions),
         ),
       ),
     );
@@ -916,7 +1024,7 @@ String _doctorProfileDisplayName(String raw) {
   return 'د. $body';
 }
 
-/// الاسم + نص الاختصاص في الـ Hero.
+/// الاسم + الاختصاص في الهوية (يسار، تحت شعار الغدير).
 class _HeroDoctorNameSpecialty extends StatelessWidget {
   const _HeroDoctorNameSpecialty({
     super.key,
@@ -935,7 +1043,7 @@ class _HeroDoctorNameSpecialty extends StatelessWidget {
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final compact = w < 168;
-        final nameSize = compact ? 17.0 : 19.5;
+        final nameSize = compact ? 17.5 : 20.0;
         final specialtySize = compact ? 13.0 : 14.0;
 
         return Directionality(
@@ -955,9 +1063,9 @@ class _HeroDoctorNameSpecialty extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                   style: TextStyle(
                     fontSize: nameSize,
-                    height: 1.22,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFF0F2A3D),
+                    height: 1.25,
+                    fontWeight: FontWeight.w800,
+                    color: GhadeerTokens.ink,
                   ),
                 ),
                 if (specialty.trim().isNotEmpty) ...[
@@ -971,15 +1079,14 @@ class _HeroDoctorNameSpecialty extends StatelessWidget {
                     textDirection: TextDirection.rtl,
                     style: TextStyle(
                       fontSize: specialtySize,
-                      height: 1.3,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.1,
-                      color: const Color(0xFF0D8F9E),
+                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                      color: GhadeerTokens.tealDeep,
                     ),
                   ),
                 ],
                 if (supportLine.trim().isNotEmpty) ...[
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 6),
                   Text(
                     supportLine.trim(),
                     maxLines: 2,
@@ -991,7 +1098,7 @@ class _HeroDoctorNameSpecialty extends StatelessWidget {
                       fontSize: compact ? 11.0 : 12.0,
                       height: 1.45,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF5B6C70),
+                      color: GhadeerTokens.inkMuted,
                     ),
                   ),
                 ],
@@ -1004,75 +1111,241 @@ class _HeroDoctorNameSpecialty extends StatelessWidget {
   }
 }
 
-/// مستطيل أيام التواجد / رسالة الإجازة — بمحاذاة يسار هوية الغدير.
-class _HeroPresencePanel extends StatelessWidget {
+/// الدوام بشكل مختصر: «يومياً مساءً» + ملاحظات (عطلة / فترة مختلفة)،
+/// وجدول الأيام كامل مخفي يفتح بزر «كل الأيام».
+class _HeroPresencePanel extends StatefulWidget {
   const _HeroPresencePanel({
     required this.leaveMessage,
     required this.weekDays,
+    required this.today,
   });
 
   final String leaveMessage;
   final List<DoctorWeekDayEntry> weekDays;
+  final String today;
+
+  @override
+  State<_HeroPresencePanel> createState() => _HeroPresencePanelState();
+}
+
+class _HeroPresencePanelState extends State<_HeroPresencePanel> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
-    final onLeave = leaveMessage.trim().isNotEmpty;
-    final bg = onLeave ? const Color(0xFFFFF7EE) : const Color(0xFFF2F9FA);
-    final border = onLeave ? const Color(0xFFE8D2B8) : const Color(0xFFD5E8EC);
-    final accent = onLeave ? const Color(0xFFC47A2C) : const Color(0xFF1A4F58);
+    final leave = widget.leaveMessage.trim();
+    if (leave.isNotEmpty) {
+      return _box(
+        color: GhadeerTokens.warnWash,
+        border: const Color(0xFFEBD3AE),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.event_busy_rounded,
+              size: 20,
+              color: GhadeerTokens.warn,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                leave,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.45,
+                  fontWeight: FontWeight.w700,
+                  color: GhadeerTokens.warn,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          onLeave ? 'حالة التواجد' : 'أيام تواجد الطبيب',
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.rtl,
-          style: const TextStyle(
-            fontSize: 13,
-            height: 1.25,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF1A4F58),
-          ),
-        ),
-        const SizedBox(height: 6),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: border),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
-            child: onLeave
-                ? Text(
-                    leaveMessage.trim(),
-                    maxLines: 4,
-                    softWrap: true,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    textDirection: TextDirection.rtl,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      height: 1.4,
-                      fontWeight: FontWeight.w700,
-                      color: accent,
+    final summary = summarizeDoctorWeek(widget.weekDays);
+    DoctorWeekDayEntry? todayEntry;
+    for (final e in widget.weekDays) {
+      if (e.day == widget.today) todayEntry = e;
+    }
+    final todayText = todayEntry == null
+        ? null
+        : (todayEntry.isOff ? 'اليوم عطلة' : 'اليوم ${todayEntry.status}');
+
+    return _box(
+      color: Colors.white.withValues(alpha: 0.92),
+      border: GhadeerTokens.line,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: GhadeerTokens.tealWash,
+                  borderRadius: BorderRadius.circular(GhadeerTokens.radiusSm),
+                ),
+                child: const Icon(
+                  Icons.schedule_rounded,
+                  size: 20,
+                  color: GhadeerTokens.tealDeep,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('الدوام', style: GhadeerTokens.caption),
+                    Text(
+                      summary.headline,
+                      key: const Key('doctor_schedule_headline'),
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w800,
+                        color: GhadeerTokens.ink,
+                      ),
                     ),
-                  )
-                : _HeroWeekSchedule(entries: weekDays),
+                  ],
+                ),
+              ),
+              if (todayText != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: todayEntry!.isOff
+                        ? GhadeerTokens.warnWash
+                        : GhadeerTokens.tealWash,
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Text(
+                    todayText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: todayEntry.isOff
+                          ? GhadeerTokens.warn
+                          : GhadeerTokens.tealDeep,
+                    ),
+                  ),
+                ),
+            ],
           ),
+          if (summary.notes.isNotEmpty || summary.offDays.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final note in summary.notes)
+                  _noteChip(
+                    note,
+                    GhadeerTokens.tealDeep,
+                    GhadeerTokens.tealWash,
+                  ),
+                if (summary.offDays.isNotEmpty)
+                  _noteChip(
+                    'عطلة: ${summary.offDays.join('، ')}',
+                    GhadeerTokens.warn,
+                    GhadeerTokens.warnWash,
+                  ),
+              ],
+            ),
+          ],
+          if (widget.weekDays.length > 1) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                key: const Key('doctor_schedule_toggle'),
+                onPressed: () => setState(() => _expanded = !_expanded),
+                icon: Icon(
+                  _expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                ),
+                label: Text(_expanded ? 'إخفاء الأيام' : 'كل الأيام'),
+                style: TextButton.styleFrom(
+                  foregroundColor: GhadeerTokens.tealDeep,
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              alignment: Alignment.topCenter,
+              child: _expanded
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: _HeroWeekSchedule(
+                        entries: widget.weekDays,
+                        today: widget.today,
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _box({
+    required Color color,
+    required Color border,
+    required Widget child,
+  }) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+          border: Border.all(color: border),
         ),
-      ],
+        child: child,
+      ),
+    );
+  }
+
+  Widget _noteChip(String text, Color fg, Color bg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(50),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
+      ),
     );
   }
 }
 
 /// جدول أيام التواجد: صفوف متقابلة (سبت↔ثلاثاء …) ثم الجمعة في المنتصف.
 class _HeroWeekSchedule extends StatelessWidget {
-  const _HeroWeekSchedule({required this.entries});
+  const _HeroWeekSchedule({required this.entries, required this.today});
 
   final List<DoctorWeekDayEntry> entries;
+  final String today;
 
   static const _pairs = <(String, String)>[
     ('السبت', 'الثلاثاء'),
@@ -1098,11 +1371,11 @@ class _HeroWeekSchedule extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var i = 0; i < _pairs.length; i++) ...[
-            if (i > 0) const SizedBox(height: 4),
+            if (i > 0) const SizedBox(height: 3),
             _pairedRow(_byDay(_pairs[i].$1), _byDay(_pairs[i].$2)),
           ],
           if (friday != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 3),
             Align(
               alignment: Alignment.center,
               child: _dayChip(friday, shrinkWrap: true),
@@ -1118,36 +1391,33 @@ class _HeroWeekSchedule extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: sideA == null
-              ? const SizedBox.shrink()
-              : _dayChip(sideA),
+          child: sideA == null ? const SizedBox.shrink() : _dayChip(sideA),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 4),
         Expanded(
-          child: sideB == null
-              ? const SizedBox.shrink()
-              : _dayChip(sideB),
+          child: sideB == null ? const SizedBox.shrink() : _dayChip(sideB),
         ),
       ],
     );
   }
 
   Widget _dayChip(DoctorWeekDayEntry entry, {bool shrinkWrap = false}) {
+    final isToday = entry.day == today;
     final statusColor = entry.isOff
-        ? const Color(0xFFC47A2C)
-        : const Color(0xFF2A6B75);
+        ? GhadeerTokens.warn
+        : GhadeerTokens.tealDeep;
     final status = Text(
       entry.status,
       maxLines: 1,
       overflow: shrinkWrap ? TextOverflow.ellipsis : TextOverflow.visible,
       style: TextStyle(
-        fontSize: 14.5,
+        fontSize: 14,
         height: 1.3,
         fontWeight: FontWeight.w700,
         color: statusColor,
       ),
     );
-    return Row(
+    final row = Row(
       mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
       mainAxisAlignment: shrinkWrap
           ? MainAxisAlignment.center
@@ -1155,14 +1425,14 @@ class _HeroWeekSchedule extends StatelessWidget {
       children: [
         Text(
           entry.day,
-          style: const TextStyle(
-            fontSize: 14.5,
+          style: TextStyle(
+            fontSize: 14,
             height: 1.3,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF1A4F58),
+            fontWeight: isToday ? FontWeight.w900 : FontWeight.w800,
+            color: GhadeerTokens.ink,
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 5),
         if (shrinkWrap)
           status
         else
@@ -1175,6 +1445,23 @@ class _HeroWeekSchedule extends StatelessWidget {
             ),
           ),
       ],
+    );
+    // اليوم الحالي بخلفية فيروزية خفيفة.
+    return Semantics(
+      label: isToday ? 'اليوم' : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: isToday
+            ? BoxDecoration(
+                color: GhadeerTokens.tealWash,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: GhadeerTokens.teal.withValues(alpha: 0.45),
+                ),
+              )
+            : null,
+        child: row,
+      ),
     );
   }
 }
@@ -1189,35 +1476,27 @@ class _GhadeerVerifiedPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(9, 6, 9, 6),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.97),
+          color: GhadeerTokens.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFD7E6EE)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: GhadeerTokens.line),
         ),
-        // LTR صريح: الأيقونة الزرقاء تبقى على يسار الشارة حتى في صفحة RTL.
         child: const Directionality(
           textDirection: TextDirection.ltr,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.verified_rounded, size: 15, color: Color(0xFF1A73E8)),
+              Icon(Icons.verified_rounded, size: 15, color: GhadeerTokens.teal),
               SizedBox(width: 5),
               Flexible(
                 child: Text(
-                  'طبيب في منصة الغدير',
+                  'طبيب موثّق',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     height: 1.15,
-                    color: Color(0xFF123B42),
+                    color: GhadeerTokens.ink,
                   ),
                 ),
               ),
@@ -1229,100 +1508,53 @@ class _GhadeerVerifiedPill extends StatelessWidget {
   }
 }
 
-class _HeroDepthBackground extends StatelessWidget {
-  const _HeroDepthBackground();
+/// حالة الطبيب اليوم — حبّة بيضاء صغيرة أسفل الصورة.
+class _HeroStatusChip extends StatelessWidget {
+  const _HeroStatusChip({required this.text, required this.color});
 
-  // Soft Medical Blue / Ice Blue
-  static const _ice = Color(0xFFEAF4F6);
-  static const _iceSoft = Color(0xFFE5F1F4);
-  static const _iceMist = Color(0xFFF5FBFC);
+  final String text;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // قاعدة: أبيض → سماوي طبي فاتح جدًا مائل للرمادي
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFFFFFFF),
-                _ice,
-                _iceSoft,
-                _iceMist,
-              ],
-              stops: [0.0, 0.32, 0.68, 1.0],
-            ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-        ),
-        // بقع ضوء سماوية ناعمة قبل الـ Blur
-        Positioned(
-          right: -48,
-          top: -10,
-          child: Container(
-            width: 240,
-            height: 240,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFFD5EBEF).withValues(alpha: 0.85),
-                  _ice.withValues(alpha: 0.0),
-                ],
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: color,
               ),
             ),
           ),
-        ),
-        Positioned(
-          right: 20,
-          bottom: -70,
-          child: Container(
-            width: 190,
-            height: 190,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFFCFE6EB).withValues(alpha: 0.55),
-                  _iceSoft.withValues(alpha: 0.0),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: -30,
-          top: 70,
-          child: Container(
-            width: 130,
-            height: 130,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.9),
-                  _ice.withValues(alpha: 0.0),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // Blur طبي فخم يدمج التدرج والبقع
-        Positioned.fill(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-            child: const ColoredBox(color: Color(0x33FFFFFF)),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-/// صورة الطبيب داخل Hero — مدمجة مع الخلفية وليست داخل بطاقة صغيرة.
+/// لون الماي الفاتح لخلفية الهوية.
+const _heroBase = Color(0xFFEFF7F6);
+
+/// صورة الطبيب داخل إطارها — ظل خفيف تحت حتى تبين حبّة الحالة.
 class _HeroDoctorImage extends StatelessWidget {
   const _HeroDoctorImage({required this.imageUrl});
 
@@ -1335,8 +1567,8 @@ class _HeroDoctorImage extends StatelessWidget {
             imageUrl,
             fit: BoxFit.cover,
             // تركيز أعلى قليلاً لإظهار الوجه بوضوح دون قصّ مفرط.
-            alignment: const Alignment(0.15, -0.35),
-            cacheWidth: 1200,
+            alignment: const Alignment(0, -0.35),
+            cacheWidth: 800,
             filterQuality: FilterQuality.high,
             errorBuilder: (_, _, _) => const _PortraitFallback(),
           )
@@ -1346,37 +1578,76 @@ class _HeroDoctorImage extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         photo,
-        // دمج ناعم مع Soft Medical Blue خلف الصورة الشفافة.
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                Color(0xEAEAF4F6),
-                Color(0x66EAF4F6),
-                Color(0x22FFFFFF),
-                Color(0x00FFFFFF),
-              ],
-              stops: [0.0, 0.12, 0.34, 0.58],
-            ),
-          ),
-        ),
         const DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
-              colors: [
-                Color(0xCCE5F1F4),
-                Color(0x44EAF4F6),
-                Color(0x00FFFFFF),
-              ],
-              stops: [0.0, 0.14, 0.40],
+              colors: [Color(0x330D3B42), Color(0x000D3B42)],
+              stops: [0.0, 0.35],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// زر بالشريط السفلي (اتصال / واتساب) — InkWell واحد فقط.
+class _BarAction extends StatelessWidget {
+  const _BarAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final bg = enabled ? color : GhadeerTokens.line;
+    final fg = enabled ? Colors.white : GhadeerTokens.inkFaint;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+          onTap: onTap,
+          child: SizedBox(
+            height: 52,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 20, color: fg),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: fg,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1387,80 +1658,12 @@ class _PortraitFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFEAF4F6),
+      color: _heroBase,
       alignment: Alignment.center,
       child: const Icon(
         Icons.person_rounded,
         size: 72,
-        color: Color(0xFF9BB8B6),
-      ),
-    );
-  }
-}
-
-class _CompactContactAction extends StatelessWidget {
-  const _CompactContactAction({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return Opacity(
-      opacity: enabled ? 1 : 0.45,
-      child: Material(
-        color: color,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 64),
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 20),
-                const SizedBox(height: 4),
-                Text(
-                  title,
-                  maxLines: title.length > 8 ? 2 : 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: title.length > 8 ? 10.5 : 12,
-                    height: 1.15,
-                  ),
-                ),
-                if (subtitle.trim().isNotEmpty)
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 9.5,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
+        color: Color(0xFF8DBDB8),
       ),
     );
   }
@@ -1486,14 +1689,14 @@ class _CompactRatingAction extends StatelessWidget {
     final label = count > 0 ? average.toStringAsFixed(1) : '—';
 
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      color: GhadeerTokens.surface,
+      borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
       child: Container(
         constraints: const BoxConstraints(minHeight: 64),
         padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE4EEF0)),
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+          border: Border.all(color: GhadeerTokens.line),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1502,8 +1705,8 @@ class _CompactRatingAction extends StatelessWidget {
               label,
               maxLines: 1,
               style: const TextStyle(
-                color: Color(0xFF123B42),
-                fontWeight: FontWeight.w900,
+                color: GhadeerTokens.ink,
+                fontWeight: FontWeight.w800,
                 fontSize: 13,
                 height: 1.1,
               ),
@@ -1520,9 +1723,7 @@ class _CompactRatingAction extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 0.5),
                     child: Icon(
-                      selected
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
+                      selected ? Icons.star_rounded : Icons.star_border_rounded,
                       size: 14,
                       color: const Color(0xFFE89B28),
                     ),
@@ -1546,4 +1747,3 @@ class _CompactRatingAction extends StatelessWidget {
     );
   }
 }
-

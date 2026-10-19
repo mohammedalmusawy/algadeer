@@ -40,11 +40,11 @@ class DynamicHighlightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = message.title.trim().isEmpty
-        ? 'عيادة الغدير'
+        ? 'منصة الغدير'
         : message.title.trim();
     final body = message.body.trim();
     final badge = message.badge.trim().isEmpty
-        ? 'عيادة الغدير'
+        ? 'منصة الغدير'
         : message.badge.trim();
     final image = message.imageUrl.trim();
 

@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
 import '../models/lab_models.dart';
-import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import '../services/app_stats_service.dart';
 import '../voice/lab_packages_speech.dart';
@@ -14,7 +12,9 @@ import '../voice/voice_response_controller.dart';
 import '../doctors/doctor_card_gate.dart';
 import '../doctors/doctor_card_tap.dart';
 import '../widgets/entity_contact_actions.dart';
+import '../theme/ghadeer_tokens.dart';
 import '../widgets/entity_optional_logo.dart';
+import '../widgets/ghadeer_identity_card.dart';
 import 'lab_owner_editor_page.dart';
 import 'lab_card_links.dart';
 import 'lab_default_images.dart';
@@ -26,6 +26,8 @@ import 'widgets/lab_network_or_asset_image.dart';
 import 'widgets/lab_package_strip.dart';
 import '../widgets/owner_access_link.dart';
 import '../services/favorites_cloud.dart';
+import '../settings/whatsapp_templates.dart';
+import '../settings/whatsapp_contact_flow.dart';
 
 /// بطاقة المختبر الرقمية — قالب Premium واحد لكل المختبرات من Supabase.
 class LabProfilePage extends StatefulWidget {
@@ -54,13 +56,13 @@ class _LabProfilePageState extends State<LabProfilePage> {
   bool _viewRecorded = false;
   bool _packagesSpeechBusy = false;
 
-  static const _navy = Color(0xFF123B42);
-  static const _ink = Color(0xFF0F2A3D);
-  static const _teal = Color(0xFF0FAFA3);
-  static const _actionBlue = Color(0xFF1197A8);
-  static const _muted = Color(0xFF5B6C70);
-  static const _line = Color(0xFFE4EEF0);
-  static const _pageBg = Color(0xFFF7FBFC);
+  static const _navy = GhadeerTokens.ink;
+  static const _ink = GhadeerTokens.ink;
+  static const _teal = GhadeerTokens.teal;
+  static const _actionBlue = GhadeerTokens.tealDeep;
+  static const _muted = GhadeerTokens.inkMuted;
+  static const _line = GhadeerTokens.line;
+  static const _pageBg = GhadeerTokens.mist;
   static const _favKey = 'favoriteLabIds';
 
   @override
@@ -92,7 +94,10 @@ class _LabProfilePageState extends State<LabProfilePage> {
     Navigator.pop(context);
   }
 
-  String _packagesSpeechFor(List<LabPackageItem> packages, {bool offersOnly = false}) {
+  String _packagesSpeechFor(
+    List<LabPackageItem> packages, {
+    bool offersOnly = false,
+  }) {
     return LabPackagesSpeech.build(
       labName: _lab.name,
       packages: packages,
@@ -148,11 +153,11 @@ class _LabProfilePageState extends State<LabProfilePage> {
             customBorder: const StadiumBorder(),
             onTap: canSpeak
                 ? () => unawaited(
-                      _togglePackagesSpeech(
-                        packages: packages,
-                        offersOnly: offersOnly,
-                      ),
-                    )
+                    _togglePackagesSpeech(
+                      packages: packages,
+                      offersOnly: offersOnly,
+                    ),
+                  )
                 : null,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -268,10 +273,9 @@ class _LabProfilePageState extends State<LabProfilePage> {
   /// وإن ماكو تعيين نعرض كل الباقات مرتّبة (قدر المكان).
   List<LabPackageItem> get _homePackages {
     if (_packages.isEmpty) return const [];
-    final flagged = _packages
-        .where((p) => p.isFeatured || p.showOnHome)
-        .toList()
-      ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    final flagged =
+        _packages.where((p) => p.isFeatured || p.showOnHome).toList()
+          ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
     if (flagged.isNotEmpty) return flagged;
     final ordered = [..._packages]
       ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
@@ -326,9 +330,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('لا يوجد عنوان أو رابط خرائط لهذا المختبر'),
-      ),
+      const SnackBar(content: Text('لا يوجد عنوان أو رابط خرائط لهذا المختبر')),
     );
   }
 
@@ -367,65 +369,65 @@ class _LabProfilePageState extends State<LabProfilePage> {
         unawaited(_voice.stop());
       },
       child: Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: _pageBg,
-        body: Column(
-          children: [
-            Expanded(
-              child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: _teal),
-                    )
-                  : _error != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(_error!, textAlign: TextAlign.center),
-                            const SizedBox(height: 12),
-                            FilledButton(
-                              onPressed: _load,
-                              child: const Text('إعادة المحاولة'),
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          backgroundColor: _pageBg,
+          body: Column(
+            children: [
+              Expanded(
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: _teal),
+                      )
+                    : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_error!, textAlign: TextAlign.center),
+                              const SizedBox(height: 12),
+                              FilledButton(
+                                onPressed: _load,
+                                child: const Text('إعادة المحاولة'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        color: _teal,
+                        onRefresh: _load,
+                        child: CustomScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          slivers: [
+                            SliverToBoxAdapter(child: _buildHero()),
+                            // الأزرار فوق — مباشرة تحت البطاقة، قبل النبذة الطويلة.
+                            SliverToBoxAdapter(child: _buildActions()),
+                            SliverToBoxAdapter(child: _buildIdentity()),
+                            SliverToBoxAdapter(child: _buildAddressSection()),
+                            SliverToBoxAdapter(child: _buildTabs()),
+                            SliverToBoxAdapter(child: _buildTabBody()),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 20),
                             ),
                           ],
                         ),
                       ),
-                    )
-                  : RefreshIndicator(
-                      color: _teal,
-                      onRefresh: _load,
-                      child: CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: BouncingScrollPhysics(),
-                        ),
-                        slivers: [
-                          SliverToBoxAdapter(child: _buildHero()),
-                          // الأزرار فوق — مباشرة تحت البطاقة، قبل النبذة الطويلة.
-                          SliverToBoxAdapter(child: _buildActions()),
-                          SliverToBoxAdapter(child: _buildIdentity()),
-                          SliverToBoxAdapter(child: _buildAddressSection()),
-                          SliverToBoxAdapter(child: _buildTabs()),
-                          SliverToBoxAdapter(child: _buildTabBody()),
-                          const SliverToBoxAdapter(child: SizedBox(height: 20)),
-                        ],
-                      ),
-                    ),
-            ),
-            if (!_loading && _error == null) _buildBottomBar(),
-          ],
+              ),
+              if (!_loading && _error == null) _buildBottomBar(),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
-  String get _heroImageUrl => LabDefaultImages.displayUrl(
-        imageUrl: _lab.imageUrl,
-        labId: _lab.id,
-      );
+  String get _heroImageUrl =>
+      LabDefaultImages.displayUrl(imageUrl: _lab.imageUrl, labId: _lab.id);
 
   /// سطر نوع المختبر تحت الاسم — شعار أو افتراضي.
   String get _heroSpecialty {
@@ -444,254 +446,82 @@ class _LabProfilePageState extends State<LabProfilePage> {
     return '${words.take(maxWords).join(' ')}…';
   }
 
-  Widget _circleIconBtn({
-    required IconData icon,
-    required VoidCallback onTap,
-    Color? iconColor,
-  }) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 0,
-      shadowColor: Colors.transparent,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            border: Border.all(color: const Color(0xFFE8EEF2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Icon(icon, size: 18, color: iconColor ?? _navy),
-        ),
-      ),
-    );
-  }
-
-  /// Hero مطابق لهوية الطبيب: صورة يمينًا + هوية يسارًا + أزرار علوية.
+  /// الهوية الموحّدة (نفس هوية الطبيب): صورة بإطار يمين، والكتابة يسار،
+  /// و«اختر تحليلك بنفسك» بعرض البطاقة تحتهم.
   Widget _buildHero() {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final cardW = constraints.maxWidth;
-            final narrow = cardW < 400;
-            final heroH = (cardW * (narrow ? 1.02 : 0.90)).clamp(390.0, 520.0);
-            final imageW = cardW * (narrow ? 0.66 : 0.60);
-            final leftColW =
-                (cardW * (narrow ? 0.52 : 0.48)).clamp(168.0, 220.0);
-
-            return SizedBox(
-              width: cardW,
-              height: heroH,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(26),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    clipBehavior: Clip.hardEdge,
-                    children: [
-                      const _LabHeroDepthBackground(),
-                      Positioned(
-                        top: 0,
-                        bottom: -12,
-                        right: -6,
-                        width: imageW,
-                        child: _LabHeroImage(imageUrl: _heroImageUrl),
-                      ),
-                      Positioned(
-                        top: 10,
-                        left: 12,
-                        bottom: 12,
-                        width: leftColW,
-                        child: Directionality(
-                          textDirection: TextDirection.ltr,
-                          // فوق: رجوع + مجموعة الهوية. أسفل: اختيار التحاليل.
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: _circleIconBtn(
-                                  icon: Icons.chevron_right_rounded,
-                                  onTap: () => unawaited(_stopSpeechAndPop()),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  const Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: _LabGhadeerVerifiedPill(),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: GhadeerBrandHeaderRow(),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'التشخيص قبل كل شئ',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.left,
-                                    textDirection: TextDirection.rtl,
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      height: 1.2,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1A4F58),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (_lab.logoUrl.trim().isNotEmpty) ...[
-                                    const SizedBox(height: 6),
-                                    EntityOptionalLogo(url: _lab.logoUrl),
-                                  ],
-                                  DoctorCardTripleTap(
-                                    tapCount: 5,
-                                    onTripleTap: _openLabPackagesManage,
-                                    child: _LabHeroNameSpecialty(
-                                      name: _lab.name.trim().isEmpty
-                                          ? 'مختبر'
-                                          : _lab.name.trim(),
-                                      specialty: _heroSpecialty,
-                                      supportLine: '',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (_heroBioSnippet.isNotEmpty) ...[
-                                const SizedBox(height: 10),
-                                GhadeerTextWithLogo(
-                                  _heroBioSnippet,
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.left,
-                                  textDirection: TextDirection.rtl,
-                                  logoHeight: 18,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    height: 1.45,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF5B6C70),
-                                  ),
-                                ),
-                              ],
-                              const Spacer(),
-                              _LabPickAnalysesCta(
-                                onTap: _openPickAnalyses,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: _circleIconBtn(
-                          icon: Icons.ios_share_rounded,
-                          onTap: _share,
-                        ),
-                      ),
-                      Positioned(
-                        top: 10 + 38 + 8,
-                        right: 10,
-                        child: _circleIconBtn(
-                          icon: _favorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          iconColor: _favorite
-                              ? const Color(0xFFE25555)
-                              : _navy,
-                          onTap: _toggleFavorite,
-                        ),
-                      ),
-                      Positioned(
-                        top: 10 + (38 + 8) * 2,
-                        right: 10,
-                        child: OwnerAccess.faint(
-                          onTap: () => unawaited(_openLabPackagesManage()),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+    final hasImage = _heroImageUrl.trim().isNotEmpty;
+    return GhadeerIdentityCard(
+      photo: _LabHeroImage(imageUrl: _heroImageUrl),
+      onPhotoTap: hasImage
+          ? () => showGhadeerPhotoViewer(
+              context,
+              LabNetworkOrAssetImage(
+                _heroImageUrl,
+                fit: BoxFit.contain,
+                cacheWidth: 1400,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
-            );
-          },
-        ),
+            )
+          : null,
+      name: _lab.name.trim().isEmpty ? 'مختبر' : _lab.name.trim(),
+      subtitle: _heroSpecialty,
+      snippet: _heroBioSnippet,
+      logo: _lab.logoUrl.trim().isNotEmpty
+          ? EntityOptionalLogo(url: _lab.logoUrl)
+          : null,
+      // ٥ ضغطات على الاسم = دخول صاحب المختبر (مثل قبل).
+      wrapName: (name) => DoctorCardTripleTap(
+        tapCount: 5,
+        onTripleTap: _openLabPackagesManage,
+        child: name,
       ),
+      favorite: _favorite,
+      onToggleFavorite: _toggleFavorite,
+      onShare: _share,
+      onBack: () => unawaited(_stopSpeechAndPop()),
+      ownerAccess: OwnerAccess.faint(
+        onTap: () => unawaited(_openLabPackagesManage()),
+      ),
+      below: _LabPickAnalysesCta(onTap: _openPickAnalyses),
     );
   }
 
   Widget _buildIdentity() {
     final bio = _lab.description.trim();
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'نبذة عن المختبر',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: _navy,
-            ),
-          ),
-          const SizedBox(height: 10),
-          bio.isNotEmpty
-              ? GhadeerTextWithLogo(
-                  bio,
-                  textAlign: TextAlign.right,
-                  logoHeight: 24,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    height: 1.85,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF33454F),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: GhadeerTokens.card(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('نبذة عن المختبر', style: GhadeerTokens.heading),
+            const SizedBox(height: 10),
+            bio.isNotEmpty
+                ? GhadeerTextWithLogo(
+                    bio,
+                    textAlign: TextAlign.right,
+                    logoHeight: 24,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      height: 1.8,
+                      fontWeight: FontWeight.w400,
+                      color: _navy,
+                    ),
+                  )
+                : const Text(
+                    'لم تتم إضافة نبذة عن المختبر حتى الآن.',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      height: 1.8,
+                      color: _muted,
+                    ),
                   ),
-                )
-              : Text(
-                  'لم تتم إضافة نبذة عن المختبر حتى الآن.',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    height: 1.85,
-                    fontWeight: FontWeight.w500,
-                    color: _muted,
-                  ),
-                ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -711,15 +541,16 @@ class _LabProfilePageState extends State<LabProfilePage> {
         },
         onWhatsapp: () async {
           _stats.recordLabWhatsAppTap(_lab.id);
-          final message = await WhatsAppMessageSettingsService().buildPrefill(
+          await WhatsAppContactFlow.open(
+            context,
+            whatsapp: _lab.whatsapp,
+            section: WhatsAppSection.labs,
             providerTitle: _lab.name,
-            providerIsDoctor: false,
           );
-          await launchClinicWhatsApp(_lab.whatsapp, message: message);
         },
         onLocation: _openLocation,
-        showLocation: _lab.address.trim().isNotEmpty ||
-            _lab.mapUrl.trim().isNotEmpty,
+        showLocation:
+            _lab.address.trim().isNotEmpty || _lab.mapUrl.trim().isNotEmpty,
       ),
     );
   }
@@ -727,84 +558,66 @@ class _LabProfilePageState extends State<LabProfilePage> {
   Widget _buildAddressSection() {
     final location = _lab.address.trim();
     if (location.isEmpty) return const SizedBox.shrink();
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'عنوان المختبر',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: _navy,
+      child: Material(
+        color: GhadeerTokens.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusLg),
+          side: const BorderSide(color: GhadeerTokens.line),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusLg),
+          onTap: _openLocation,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: GhadeerTokens.tealWash,
+                    borderRadius: BorderRadius.circular(GhadeerTokens.radiusSm),
+                  ),
+                  child: const Icon(
+                    Icons.location_on_rounded,
+                    color: GhadeerTokens.tealDeep,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('عنوان المختبر', style: GhadeerTokens.caption),
+                      const SizedBox(height: 2),
+                      Text(
+                        location,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          height: 1.5,
+                          fontWeight: FontWeight.w600,
+                          color: GhadeerTokens.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'الخريطة',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: GhadeerTokens.tealDeep,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: _openLocation,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE4EEEE)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F7F5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.location_on_rounded,
-                        color: _actionBlue,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            location,
-                            textAlign: TextAlign.right,
-                            style: const TextStyle(
-                              fontSize: 14.5,
-                              height: 1.55,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF33454F),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _lab.mapUrl.trim().isNotEmpty
-                                ? 'فتح الموقع في الخرائط'
-                                : 'بحث العنوان في الخرائط',
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: _actionBlue,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_left_rounded, color: _muted),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -865,8 +678,9 @@ class _LabProfilePageState extends State<LabProfilePage> {
                             color: _tab == t.id
                                 ? _actionBlue
                                 : const Color(0xFF7A8B90),
-                            fontWeight:
-                                _tab == t.id ? FontWeight.w900 : FontWeight.w600,
+                            fontWeight: _tab == t.id
+                                ? FontWeight.w900
+                                : FontWeight.w600,
                             fontSize: 13,
                           ),
                         ),
@@ -889,7 +703,9 @@ class _LabProfilePageState extends State<LabProfilePage> {
                         width: t.label.length * 8.5 + 16,
                         height: 2.5,
                         decoration: BoxDecoration(
-                          color: _tab == t.id ? _actionBlue : Colors.transparent,
+                          color: _tab == t.id
+                              ? _actionBlue
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -942,10 +758,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
             ),
           ),
           // شريط أفقي مثل الصيدلية — كل الباقات + سحب.
-          LabPackagesStrip(
-            packages: homePkgs,
-            onOpen: _openPackage,
-          ),
+          LabPackagesStrip(packages: homePkgs, onOpen: _openPackage),
           if (homePkgs.length > 4)
             Align(
               alignment: Alignment.centerLeft,
@@ -977,7 +790,10 @@ class _LabProfilePageState extends State<LabProfilePage> {
     );
   }
 
-  Widget _packagesList(List<LabPackageItem> packages, {bool offersOnly = false}) {
+  Widget _packagesList(
+    List<LabPackageItem> packages, {
+    bool offersOnly = false,
+  }) {
     if (packages.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(24),
@@ -1002,10 +818,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
             ),
           ),
         ),
-        LabPackagesStrip(
-          packages: packages,
-          onOpen: _openPackage,
-        ),
+        LabPackagesStrip(packages: packages, onOpen: _openPackage),
         const SizedBox(height: 8),
       ],
     );
@@ -1044,42 +857,44 @@ class _LabProfilePageState extends State<LabProfilePage> {
               ),
             )
           else
-            ..._filteredAnalyses.take(40).map(
-              (a) => Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      a.arabicDisplayName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: _navy,
-                      ),
+            ..._filteredAnalyses
+                .take(40)
+                .map(
+                  (a) => Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _line),
                     ),
-                    if (a.englishDisplayName.isNotEmpty &&
-                        a.englishDisplayName != a.arabicDisplayName) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        a.englishDisplayName,
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          a.arabicDisplayName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: _navy,
+                          ),
                         ),
-                      ),
-                    ],
-                  ],
+                        if (a.englishDisplayName.isNotEmpty &&
+                            a.englishDisplayName != a.arabicDisplayName) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            a.englishDisplayName,
+                            style: const TextStyle(
+                              color: _muted,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
         ],
       ),
     );
@@ -1120,7 +935,11 @@ class _LabProfilePageState extends State<LabProfilePage> {
                     child: const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.map_rounded, color: Color(0xFFE25555), size: 20),
+                        Icon(
+                          Icons.map_rounded,
+                          color: Color(0xFFE25555),
+                          size: 20,
+                        ),
                         SizedBox(height: 2),
                         Text(
                           'الخريطة',
@@ -1227,10 +1046,7 @@ class _LabProfilePageState extends State<LabProfilePage> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (footer != null) ...[
-            const SizedBox(height: 4),
-            footer,
-          ],
+          if (footer != null) ...[const SizedBox(height: 4), footer],
         ],
       ),
     );
@@ -1367,16 +1183,17 @@ class _LabPickAnalysesCta extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Material(
-        color: const Color(0xFF0FAFA3),
-        borderRadius: BorderRadius.circular(14),
+        color: GhadeerTokens.teal,
+        borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
         child: InkWell(
+          key: const Key('lab_pick_analyses_cta'),
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
           child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Row(
               children: [
-                Icon(Icons.science_outlined, color: Colors.white, size: 18),
+                Icon(Icons.science_outlined, color: Colors.white, size: 22),
                 SizedBox(width: 7),
                 Expanded(
                   child: Text(
@@ -1386,247 +1203,19 @@ class _LabPickAnalysesCta extends StatelessWidget {
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
                       height: 1.25,
                     ),
                   ),
                 ),
                 SizedBox(width: 4),
-                Icon(
-                  Icons.chevron_left_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                Icon(Icons.chevron_left_rounded, color: Colors.white, size: 20),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LabGhadeerVerifiedPill extends StatelessWidget {
-  const _LabGhadeerVerifiedPill();
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 186),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(9, 6, 9, 6),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.97),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFD7E6EE)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Directionality(
-          textDirection: TextDirection.ltr,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.verified_rounded, size: 15, color: Color(0xFF1A73E8)),
-              SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  'مختبر في منصة الغدير',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
-                    color: Color(0xFF123B42),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LabHeroNameSpecialty extends StatelessWidget {
-  const _LabHeroNameSpecialty({
-    required this.name,
-    required this.specialty,
-    required this.supportLine,
-  });
-
-  final String name;
-  final String specialty;
-  final String supportLine;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final compact = w < 168;
-        final nameSize = compact ? 17.0 : 19.5;
-        final specialtySize = compact ? 13.0 : 14.0;
-
-        return Directionality(
-          textDirection: TextDirection.ltr,
-          child: SizedBox(
-            width: w.isFinite ? w : null,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  name.trim().isEmpty ? 'مختبر' : name.trim(),
-                  maxLines: 3,
-                  softWrap: true,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.left,
-                  textDirection: TextDirection.rtl,
-                  style: TextStyle(
-                    fontSize: nameSize,
-                    height: 1.22,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFF0F2A3D),
-                  ),
-                ),
-                if (specialty.trim().isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  GhadeerTextWithLogo(
-                    specialty.trim(),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.left,
-                    textDirection: TextDirection.rtl,
-                    logoHeight: specialtySize + 4,
-                    style: TextStyle(
-                      fontSize: specialtySize,
-                      height: 1.3,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.1,
-                      color: const Color(0xFF0D8F9E),
-                    ),
-                  ),
-                ],
-                if (supportLine.trim().isNotEmpty) ...[
-                  const SizedBox(height: 7),
-                  GhadeerTextWithLogo(
-                    supportLine.trim(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.left,
-                    textDirection: TextDirection.rtl,
-                    logoHeight: compact ? 16 : 18,
-                    style: TextStyle(
-                      fontSize: compact ? 11.0 : 12.0,
-                      height: 1.45,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF5B6C70),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _LabHeroDepthBackground extends StatelessWidget {
-  const _LabHeroDepthBackground();
-
-  static const _ice = Color(0xFFEAF4F6);
-  static const _iceSoft = Color(0xFFE5F1F4);
-  static const _iceMist = Color(0xFFF5FBFC);
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFFFFFFF),
-                _ice,
-                _iceSoft,
-                _iceMist,
-              ],
-              stops: [0.0, 0.32, 0.68, 1.0],
-            ),
-          ),
-        ),
-        Positioned(
-          right: -48,
-          top: -10,
-          child: Container(
-            width: 240,
-            height: 240,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFFD5EBEF).withValues(alpha: 0.85),
-                  _ice.withValues(alpha: 0.0),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: 20,
-          bottom: -70,
-          child: Container(
-            width: 190,
-            height: 190,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFFCFE6EB).withValues(alpha: 0.55),
-                  _iceSoft.withValues(alpha: 0.0),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: -30,
-          top: 70,
-          child: Container(
-            width: 130,
-            height: 130,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.9),
-                  _ice.withValues(alpha: 0.0),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-            child: const ColoredBox(color: Color(0x33FFFFFF)),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -1649,41 +1238,7 @@ class _LabHeroImage extends StatelessWidget {
           )
         : const _LabPortraitFallback();
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        photo,
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                Color(0xEAEAF4F6),
-                Color(0x66EAF4F6),
-                Color(0x22FFFFFF),
-                Color(0x00FFFFFF),
-              ],
-              stops: [0.0, 0.12, 0.34, 0.58],
-            ),
-          ),
-        ),
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [
-                Color(0xCCE5F1F4),
-                Color(0x44EAF4F6),
-                Color(0x00FFFFFF),
-              ],
-              stops: [0.0, 0.14, 0.40],
-            ),
-          ),
-        ),
-      ],
-    );
+    return photo;
   }
 }
 

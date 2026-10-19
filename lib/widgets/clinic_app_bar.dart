@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'entity_contact_actions.dart';
+
 /// شريط علوي موحّد للتطبيق:
 /// - زر الرجوع أعلى **اليمين** في الواجهة العربية (RTL)
 /// - الإجراءات (تفضيل / مشاركة / غيره) على اليسار
@@ -51,14 +53,11 @@ class ClinicAppBar extends StatelessWidget implements PreferredSizeWidget {
         elevation: elevation,
         centerTitle: centerTitle,
         automaticallyImplyLeading: false,
-        leading: leading ??
+        leading:
+            leading ??
             (showBack
-                ? IconButton(
-                    key: const Key('clinic_app_bar_back'),
-                    tooltip:
-                        MaterialLocalizations.of(context).backButtonTooltip,
-                    icon: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
-                    onPressed: () => Navigator.maybePop(context),
+                ? const Center(
+                    child: GhadeerBackButton(key: Key('clinic_app_bar_back')),
                   )
                 : null),
         title: title,

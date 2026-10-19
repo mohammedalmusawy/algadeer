@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/ghadeer_tokens.dart';
 import '../patient_health/patient_health_gate.dart';
 import '../companion/personal_companion_profile.dart';
 import '../companion/personal_profile_foundation.dart';
@@ -209,8 +210,10 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('الإعدادات'),
-          backgroundColor: teal,
-          foregroundColor: Colors.white,
+          // رأس هادي موحّد (Phase 5C).
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())

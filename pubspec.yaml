@@ -78,6 +78,20 @@ flutter:
     - assets/radiology/
     - assets/packages/
 
+  # خط الغدير الموحّد (Phase 5C): IBM Plex Sans Arabic — رخصة OFL المجانية
+  # (assets/fonts/OFL.txt). نفس الشكل على آيفون وأندرويد والويب.
+  fonts:
+    - family: IBMPlexSansArabic
+      fonts:
+        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexSansArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
+          weight: 700
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

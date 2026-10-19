@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../theme/ghadeer_tokens.dart';
 import '../models/lab_models.dart';
-import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import 'lab_package_detail_page.dart';
 import 'labs_service.dart';
 import 'widgets/lab_package_strip.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../settings/whatsapp_templates.dart';
+import '../settings/whatsapp_contact_flow.dart';
 
 class LabPackagesPage extends StatefulWidget {
   const LabPackagesPage({super.key, required this.lab});
@@ -59,8 +61,10 @@ class _LabPackagesPageState extends State<LabPackagesPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: Text(lab.name),
-          backgroundColor: const Color(0xFF123B42),
-          foregroundColor: Colors.white,
+          // رأس هادي موحّد (Phase 5C).
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             if (lab.phone.trim().isNotEmpty)
               IconButton(
@@ -72,12 +76,12 @@ class _LabPackagesPageState extends State<LabPackagesPage> {
               IconButton(
                 tooltip: 'واتساب',
                 onPressed: () async {
-                  final message =
-                      await WhatsAppMessageSettingsService().buildPrefill(
+                  await WhatsAppContactFlow.open(
+                    context,
+                    whatsapp: lab.whatsapp,
+                    section: WhatsAppSection.labs,
                     providerTitle: lab.name,
-                    providerIsDoctor: false,
                   );
-                  await launchClinicWhatsApp(lab.whatsapp, message: message);
                 },
                 icon: const Icon(Icons.chat_outlined),
               ),

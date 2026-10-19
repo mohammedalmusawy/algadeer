@@ -149,7 +149,7 @@ Future<CardFileDelivery> deliverPatientFiles(
             ),
         ],
         text: patientShareNotice,
-        subject: 'بطاقة متابعة — عيادة الغدير',
+        subject: 'بطاقة متابعة — منصة الغدير',
       ),
     );
     return const CardFileDelivery(shared: true);

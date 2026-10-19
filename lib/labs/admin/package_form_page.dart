@@ -11,6 +11,7 @@ import '../labs_service.dart';
 import '../package_image_library.dart';
 import '../widgets/package_hero_image.dart';
 import '../../widgets/clinic_app_bar.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class PackageFormPage extends StatefulWidget {
   const PackageFormPage({
@@ -922,8 +923,9 @@ class _PackageFormPageState extends State<PackageFormPage> {
         backgroundColor: const Color(0xFFF4F8F8),
         appBar: ClinicAppBar(
           title: Text(_isEditing ? 'تعديل باقة' : 'إضافة باقة'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: SafeArea(
           child: Form(

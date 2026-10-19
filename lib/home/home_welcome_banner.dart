@@ -6,10 +6,7 @@ import '../voice/startup_greeting.dart';
 
 /// شريط ترحيب شخصي خفيف أعلى الرئيسية.
 class HomeWelcomeBanner extends StatefulWidget {
-  const HomeWelcomeBanner({
-    super.key,
-    this.onAskHelp,
-  });
+  const HomeWelcomeBanner({super.key, this.onAskHelp});
 
   final VoidCallback? onAskHelp;
 

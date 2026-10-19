@@ -5,6 +5,7 @@ import '../../widgets/entity_access_pin_gate.dart';
 import 'analyses_admin_page.dart';
 import 'labs_admin_page.dart';
 import 'packages_admin_page.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class LabsAdminHubPage extends StatelessWidget {
   const LabsAdminHubPage({super.key});
@@ -17,8 +18,9 @@ class LabsAdminHubPage extends StatelessWidget {
         backgroundColor: const Color(0xFFF4F8F8),
         appBar: ClinicAppBar(
           title: const Text('إدارة المختبرات'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: SafeArea(
           child: ListView(

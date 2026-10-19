@@ -5,6 +5,8 @@ import '../widgets/app_slot_icon.dart';
 import 'specialty_catalog.dart';
 import 'specialty_stats.dart';
 import '../ads/widgets/home_ad_slot.dart';
+import '../home/ghadeer_home_colors.dart';
+import '../widgets/entity_contact_actions.dart';
 
 /// صفحة كل الاختصاصات الطبية — Design Target (يمين الصورة المرجعية).
 class AllSpecialtiesPage extends StatefulWidget {
@@ -39,7 +41,7 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final counts = SpecialtyCatalog.countBySpecialty(widget.doctorSpecialties);
+    final counts = SpecialtyCatalog.countByTile(widget.doctorSpecialties);
     var entries = SpecialtyCatalog.gridEntries(counts);
 
     final demand = widget.stats.demand;
@@ -79,26 +81,22 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF7FBFC),
+        backgroundColor: GhadeerHomeColors.pageBg,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
-                // الرجوع يسار الشاشة، العنوان بجانبه باتجاه عربي.
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                // الرجوع أعلى اليمين (موحّد)، والعنوان بجانبه.
                 child: Directionality(
-                  textDirection: TextDirection.ltr,
+                  textDirection: TextDirection.rtl,
                   child: Row(
                     children: [
-                      IconButton(
+                      GhadeerBackButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 18,
-                        ),
-                        color: const Color(0xFF123B42),
                       ),
+                      const SizedBox(width: 12),
                       const Expanded(
                         child: Directionality(
                           textDirection: TextDirection.rtl,
@@ -109,8 +107,8 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
                                 'الاختصاصات الطبية',
                                 style: TextStyle(
                                   fontSize: 20,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF123B42),
+                                  fontWeight: FontWeight.w800,
+                                  color: GhadeerHomeColors.secondary,
                                 ),
                               ),
                               SizedBox(height: 2),
@@ -118,8 +116,8 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
                                 'اختر الاختصاص المناسب لك',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Color(0xFF6D8084),
-                                  fontWeight: FontWeight.w600,
+                                  color: GhadeerHomeColors.muted,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
@@ -172,14 +170,14 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
                 ),
               ),
               SizedBox(
-                height: 40,
+                height: 44,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     _chipButton('all', 'الكل'),
                     const SizedBox(width: 8),
-                    _chipButton('popular', 'الأكثر طلباً'),
+                    _chipButton('popular', 'الأكثر طلبًا'),
                     const SizedBox(width: 8),
                     _chipButton('today', 'متوفر اليوم'),
                   ],
@@ -209,89 +207,88 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
                   ),
                 )
               else
-              Expanded(
-                child: GridView.builder(
-                  padding: EdgeInsets.fromLTRB(pad, 8, pad, 24),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    // 0.92 كان يقص اسم الاختصاص بسطرين على موبايل 360px.
-                    childAspectRatio: 0.8,
-                  ),
-                  itemCount: entries.length,
-                  itemBuilder: (context, index) {
-                    final e = entries[index];
-                    final icon = e.def?.icon ??
-                        SpecialtyCatalog.iconFor(e.name);
-                    return Material(
-                      color: const Color(0xFFEEF5F7),
-                      borderRadius: BorderRadius.circular(18),
-                      child: InkWell(
+                Expanded(
+                  child: GridView.builder(
+                    padding: EdgeInsets.fromLTRB(pad, 8, pad, 24),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      // 0.92 كان يقص اسم الاختصاص بسطرين على موبايل 360px.
+                      childAspectRatio: 0.8,
+                    ),
+                    itemCount: entries.length,
+                    itemBuilder: (context, index) {
+                      final e = entries[index];
+                      final icon =
+                          e.def?.icon ?? SpecialtyCatalog.iconFor(e.name);
+                      return Material(
+                        color: const Color(0xFFEEF5F7),
                         borderRadius: BorderRadius.circular(18),
-                        onTap: e.count <= 0
-                            ? null
-                            : () {
-                                widget.onSpecialtySelected(e.name);
-                                Navigator.pop(context);
-                              },
-                        child: Opacity(
-                          opacity: e.count <= 0 ? 0.55 : 1,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 14, 8, 12),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                AppSlotIcon(
-                                  slotId: e.def != null
-                                      ? 'specialty.${e.def!.id}'
-                                      : 'specialty.custom',
-                                  fallback: icon,
-                                  size: 34,
-                                  color: const Color(0xFF0FAFA3),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  e.def?.shortNameAr ?? e.name,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF123B42),
-                                    height: 1.25,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: e.count <= 0
+                              ? null
+                              // الصفحة تبقى وراك: الرجوع من القائمة يرجعك
+                              // للاختصاصات، مو للرئيسية.
+                              : () => widget.onSpecialtySelected(e.name),
+                          child: Opacity(
+                            opacity: e.count <= 0 ? 0.55 : 1,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 14, 8, 12),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  AppSlotIcon(
+                                    slotId: e.def != null
+                                        ? 'specialty.${e.def!.id}'
+                                        : 'specialty.custom',
+                                    fallback: icon,
+                                    size: 34,
+                                    color: const Color(0xFF0FAFA3),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                // سطر واحد يصغر إذا ضاق المربع، حتى «N متوفر اليوم» ما ينزل لسطر ثاني ويقص.
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    _chip == 'today'
-                                        ? '${today[e.name] ?? 0} متوفر اليوم'
-                                        : e.count > 0
-                                            ? '${e.count} طبيب'
-                                            : 'قريباً',
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: e.count > 0
-                                          ? const Color(0xFF6D8084)
-                                          : const Color(0xFF9AA8AB),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    e.def?.shortNameAr ?? e.name,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF123B42),
+                                      height: 1.25,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  // سطر واحد يصغر إذا ضاق المربع، حتى «N متوفر اليوم» ما ينزل لسطر ثاني ويقص.
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      _chip == 'today'
+                                          ? '${today[e.name] ?? 0} متوفر اليوم'
+                                          : e.count > 0
+                                          ? '${e.count} طبيب'
+                                          : 'قريباً',
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: e.count > 0
+                                            ? const Color(0xFF6D8084)
+                                            : const Color(0xFF9AA8AB),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -304,15 +301,20 @@ class _AllSpecialtiesPageState extends State<AllSpecialtiesPage> {
     return ChoiceChip(
       selected: active,
       showCheckmark: false,
+      // سطر واحد دائماً: بخط الغدير «الأكثر طلباً» جان ينكسر لسطرين وينقص.
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
       label: Text(
         label,
+        maxLines: 1,
+        softWrap: false,
         style: TextStyle(
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           fontSize: 12.5,
           color: active ? Colors.white : const Color(0xFF456066),
         ),
       ),
-      selectedColor: const Color(0xFF0FAFA3),
+      selectedColor: GhadeerHomeColors.primary,
       backgroundColor: Colors.white,
       side: BorderSide(
         color: active ? const Color(0xFF0FAFA3) : const Color(0xFFE0E8EA),

@@ -119,7 +119,7 @@ class DoctorCardLinks {
                           GhadeerBrandMark(size: 28, backgroundColor: null),
                           SizedBox(width: 8),
                           Text(
-                            'عيادة الغدير',
+                            'منصة الغدير',
                             style: TextStyle(
                               fontWeight: FontWeight.w900,
                               fontSize: 15,
@@ -310,7 +310,7 @@ class DoctorCardLinks {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'نزّل تطبيق عيادة الغدير لفتح البطاقة داخل التطبيق وتلقي الإشعارات.',
+                  'نزّل منصة الغدير لفتح البطاقة داخل التطبيق وتلقي الإشعارات.',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),

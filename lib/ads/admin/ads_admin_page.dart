@@ -6,6 +6,7 @@ import '../ads_catalog_refresh.dart';
 import '../ads_notify.dart';
 import '../ads_service.dart';
 import 'ad_campaign_form_page.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class AdsAdminPage extends StatefulWidget {
   const AdsAdminPage({super.key});
@@ -120,8 +121,9 @@ class _AdsAdminPageState extends State<AdsAdminPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('إدارة الإعلانات'),
-          backgroundColor: teal,
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         floatingActionButton: _tableMissing
             ? null

@@ -8,6 +8,7 @@ import '../labs_service.dart';
 import '../widgets/package_hero_image.dart';
 import 'package_form_page.dart';
 import '../../widgets/clinic_app_bar.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class PackagesAdminPage extends StatefulWidget {
   const PackagesAdminPage({
@@ -195,8 +196,9 @@ class _PackagesAdminPageState extends State<PackagesAdminPage> {
                 ? 'باقات ${widget.lockedLabName ?? 'المختبر'}'
                 : 'باقات المختبرات',
           ),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
           ],

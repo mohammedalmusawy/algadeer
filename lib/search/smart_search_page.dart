@@ -53,7 +53,9 @@ import 'smart_search_models.dart';
 import 'smart_search_service.dart';
 import 'voice_contact_command.dart';
 import 'voice_specialty_search_command.dart';
+import '../theme/ghadeer_tokens.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../settings/whatsapp_templates.dart';
 
 /// بحث الغدير — واجهة بحث ومقترحات فوق مسار Unified Brain الموحّد (نص + صوت).
 class SmartSearchPage extends StatefulWidget {
@@ -72,7 +74,6 @@ class SmartSearchPage extends StatefulWidget {
 
 class _SmartSearchPageState extends State<SmartSearchPage>
     with WidgetsBindingObserver {
-  static const _teal = Color(0xFF0FAFA3);
 
   final _controller = TextEditingController();
   final _fieldFocus = FocusNode();
@@ -1930,6 +1931,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
               providerTitle: result.title,
               providerIsDoctor: isDoctor,
               profileService: _profileService,
+              section: _whatsAppSectionFor(result.type),
             ),
     );
     if (announce) {
@@ -2839,11 +2841,12 @@ class _SmartSearchPageState extends State<SmartSearchPage>
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFFF7FBFC),
+      color: GhadeerTokens.mist,
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          backgroundColor: const Color(0xFFF7FBFC),
+          backgroundColor: GhadeerTokens.mist,
+          // رأس هادي بنفس هوية باقي الصفحات (جان فيروزي غامق).
           appBar: ClinicAppBar(
             title: const Column(
               mainAxisSize: MainAxisSize.min,
@@ -2851,23 +2854,24 @@ class _SmartSearchPageState extends State<SmartSearchPage>
                 Text(
                   'بحث الغدير',
                   style: TextStyle(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     fontSize: 18,
+                    color: GhadeerTokens.ink,
                   ),
                 ),
                 SizedBox(height: 2),
                 Text(
                   'أطباء · اختصاص · مختبرات',
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                    color: Color(0xFFE6F8F6),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11.5,
+                    color: GhadeerTokens.inkMuted,
                   ),
                 ),
               ],
             ),
-            backgroundColor: _teal,
-            foregroundColor: Colors.white,
+            backgroundColor: GhadeerTokens.mist,
+            foregroundColor: GhadeerTokens.ink,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
           ),
@@ -2929,5 +2933,34 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         ),
       ),
     );
+  }
+}
+
+/// قسم نموذج الواتساب (حجز/استفسار) حسب نوع نتيجة البحث.
+WhatsAppSection? _whatsAppSectionFor(SmartSearchResultType type) {
+  switch (type) {
+    case SmartSearchResultType.doctor:
+      return WhatsAppSection.doctors;
+    case SmartSearchResultType.lab:
+    case SmartSearchResultType.package:
+    case SmartSearchResultType.offer:
+    case SmartSearchResultType.analysis:
+      return WhatsAppSection.labs;
+    case SmartSearchResultType.radiology:
+      return WhatsAppSection.radiology;
+    case SmartSearchResultType.pharmacy:
+      return WhatsAppSection.pharmacies;
+    case SmartSearchResultType.physio:
+      return WhatsAppSection.physio;
+    case SmartSearchResultType.supply:
+      return WhatsAppSection.supplies;
+    case SmartSearchResultType.optics:
+      return WhatsAppSection.optics;
+    case SmartSearchResultType.beauty:
+      return WhatsAppSection.beauty;
+    case SmartSearchResultType.nursing:
+      return WhatsAppSection.nursing;
+    default:
+      return null;
   }
 }

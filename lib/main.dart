@@ -31,6 +31,8 @@ import 'doctors/doctor_card_password_admin_section.dart';
 import 'doctors/doctor_gender.dart';
 import 'doctors/doctor_image_bg_remover.dart';
 import 'doctors/doctor_profile_page.dart';
+import 'doctors/doctor_photo_guide.dart';
+import 'doctors/doctor_schedule_preview.dart';
 import 'doctors/notifications_admin_page.dart';
 import 'doctors/notifications_inbox_page.dart';
 import 'doctors/specialty_catalog.dart';
@@ -38,6 +40,7 @@ import 'doctors/specialty_doctors_page.dart';
 import 'home/app_shell_bottom_nav.dart';
 import 'home/app_shell_bridge.dart';
 import 'home/home_phase1_sections.dart';
+import 'home/home_today_doctors.dart';
 import 'home/ghadeer_home_colors.dart';
 import 'centers/service_center_kind.dart';
 import 'centers/service_centers_admin_page.dart';
@@ -78,6 +81,8 @@ import 'patient_health/patient_health_gate.dart';
 import 'settings/settings_page.dart';
 import 'utils/app_pid.dart';
 import 'onboarding/app_entry_gate.dart';
+import 'theme/ghadeer_tokens.dart';
+import 'settings/whatsapp_templates_admin_page.dart';
 
 Future<void> main() async {
   // إن ظهر [APP] PID مختلف بعد ضغط المايك = عملية جديدة (خلل CRITICAL FIX 3).
@@ -150,41 +155,26 @@ class _GhadeerClinicAppState extends State<GhadeerClinicApp> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF0FAFA3);
-
     return MaterialApp(
       navigatorKey: _navKey,
       scaffoldMessengerKey: ghadeerMessengerKey,
       debugShowCheckedModeBanner: false,
-      title: 'عيادة الغدير',
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: Colors.white,
-        // بدون surfaceTint: Material 3 يصبغ أعلى/أسفل الصفحة بلون التركواز.
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primaryColor,
-          primary: primaryColor,
-          brightness: Brightness.light,
-        ).copyWith(
-          surface: Colors.white,
-          surfaceTint: Colors.transparent,
-          surfaceContainerLowest: Colors.white,
-          surfaceContainerLow: Colors.white,
-          surfaceContainer: Colors.white,
-          surfaceContainerHigh: const Color(0xFFF3F4F6),
-          surfaceContainerHighest: const Color(0xFFE5E7EB),
-          primaryContainer: Colors.white,
-          secondaryContainer: const Color(0xFFF3F4F6),
-        ),
-        canvasColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF123B42),
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-        ),
-      ),
+      title: 'منصة الغدير',
+      theme: GhadeerTokens.theme(),
+      // نحترم تكبير الخط من إعدادات الهاتف (لكبار السن) لحد ١٫٣٥ —
+      // أكثر من هيچ تنكسر البطاقات والأزرار بالشاشات الصغيرة (Phase 5D).
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: mq.textScaler.clamp(
+              minScaleFactor: 1.0,
+              maxScaleFactor: GhadeerTokens.maxTextScale,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const AppEntryGate(
         home: Directionality(
           textDirection: TextDirection.rtl,
@@ -643,9 +633,12 @@ class _HomePageState extends State<HomePage> {
     // لا نغلّف IndexedStack بـ Align/ConstrainedBox للعرض —
     // ذلك كان ينهار الارتفاع إلى صفر على macOS/الديسكتوب (شاشة بيضاء).
     // التجاوب يتم عبر الأعمدة وpagePadding داخل المحتوى فقط.
+    // شريط الساعة ياخذ لون رأس الرئيسية (ماي فاتح) حتى يطلع الرأس قطعة وحدة.
+    final topColor =
+        _shellIndex == 0 ? GhadeerTokens.tealWash : GhadeerTokens.mist;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.white,
+      value: SystemUiOverlayStyle(
+        statusBarColor: topColor,
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,
         systemNavigationBarColor: Colors.white,
@@ -653,12 +646,12 @@ class _HomePageState extends State<HomePage> {
         systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: GhadeerTokens.mist,
         body: ColoredBox(
-          color: Colors.white,
+          color: topColor,
           child: SafeArea(
             child: ColoredBox(
-              color: Colors.white,
+              color: GhadeerTokens.mist,
               child: IndexedStack(
                 index: _shellIndex.clamp(0, 2),
                 children: [
@@ -699,23 +692,36 @@ class _HomePageState extends State<HomePage> {
       children: [
         Container(
           width: double.infinity,
-          color: Colors.white,
+          color: GhadeerTokens.mist,
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-          child: const Text(
-            'المفضلة',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF123B42),
-            ),
-          ),
+          child: const Text('المفضلة', style: GhadeerTokens.display),
         ),
         Expanded(
           child: favoriteDoctors.isEmpty
               ? const Center(
-                  child: Text(
-                    'لم تحفظ أي طبيب بعد',
-                    style: TextStyle(color: Color(0xFF6B7C80)),
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.favorite_border_rounded,
+                          size: 40,
+                          color: GhadeerTokens.inkFaint,
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'لم تحفظ أي طبيب بعد',
+                          style: GhadeerTokens.heading,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'دوس على القلب ببطاقة أي طبيب حتى يوصلك هنا بسرعة.',
+                          textAlign: TextAlign.center,
+                          style: GhadeerTokens.caption,
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : _buildDoctorCardsLayout(
@@ -756,12 +762,10 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
               },
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: HomePhase1SearchRow(
-              onSearchTap: () => _openSmartSearch(voice: false),
-              onMicTap: () => _openSmartSearch(voice: true),
+              search: HomePhase1SearchRow(
+                onSearchTap: () => _openSmartSearch(voice: false),
+                onMicTap: () => _openSmartSearch(voice: true),
+              ),
             ),
           ),
           SliverToBoxAdapter(
@@ -771,8 +775,16 @@ class _HomePageState extends State<HomePage> {
           ),
           const SliverToBoxAdapter(child: HomeAdSlot(placement: 'home')),
           const SliverToBoxAdapter(child: AdsLocalPreviewBar()),
+          const SliverToBoxAdapter(child: HomeSectionTitle('الأقسام')),
           SliverToBoxAdapter(
             child: HomePhase1ServicesGrid(onOpen: _onHomeServiceTap),
+          ),
+          SliverToBoxAdapter(
+            child: HomeTodayDoctors(
+              doctors: _sortedDoctorItems(),
+              onOpen: _showDoctorProfile,
+              onSeeAll: _openAllSpecialties,
+            ),
           ),
           SliverToBoxAdapter(
             child: HomePhase1HealthTip(
@@ -893,19 +905,10 @@ class _HomePageState extends State<HomePage> {
   List<DoctorItem> _doctorsMatchingSpecialty(String specialty) {
     final filter = specialty.trim();
     if (filter.isEmpty) return _sortedDoctorItems();
-    final filterLower = filter.toLowerCase();
-    final matched = SpecialtyCatalog.match(filter);
-    return _sortedDoctorItems().where((d) {
-      final s = d.specialty.trim();
-      if (s.isEmpty) return false;
-      if (s.toLowerCase().contains(filterLower) ||
-          filterLower.contains(s.toLowerCase())) {
-        return true;
-      }
-      if (matched == null) return false;
-      final doctorMatch = SpecialtyCatalog.match(s);
-      return doctorMatch?.id == matched.id;
-    }).toList();
+    // نفس قاعدة العدد تحت أيقونة الاختصاص (SpecialtyCatalog.countByTile).
+    return _sortedDoctorItems()
+        .where((d) => SpecialtyCatalog.doctorMatchesTile(d.specialty, filter))
+        .toList();
   }
 
   List<DoctorItem> _sortedDoctorItems() {
@@ -1203,7 +1206,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                   const Icon(Icons.admin_panel_settings_rounded, size: 70),
                   const SizedBox(height: 20),
                   const Text(
-                    'إدارة عيادة الغدير',
+                    'إدارة منصة الغدير',
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 30),
@@ -1284,8 +1287,9 @@ class AdminPage extends StatelessWidget {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('لوحة إدارة الغدير'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: ListView(
           padding: const EdgeInsets.all(16),
@@ -1461,6 +1465,19 @@ class AdminPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const DynamicMessageAdminPage(),
+                  ),
+                );
+              },
+            ),
+            _adminTile(
+              icon: Icons.chat_rounded,
+              title: 'رسائل الواتساب',
+              subtitle: 'نص الحجز والاستفسار، والرسالة الافتراضية لكل قسم',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const WhatsAppTemplatesAdminPage(),
                   ),
                 );
               },
@@ -1726,8 +1743,9 @@ class _DoctorsAdminPageState extends State<DoctorsAdminPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('إدارة الأطباء'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             IconButton(
               tooltip: 'تحديث',
@@ -2300,6 +2318,26 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
     _notificationsEnabled = doctor?['notifications_enabled'] as bool? ?? true;
     _bookingStatus = doctor?['booking_status']?.toString() ?? 'available';
     _gender = DoctorGender.normalize(doctor?['gender']?.toString());
+  }
+
+  /// نفس جدول الأيام اللي ينكتب بـ working_hours عند الحفظ — للمعاينة فقط.
+  String _schedulePreviewText() {
+    const labels = {
+      'morning': 'صباحًا',
+      'evening': 'مساءً',
+      'both': 'صباحًا ومساءً',
+    };
+    final parts = <String>[];
+    for (final day in _workingWeek.keys) {
+      final enabled = _workingWeek[day] ?? false;
+      final period = _dayExceptions[day] ?? (enabled ? 'evening' : 'off');
+      if (!enabled || period == 'off') {
+        parts.add('$day عطلة');
+      } else if (labels[period] != null) {
+        parts.add('$day ${labels[period]}');
+      }
+    }
+    return parts.join('، ');
   }
 
   @override
@@ -2949,8 +2987,9 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: Text(_isEditing ? 'تعديل الطبيب' : 'إضافة طبيب'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Form(
           key: _formKey,
@@ -3134,6 +3173,31 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
               ),
 
               const SizedBox(height: 8),
+              // إرشاد الصورة + معاينة بإطار صفحة الطبيب (Phase 5C).
+              DoctorPhotoGuide(
+                pickedBytes: _pickedImageBytes,
+                preview: _pickedImageBytes != null
+                    ? Image.memory(
+                        _pickedImageBytes!,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                      )
+                    : _imageController.text.trim().isNotEmpty
+                    ? GhadeerResolvedImage(
+                        _imageController.text.trim(),
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                        errorBuilder: (_, _, _) => const ColoredBox(
+                          color: Color(0xFFF2F6F6),
+                          child: Icon(Icons.person_rounded, size: 36),
+                        ),
+                      )
+                    : const ColoredBox(
+                        color: Color(0xFFF2F6F6),
+                        child: Icon(Icons.person_rounded, size: 36),
+                      ),
+              ),
+              const SizedBox(height: 8),
               TextField(
                 controller: _imageController,
                 textInputAction: TextInputAction.done,
@@ -3194,7 +3258,7 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
               SwitchListTile(
                 title: const Text('Verified Badge'),
                 subtitle: const Text(
-                  'توثيق منفصل عن عبارة «طبيب في منصة الغدير»',
+                  'يطلع شارة «طبيب موثّق» بصفحة الطبيب',
                 ),
                 value: _ghadeerBadge,
                 onChanged: (value) {
@@ -3392,6 +3456,9 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
                 );
               }),
 
+              // معاينة: نفس اللي راح يطلع بصفحة الطبيب قبل الحفظ (Phase 5C).
+              DoctorSchedulePreview(workingHours: _schedulePreviewText()),
+
               const SizedBox(height: 12),
 
               const SizedBox(height: 12),
@@ -3539,8 +3606,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('أطبائي'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Column(
           children: [

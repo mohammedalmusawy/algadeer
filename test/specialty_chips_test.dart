@@ -79,9 +79,9 @@ void main() {
     expect(before('2 طبيب', '1 طبيب'), isTrue);
 
     // الأكثر طلباً: الجلدية أولاً لأن الناس تطلبها أكثر.
-    await tester.ensureVisible(find.text('الأكثر طلباً'));
+    await tester.ensureVisible(find.text('الأكثر طلبًا'));
     await tester.pump();
-    await tester.tap(find.text('الأكثر طلباً'));
+    await tester.tap(find.text('الأكثر طلبًا'));
     await tester.pump();
     expect(before('1 طبيب', '2 طبيب'), isTrue);
 

@@ -1,14 +1,13 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
 import '../models/radiology_models.dart';
-import '../settings/whatsapp_message_settings.dart';
 import '../utils/contact_launch.dart';
 import '../widgets/entity_contact_actions.dart';
+import '../theme/ghadeer_tokens.dart';
 import '../widgets/entity_optional_logo.dart';
+import '../widgets/ghadeer_identity_card.dart';
 import 'radiology_default_images.dart';
 import 'radiology_service.dart';
 import 'widgets/radiology_network_or_asset_image.dart';
@@ -17,6 +16,8 @@ import '../doctors/doctor_card_gate.dart';
 import '../widgets/directory_owner_editor_page.dart';
 import '../widgets/owner_access_link.dart';
 import '../services/favorites_cloud.dart';
+import '../settings/whatsapp_templates.dart';
+import '../settings/whatsapp_contact_flow.dart';
 
 /// هوية مركز الأشعة — نفس هيكل هوية المختبر مع تمييز الأشعة.
 class RadiologyProfilePage extends StatefulWidget {
@@ -35,10 +36,10 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
   String? _error;
   bool _favorite = false;
 
-  static const _navy = Color(0xFF123B42);
-  static const _teal = Color(0xFF0FAFA3);
-  static const _muted = Color(0xFF5B6C70);
-  static const _pageBg = Color(0xFFF7FBFC);
+  static const _navy = GhadeerTokens.ink;
+  static const _teal = GhadeerTokens.teal;
+  static const _muted = GhadeerTokens.inkMuted;
+  static const _pageBg = GhadeerTokens.mist;
   static const _favKey = 'favoriteRadiologyIds';
 
   @override
@@ -125,9 +126,9 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
   }
 
   String get _heroImageUrl => RadiologyDefaultImages.displayUrl(
-        imageUrl: _center.imageUrl,
-        centerId: _center.id,
-      );
+    imageUrl: _center.imageUrl,
+    centerId: _center.id,
+  );
 
   String get _heroSpecialty {
     final slogan = _center.slogan.trim();
@@ -152,264 +153,102 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
     await launchClinicMap(target);
   }
 
-  Widget _circleIconBtn({
-    required IconData icon,
-    required VoidCallback onTap,
-    Color? iconColor,
-  }) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            border: Border.all(color: const Color(0xFFE8EEF2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Icon(icon, size: 18, color: iconColor ?? _navy),
-        ),
-      ),
-    );
-  }
+  void _share() => GhadeerCardLink.share(
+    kind: GhadeerCardKind.radiology,
+    id: _center.id,
+    name: _center.name,
+    subtitle: [
+      'مركز أشعة',
+      if (_center.address.trim().isNotEmpty) _center.address.trim(),
+    ].join(' · '),
+  );
 
   Widget _buildHero() {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final cardW = constraints.maxWidth;
-            final narrow = cardW < 400;
-            final heroH = (cardW * (narrow ? 1.02 : 0.90)).clamp(390.0, 520.0);
-            final imageW = cardW * (narrow ? 0.66 : 0.60);
-            final leftColW =
-                (cardW * (narrow ? 0.52 : 0.48)).clamp(168.0, 220.0);
-
-            return SizedBox(
-              width: cardW,
-              height: heroH,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(26),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      const _RadHeroDepthBackground(),
-                      Positioned(
-                        top: 0,
-                        bottom: -12,
-                        right: -6,
-                        width: imageW,
-                        child: _RadHeroImage(imageUrl: _heroImageUrl),
-                      ),
-                      Positioned(
-                        top: 10,
-                        left: 12,
-                        bottom: 12,
-                        width: leftColW,
-                        child: Directionality(
-                          textDirection: TextDirection.ltr,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: _circleIconBtn(
-                                  icon: Icons.chevron_right_rounded,
-                                  onTap: () => Navigator.pop(context),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              const Align(
-                                alignment: Alignment.centerLeft,
-                                child: _RadVerifiedPill(),
-                              ),
-                              const SizedBox(height: 8),
-                              const Align(
-                                alignment: Alignment.centerLeft,
-                                child: GhadeerBrandHeaderRow(),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'التشخيص قبل كل شئ',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.left,
-                                textDirection: TextDirection.rtl,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1A4F58),
-                                ),
-                              ),
-                              if (_center.logoUrl.trim().isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                EntityOptionalLogo(url: _center.logoUrl),
-                              ],
-                              const SizedBox(height: 8),
-                              Text(
-                                _center.name.trim().isEmpty
-                                    ? 'مركز أشعة'
-                                    : _center.name.trim(),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.left,
-                                textDirection: TextDirection.rtl,
-                                style: const TextStyle(
-                                  fontSize: 19,
-                                  height: 1.22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF0F2A3D),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              GhadeerTextWithLogo(
-                                _heroSpecialty,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.left,
-                                textDirection: TextDirection.rtl,
-                                logoHeight: 20,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  height: 1.3,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF0D8F9E),
-                                ),
-                              ),
-                              if (_heroBioSnippet.isNotEmpty) ...[
-                                const SizedBox(height: 10),
-                                GhadeerTextWithLogo(
-                                  _heroBioSnippet,
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.left,
-                                  textDirection: TextDirection.rtl,
-                                  logoHeight: 18,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    height: 1.45,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF5B6C70),
-                                  ),
-                                ),
-                              ],
-                              const Spacer(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: _circleIconBtn(
-                          icon: Icons.ios_share_rounded,
-                          onTap: () => GhadeerCardLink.share(
-                            kind: GhadeerCardKind.radiology,
-                            id: _center.id,
-                            name: _center.name,
-                            subtitle: [
-                              'مركز أشعة',
-                              if (_center.address.trim().isNotEmpty)
-                                _center.address.trim(),
-                            ].join(' · '),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 10 + (38 + 8) * 2,
-                        right: 10,
-                        child: OwnerAccess.faint(onTap: _openOwner),
-                      ),
-                      Positioned(
-                        top: 10 + 38 + 8,
-                        right: 10,
-                        child: _circleIconBtn(
-                          icon: _favorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          iconColor: _favorite
-                              ? const Color(0xFFE25555)
-                              : _navy,
-                          onTap: _toggleFavorite,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+    final hours = _center.workingHours.trim();
+    final hasImage = _heroImageUrl.trim().isNotEmpty;
+    return GhadeerIdentityCard(
+      photo: _RadHeroImage(imageUrl: _heroImageUrl),
+      onPhotoTap: hasImage
+          ? () => showGhadeerPhotoViewer(
+              context,
+              RadiologyNetworkOrAssetImage(
+                _heroImageUrl,
+                fit: BoxFit.contain,
+                cacheWidth: 1400,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
-            );
-          },
+            )
+          : null,
+      name: _center.name.trim().isEmpty ? 'مركز أشعة' : _center.name.trim(),
+      subtitle: _heroSpecialty,
+      subtitleWidget: GhadeerTextWithLogo(
+        _heroSpecialty,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.left,
+        textDirection: TextDirection.rtl,
+        logoHeight: 20,
+        style: const TextStyle(
+          fontSize: 14,
+          height: 1.35,
+          fontWeight: FontWeight.w700,
+          color: GhadeerTokens.tealDeep,
         ),
       ),
+      snippet: _heroBioSnippet,
+      logo: _center.logoUrl.trim().isNotEmpty
+          ? EntityOptionalLogo(url: _center.logoUrl)
+          : null,
+      favorite: _favorite,
+      onToggleFavorite: _toggleFavorite,
+      onShare: _share,
+      onBack: () => Navigator.pop(context),
+      ownerAccess: OwnerAccess.faint(onTap: _openOwner),
+      below: hours.isEmpty
+          ? null
+          : GhadeerIdentityInfoBox(
+              icon: Icons.schedule_rounded,
+              label: 'ساعات العمل',
+              text: hours,
+            ),
     );
   }
 
   Widget _buildIdentity() {
     final bio = _center.description.trim();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'نبذة عن المركز',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: _navy,
-            ),
-          ),
-          const SizedBox(height: 10),
-          bio.isNotEmpty
-              ? GhadeerTextWithLogo(
-                  bio,
-                  textAlign: TextAlign.right,
-                  logoHeight: 24,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    height: 1.85,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF33454F),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: GhadeerTokens.card(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('نبذة عن المركز', style: GhadeerTokens.heading),
+            const SizedBox(height: 10),
+            bio.isNotEmpty
+                ? GhadeerTextWithLogo(
+                    bio,
+                    textAlign: TextAlign.right,
+                    logoHeight: 24,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      height: 1.8,
+                      fontWeight: FontWeight.w400,
+                      color: _navy,
+                    ),
+                  )
+                : const Text(
+                    'لم تتم إضافة نبذة عن المركز حتى الآن.',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      height: 1.8,
+                      color: _muted,
+                    ),
                   ),
-                )
-              : Text(
-                  'لم تتم إضافة نبذة عن المركز حتى الآن.',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    height: 1.85,
-                    fontWeight: FontWeight.w500,
-                    color: _muted,
-                  ),
-                ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -425,14 +264,16 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
         socialTitle: 'مواقع تواصل ${_center.name}',
         onCall: () => launchClinicCall(_center.phone),
         onWhatsapp: () async {
-          final message = await WhatsAppMessageSettingsService().buildPrefill(
+          await WhatsAppContactFlow.open(
+            context,
+            whatsapp: _center.whatsapp,
+            section: WhatsAppSection.radiology,
             providerTitle: _center.name,
-            providerIsDoctor: false,
           );
-          await launchClinicWhatsApp(_center.whatsapp, message: message);
         },
         onLocation: _openLocation,
-        showLocation: _center.address.trim().isNotEmpty ||
+        showLocation:
+            _center.address.trim().isNotEmpty ||
             _center.mapUrl.trim().isNotEmpty,
       ),
     );
@@ -440,100 +281,67 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
 
   Widget _buildAddressAndHours() {
     final location = _center.address.trim();
-    final hours = _center.workingHours.trim();
-    if (location.isEmpty && hours.isEmpty) return const SizedBox.shrink();
-
+    if (location.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (location.isNotEmpty) ...[
-            const Text(
-              'عنوان المركز',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: _navy,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: _openLocation,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      child: Material(
+        color: GhadeerTokens.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusLg),
+          side: const BorderSide(color: GhadeerTokens.line),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusLg),
+          onTap: _openLocation,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE4EEEE)),
+                    color: GhadeerTokens.tealWash,
+                    borderRadius: BorderRadius.circular(GhadeerTokens.radiusSm),
                   ),
-                  child: Row(
+                  child: const Icon(
+                    Icons.location_on_rounded,
+                    color: GhadeerTokens.tealDeep,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F7F5),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.location_on_rounded,
-                          color: Color(0xFF1197A8),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              location,
-                              textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                fontSize: 14.5,
-                                height: 1.55,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF33454F),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _center.mapUrl.trim().isNotEmpty
-                                  ? 'فتح الموقع في الخرائط'
-                                  : 'بحث العنوان في الخرائط',
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1197A8),
-                              ),
-                            ),
-                          ],
+                      const Text('عنوان المركز', style: GhadeerTokens.caption),
+                      const SizedBox(height: 2),
+                      Text(
+                        location,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          height: 1.5,
+                          fontWeight: FontWeight.w600,
+                          color: GhadeerTokens.ink,
                         ),
                       ),
-                      const Icon(Icons.chevron_left_rounded, color: _muted),
                     ],
                   ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                const Text(
+                  'الخريطة',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: GhadeerTokens.tealDeep,
+                  ),
+                ),
+              ],
             ),
-          ],
-          if (hours.isNotEmpty) ...[
-            SizedBox(height: location.isNotEmpty ? 18 : 0),
-            Text(
-              'ساعات العمل: $hours',
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A4F58),
-              ),
-            ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
@@ -547,113 +355,40 @@ class _RadiologyProfilePageState extends State<RadiologyProfilePage> {
         body: _loading
             ? const Center(child: CircularProgressIndicator(color: _teal))
             : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_error!, textAlign: TextAlign.center),
-                          const SizedBox(height: 12),
-                          FilledButton(
-                            onPressed: _load,
-                            child: const Text('إعادة'),
-                          ),
-                        ],
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _load,
+                        child: const Text('إعادة'),
                       ),
-                    ),
-                  )
-                : RefreshIndicator(
-                    color: _teal,
-                    onRefresh: _load,
-                    child: CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      slivers: [
-                        SliverToBoxAdapter(child: _buildHero()),
-                        // الأزرار فوق — مباشرة تحت البطاقة، قبل النبذة الطويلة.
-                        SliverToBoxAdapter(child: _buildActions()),
-                        SliverToBoxAdapter(child: _buildIdentity()),
-                        SliverToBoxAdapter(child: _buildAddressAndHours()),
-                        const SliverToBoxAdapter(child: SizedBox(height: 28)),
-                      ],
-                    ),
-                  ),
-      ),
-    );
-  }
-}
-class _RadVerifiedPill extends StatelessWidget {
-  const _RadVerifiedPill();
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 186),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(9, 6, 9, 6),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.97),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFD7E6EE)),
-        ),
-        child: const Directionality(
-          textDirection: TextDirection.ltr,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.verified_rounded, size: 15, color: Color(0xFF1A73E8)),
-              SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  'أشعة في منصة الغدير',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF123B42),
+                    ],
                   ),
                 ),
+              )
+            : RefreshIndicator(
+                color: _teal,
+                onRefresh: _load,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  slivers: [
+                    SliverToBoxAdapter(child: _buildHero()),
+                    // الأزرار فوق — مباشرة تحت البطاقة، قبل النبذة الطويلة.
+                    SliverToBoxAdapter(child: _buildActions()),
+                    SliverToBoxAdapter(child: _buildIdentity()),
+                    SliverToBoxAdapter(child: _buildAddressAndHours()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 28)),
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
       ),
-    );
-  }
-}
-
-class _RadHeroDepthBackground extends StatelessWidget {
-  const _RadHeroDepthBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFFFFFFF),
-                Color(0xFFEAF4F6),
-                Color(0xFFE5F1F4),
-                Color(0xFFF5FBFC),
-              ],
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-            child: const ColoredBox(color: Color(0x33FFFFFF)),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -673,34 +408,22 @@ class _RadHeroImage extends StatelessWidget {
             cacheWidth: 1200,
             errorBuilder: (_, _, _) => const ColoredBox(
               color: Color(0xFFEAF4F6),
-              child: Icon(Icons.radar_outlined, size: 72, color: Color(0xFF9BB8B6)),
+              child: Icon(
+                Icons.radar_outlined,
+                size: 72,
+                color: Color(0xFF9BB8B6),
+              ),
             ),
           )
         : const ColoredBox(
             color: Color(0xFFEAF4F6),
-            child: Icon(Icons.radar_outlined, size: 72, color: Color(0xFF9BB8B6)),
+            child: Icon(
+              Icons.radar_outlined,
+              size: 72,
+              color: Color(0xFF9BB8B6),
+            ),
           );
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        photo,
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                Color(0xEAEAF4F6),
-                Color(0x66EAF4F6),
-                Color(0x22FFFFFF),
-                Color(0x00FFFFFF),
-              ],
-              stops: [0.0, 0.12, 0.34, 0.58],
-            ),
-          ),
-        ),
-      ],
-    );
+    return photo;
   }
 }

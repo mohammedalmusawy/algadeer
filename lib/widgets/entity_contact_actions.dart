@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/entity_social_links.dart';
 import 'entity_social_sheet.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// لون أزرار الاتصال الموحّد (مرجع المختبر).
 const kEntityActionTeal = Color(0xFF1197A8);
@@ -129,11 +130,8 @@ class EntityContactActionsRow extends StatelessWidget {
         title: 'مواقع التواصل',
         filled: true,
         color: kEntityActionTeal,
-        onTap: () => showEntitySocialSheet(
-          context,
-          links: social,
-          title: socialTitle,
-        ),
+        onTap: () =>
+            showEntitySocialSheet(context, links: social, title: socialTitle),
       ),
     );
     if (showLocation && onLocation != null) {
@@ -222,12 +220,14 @@ class EntityListContactRow extends StatelessWidget {
 }
 
 /// زر رجوع موحّد — نفس جهة هوية الطبيب (يسار الشاشة + chevron يمين).
+/// زر الرجوع الموحّد بكل التطبيق: دائرة بيضاء ٤٤ بحد رفيع، أعلى اليمين،
+/// وسهم متجه لليمين (اتجاه الرجوع بالواجهة العربية) مهما كان اتجاه الصف.
 class GhadeerBackButton extends StatelessWidget {
   const GhadeerBackButton({
     super.key,
     this.onPressed,
-    this.color = const Color(0xFF1A4F58),
-    this.size = 40,
+    this.color = GhadeerTokens.ink,
+    this.size = 44,
   });
 
   final VoidCallback? onPressed;
@@ -236,21 +236,31 @@ class GhadeerBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 1,
-      shadowColor: Colors.black26,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onPressed ?? () => Navigator.maybePop(context),
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Icon(
-            Icons.chevron_right_rounded,
-            color: color,
-            size: size * 0.7,
+    return Semantics(
+      button: true,
+      label: 'رجوع',
+      excludeSemantics: true,
+      child: Tooltip(
+        message: 'رجوع',
+        child: Material(
+          color: GhadeerTokens.surface,
+          shape: const CircleBorder(
+            side: BorderSide(color: GhadeerTokens.line),
+          ),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed ?? () => Navigator.maybePop(context),
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: color,
+                size: size * 0.4,
+                // ثابت لليمين: Icon يقلب هذا السهم تلقائياً بالـ RTL.
+                textDirection: TextDirection.ltr,
+              ),
+            ),
           ),
         ),
       ),

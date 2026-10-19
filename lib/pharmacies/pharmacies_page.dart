@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../widgets/ghadeer_state_message.dart';
+import '../widgets/ghadeer_skeleton.dart';
 import '../doctors/doctor_card_gate.dart';
 import '../doctors/doctor_card_tap.dart';
 import '../branding/ghadeer_brand_mark.dart';
@@ -17,6 +19,8 @@ import 'pharmacy_models.dart';
 import 'pharmacy_profile_page.dart';
 import '../utils/contact_launch.dart';
 import '../widgets/ghadeer_net_image.dart';
+import '../settings/whatsapp_templates.dart';
+import '../settings/whatsapp_contact_flow.dart';
 
 /// قائمة الصيدليات — مواضع بصرية مطابقة للموكاب (يسار/يمين الشاشة).
 class PharmaciesPage extends StatefulWidget {
@@ -107,14 +111,13 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
   String _emptyCatalogMessage() {
     final store = PharmaciesStore.instance;
     if (store.sharedCatalogReady && !store.hasSharedCatalog) {
-      return 'لا توجد صيدليات منشورة للزوار حالياً.\n'
-          'النسخة على الجهاز أو الكتالوج المضمّن لا تُعرض بعد أول جلب مشترك.\n'
-          'للإدارة: افتح «إدارة الصيدليات» ثم «نشر النسخة المحفوظة على هذا الجهاز».';
+      // كلام الإدارة (نشر النسخة المحفوظة) مكانه صفحة الإدارة، مو الزائر.
+      return 'راح تطلع هنا أول ما تنضاف.';
     }
     if (store.sharedCatalogReady) {
-      return 'لا توجد صيدليات ظاهرة في الكتالوج المنشور.';
+      return 'راح تطلع هنا أول ما تنضاف.';
     }
-    return 'لا توجد صيدليات مطابقة';
+    return 'تأكد من الإنترنت ودوس «تحديث».';
   }
 
   Future<void> _onChipSelected(String id) async {
@@ -140,9 +143,7 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        _applyFallbackOrigin(
-          'لم يُسمح بالموقع — الترتيب حسب مركز الشطرة',
-        );
+        _applyFallbackOrigin('لم يُسمح بالموقع — الترتيب حسب مركز الشطرة');
         return;
       }
       final pos = await Geolocator.getCurrentPosition(
@@ -158,9 +159,7 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
         _usedFallbackOrigin = false;
       });
     } catch (_) {
-      _applyFallbackOrigin(
-        'تعذر تحديد موقعك — الترتيب حسب مركز الشطرة',
-      );
+      _applyFallbackOrigin('تعذر تحديد موقعك — الترتيب حسب مركز الشطرة');
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -173,9 +172,8 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
       _userLng = null;
       _usedFallbackOrigin = true;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _call(String phone) async {
@@ -185,12 +183,13 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
     }
   }
 
-  Future<void> _whatsapp(String wa) async {
-    final digits = wa.replaceAll(RegExp(r'[^0-9]'), '');
-    final uri = Uri.parse('https://wa.me/$digits');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  Future<void> _whatsapp(String wa, String name) async {
+    await WhatsAppContactFlow.open(
+      context,
+      whatsapp: wa,
+      section: WhatsAppSection.pharmacies,
+      providerTitle: name,
+    );
   }
 
   void _openProfile(PharmacyItem p) {
@@ -231,24 +230,24 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
               ),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const GhadeerSkeletonList()
                   : items.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          _all.isEmpty
-                              ? _emptyCatalogMessage()
-                              : 'لا توجد صيدليات مطابقة للبحث أو التصفية',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: GhadeerHomeColors.muted,
-                            fontWeight: FontWeight.w700,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                    )
+                  ? (_all.isEmpty
+                        ? GhadeerStateMessage(
+                            icon: Icons.medication_liquid_outlined,
+                            title: 'ماكو صيدليات منشورة هسه',
+                            body: _emptyCatalogMessage(),
+                            actionLabel: 'تحديث',
+                            onAction: () {
+                              setState(() => _loading = true);
+                              _bootstrap();
+                            },
+                          )
+                        : const GhadeerStateMessage(
+                            icon: Icons.search_off_rounded,
+                            title: 'ماكو صيدليات مطابقة',
+                            body: 'جرّب كلمة ثانية بالبحث، أو اختار «الكل».',
+                          ))
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       itemCount: items.length,
@@ -278,7 +277,7 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
                             );
                           },
                           onCall: () => _call(p.phone),
-                          onWhatsapp: () => _whatsapp(p.whatsapp),
+                          onWhatsapp: () => _whatsapp(p.whatsapp, p.name),
                         );
                       },
                     ),
@@ -419,20 +418,18 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
       ),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       child: Directionality(
-        textDirection: TextDirection.ltr,
+        // الرجوع أعلى اليمين — موحّد بكل التطبيق.
+        textDirection: TextDirection.rtl,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // يسار: رجوع (نفس جهة هوية الطبيب) + «صحتك أولاً...»
+            // يمين: رجوع + «صحتك أولاً...»
             SizedBox(
               width: 88,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  GhadeerBackButton(
-                    onPressed: () => Navigator.pop(context),
-                    color: identity,
-                  ),
+                  GhadeerBackButton(onPressed: () => Navigator.pop(context)),
                   const SizedBox(height: 6),
                   const Text(
                     'صحتك أولاً',
@@ -676,8 +673,7 @@ class _PharmaciesPageState extends State<PharmaciesPage> {
                     : const Color(0xFFD6EAF5),
               ),
               labelStyle: TextStyle(
-                color:
-                    active ? Colors.white : GhadeerHomeColors.pharmacyTitle,
+                color: active ? Colors.white : GhadeerHomeColors.pharmacyTitle,
                 fontWeight: FontWeight.w800,
                 fontSize: 12.5,
               ),

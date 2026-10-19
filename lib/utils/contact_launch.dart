@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'ghadeer_haptics.dart';
 import 'internet_probe.dart';
 
 /// مفتاح الرسائل العام (مربوط بـ MaterialApp) حتى نكدر نبلّغ من أي مكان.
@@ -32,9 +33,7 @@ Uri? clinicWhatsAppUri(String whatsapp, {String message = ''}) {
   if (number.isEmpty) return null;
   final text = message.trim();
   if (text.isEmpty) return Uri.parse('https://wa.me/$number');
-  return Uri.parse(
-    'https://wa.me/$number?text=${Uri.encodeComponent(text)}',
-  );
+  return Uri.parse('https://wa.me/$number?text=${Uri.encodeComponent(text)}');
 }
 
 /// رابط خرائط: http(s) كما هو، وإلا بحث عنوان على خرائط غوغل.
@@ -56,16 +55,14 @@ bool isExternalHttpUrl(String raw) {
 
 Future<void> launchClinicCall(String phone) async {
   if (phone.trim().isEmpty) return;
+  ghadeerTapFeedback();
   await launchUrl(clinicTelUri(phone));
 }
 
 /// يفتح الروابط الخارجية http/https فقط — بدون تغيير سلوك الروابط الصحيحة.
 Future<bool> launchExternalHttpUrl(String raw) async {
   if (!isExternalHttpUrl(raw)) return false;
-  return launchUrl(
-    Uri.parse(raw.trim()),
-    mode: LaunchMode.externalApplication,
-  );
+  return launchUrl(Uri.parse(raw.trim()), mode: LaunchMode.externalApplication);
 }
 
 Future<void> launchClinicWhatsApp(
@@ -74,13 +71,17 @@ Future<void> launchClinicWhatsApp(
 }) async {
   final uri = clinicWhatsAppUri(whatsapp, message: message);
   if (uri == null) return;
+  ghadeerTapFeedback();
   // بدون نت كان الواتساب ينفتح ويعلّق؛ نبلّغ المستخدم ونقترح الاتصال.
   if (!await whatsappInternetCheck()) {
     ghadeerMessengerKey.currentState
       ?..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text(whatsappOfflineMessage, textDirection: TextDirection.rtl),
+          content: Text(
+            whatsappOfflineMessage,
+            textDirection: TextDirection.rtl,
+          ),
           duration: Duration(seconds: 4),
         ),
       );

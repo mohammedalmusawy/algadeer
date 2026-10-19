@@ -148,7 +148,7 @@ class NotificationTemplates {
         );
       case NotificationTypes.doctorManual:
         return (
-          title: 'إشعار من عيادة الغدير',
+          title: 'إشعار من منصة الغدير',
           body: 'رسالة بخصوص $doc $d.',
         );
       case NotificationTypes.labNewOffer:
@@ -182,12 +182,12 @@ class NotificationTemplates {
       case NotificationTypes.ghadeerHealthTip:
         return (
           title: 'تنبيه صحي',
-          body: 'نصيحة صحية من عيادة الغدير.',
+          body: 'نصيحة صحية من منصة الغدير.',
         );
       case NotificationTypes.ghadeerNews:
         return (
           title: 'خبر مهم',
-          body: 'رسالة مهمة من عيادة الغدير.',
+          body: 'رسالة مهمة من منصة الغدير.',
         );
       case NotificationTypes.ghadeerAnnouncement:
       case NotificationTypes.adCampaign:
@@ -198,8 +198,8 @@ class NotificationTemplates {
       case NotificationTypes.ghadeerManual:
       default:
         return (
-          title: 'عيادة الغدير',
-          body: 'إعلان من عيادة الغدير.',
+          title: 'منصة الغدير',
+          body: 'إعلان من منصة الغدير.',
         );
     }
   }

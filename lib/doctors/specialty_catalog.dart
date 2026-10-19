@@ -423,9 +423,48 @@ class SpecialtyCatalog {
     return counts;
   }
 
+  /// هل طبيب اختصاصه [doctorSpecialty] يطلع بقائمة الاختصاص [tile]؟
+  ///
+  /// قاعدة وحدة للعدد تحت الأيقونة وللقائمة لما تدخل، حتى يتطابقون دائماً.
+  /// الطبيب ممكن يطلع بأكثر من اختصاص (مثلاً «العظام والمفاصل والكسور»
+  /// يطلع بالعظام وبالمفاصل).
+  static bool doctorMatchesTile(String doctorSpecialty, String tile) {
+    final s = doctorSpecialty.trim();
+    final filter = tile.trim();
+    if (s.isEmpty || filter.isEmpty) return false;
+    final sl = s.toLowerCase();
+    final fl = filter.toLowerCase();
+    if (sl.contains(fl) || fl.contains(sl)) return true;
+    final matched = match(filter);
+    if (matched == null) return false;
+    return match(s)?.id == matched.id;
+  }
+
+  /// كل الاختصاصات اللي تطلع بالشبكة (الكتالوج + الحرة الموجودة بالبيانات).
+  static Set<String> tilesForDoctors(Iterable<String> doctorSpecialties) => {
+    for (final d in all) d.nameAr,
+    for (final raw in doctorSpecialties)
+      if (raw.trim().isNotEmpty) match(raw.trim())?.nameAr ?? raw.trim(),
+  };
+
+  /// عدد الأطباء لكل أيقونة = نفس عدد القائمة لما تدخلها ([doctorMatchesTile]).
+  static Map<String, int> countByTile(Iterable<String> doctorSpecialties) {
+    final list = [
+      for (final raw in doctorSpecialties)
+        if (raw.trim().isNotEmpty) raw.trim(),
+    ];
+    final counts = <String, int>{};
+    for (final tile in tilesForDoctors(list)) {
+      final n = list.where((s) => doctorMatchesTile(s, tile)).length;
+      if (n > 0) counts[tile] = n;
+    }
+    return counts;
+  }
+
   /// شبكة صفحة «كل الاختصاصات»: الكتالوج + أي اختصاص حر موجود في البيانات.
-  static List<({SpecialtyDefinition? def, String name, int count})>
-      gridEntries(Map<String, int> counts) {
+  static List<({SpecialtyDefinition? def, String name, int count})> gridEntries(
+    Map<String, int> counts,
+  ) {
     final used = <String>{};
     final result = <({SpecialtyDefinition? def, String name, int count})>[];
 

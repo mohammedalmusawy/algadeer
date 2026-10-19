@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/ghadeer_state_message.dart';
 import '../home/ghadeer_home_colors.dart';
 import '../models/doctor_item.dart';
 import '../utils/responsive.dart';
 import 'clinic_doctor_list_card.dart';
+import '../widgets/clinic_app_bar.dart';
 
 /// قائمة أطباء اختصاص واحد — تُفتح من بطاقة الأطباء → الاختصاصات.
 class SpecialtyDoctorsPage extends StatefulWidget {
@@ -61,8 +63,8 @@ class _SpecialtyDoctorsPageState extends State<SpecialtyDoctorsPage> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: GhadeerHomeColors.pageBg,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
+        appBar: ClinicAppBar(
+          backgroundColor: GhadeerHomeColors.pageBg,
           foregroundColor: GhadeerHomeColors.secondary,
           elevation: 0,
           title: Text(
@@ -75,14 +77,10 @@ class _SpecialtyDoctorsPageState extends State<SpecialtyDoctorsPage> {
           ),
         ),
         body: widget.doctors.isEmpty
-            ? const Center(
-                child: Text(
-                  'لا يوجد أطباء في هذا الاختصاص حالياً',
-                  style: TextStyle(
-                    color: GhadeerHomeColors.muted,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+            ? const GhadeerStateMessage(
+                icon: Icons.medical_services_outlined,
+                title: 'ماكو أطباء بهذا الاختصاص هسه',
+                body: 'ارجع للاختصاصات واختار اختصاص قريب، أو اسأل الغدير.',
               )
             : ListView.separated(
                 padding: EdgeInsets.fromLTRB(pad, 12, pad, 24),

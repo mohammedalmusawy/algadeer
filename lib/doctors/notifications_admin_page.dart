@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'notifications_admin_service.dart';
 import '../widgets/clinic_app_bar.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// إدارة إشعارات مبسّطة: جدول + فلتر (غدير / طبيب / مختبر).
 class NotificationsAdminPage extends StatefulWidget {
@@ -91,7 +92,7 @@ class _NotificationsAdminPageState extends State<NotificationsAdminPage> {
         final n = _labName(item.labId);
         return n.isEmpty ? 'مختبر' : n;
       default:
-        return 'عيادة الغدير';
+        return 'منصة الغدير';
     }
   }
 
@@ -161,8 +162,9 @@ class _NotificationsAdminPageState extends State<NotificationsAdminPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('إدارة الإشعارات'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             IconButton(
               tooltip: 'تحديث',
@@ -248,7 +250,7 @@ class _NotificationsAdminPageState extends State<NotificationsAdminPage> {
               child: Row(
                 children: [
                   _scopeChip(_Scope.all, 'الكل'),
-                  _scopeChip(_Scope.ghadeer, 'عيادة الغدير'),
+                  _scopeChip(_Scope.ghadeer, 'منصة الغدير'),
                   _scopeChip(_Scope.doctor, 'طبيب'),
                   _scopeChip(_Scope.lab, 'مختبر'),
                 ],
@@ -304,7 +306,7 @@ class _NotificationsAdminPageState extends State<NotificationsAdminPage> {
               const Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
-                  'إعلانات ورسائل عيادة الغدير — بدون اختيار طبيب أو مختبر.',
+                  'إعلانات ورسائل منصة الغدير — بدون اختيار طبيب أو مختبر.',
                   style: TextStyle(fontSize: 12, color: Color(0xFF5B6C70)),
                 ),
               ),
@@ -648,7 +650,7 @@ class _SimpleComposeSheetState extends State<_SimpleComposeSheet> {
                 spacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('عيادة الغدير'),
+                    label: const Text('منصة الغدير'),
                     selected: _scope == _Scope.ghadeer,
                     onSelected: _isEdit
                         ? null
@@ -747,7 +749,7 @@ class _SimpleComposeSheetState extends State<_SimpleComposeSheet> {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('تكرار تلقائي'),
                 subtitle: const Text(
-                  'يعيد الإشعار في الأيام المحددة (طبيب / مختبر / عيادة الغدير)',
+                  'يعيد الإشعار في الأيام المحددة (طبيب / مختبر / منصة الغدير)',
                 ),
                 value: _repeatEnabled,
                 onChanged: (v) => setState(() => _repeatEnabled = v),

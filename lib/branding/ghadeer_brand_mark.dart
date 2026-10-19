@@ -332,8 +332,10 @@ class GhadeerBrandHeaderRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // اسم التطبيق — «عيادة الغدير» هي عيادة الأشعة نفسها، وحدة من
+                // الجهات بالمنصة، فما تنكتب على صفحة مختبر أو صيدلية.
                 Text(
-                  'عيادة الغدير',
+                  'منصة الغدير',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

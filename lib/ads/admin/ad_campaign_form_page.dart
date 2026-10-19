@@ -8,6 +8,7 @@ import '../ad_campaign.dart';
 import '../ads_catalog_refresh.dart';
 import '../ads_notify.dart';
 import '../ads_service.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class AdCampaignFormPage extends StatefulWidget {
   const AdCampaignFormPage({super.key, this.campaign});
@@ -238,8 +239,9 @@ class _AdCampaignFormPageState extends State<AdCampaignFormPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: Text(_editing ? 'تعديل حملة' : 'حملة جديدة'),
-          backgroundColor: teal,
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Form(
           key: _formKey,

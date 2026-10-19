@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'doctor_engagement_service.dart';
+import '../widgets/ghadeer_state_message.dart';
+import '../widgets/ghadeer_skeleton.dart';
+import '../theme/ghadeer_tokens.dart';
 import '../widgets/clinic_app_bar.dart';
 
 class NotificationsInboxPage extends StatefulWidget {
@@ -63,13 +66,21 @@ class _NotificationsInboxPageState extends State<NotificationsInboxPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('الإشعارات'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          // رأس هادي موحّد ويا باقي الصفحات (Phase 5D).
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const GhadeerSkeletonList()
             : _items.isEmpty
-            ? const Center(child: Text('لا توجد إشعارات حالياً'))
+            ? GhadeerStateMessage(
+                icon: Icons.notifications_none_rounded,
+                title: 'ماكو إشعارات هسه',
+                body: 'أخبار الأطباء والعروض تطلع هنا أول ما تنزل.',
+                actionLabel: 'تحديث',
+                onAction: _load,
+              )
             : RefreshIndicator(
                 onRefresh: _load,
                 child: ListView.separated(

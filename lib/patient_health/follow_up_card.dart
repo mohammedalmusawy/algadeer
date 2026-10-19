@@ -205,7 +205,7 @@ class FollowUpCardView extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'عيادة الغدير',
+                          'منصة الغدير',
                           style: TextStyle(
                             color: Colors.white70,
                             fontWeight: FontWeight.w800,
@@ -305,7 +305,7 @@ class FollowUpCardView extends StatelessWidget {
                   const SizedBox(height: 8),
                   const Text(
                     'المعلومات أعلاه أدخلها صاحب الحساب لمشاركتها مع من يختاره. '
-                    'ليست تقريراً طبياً من عيادة الغدير.',
+                    'ليست تقريراً طبياً من منصة الغدير.',
                     style: TextStyle(
                       color: GhadeerHomeColors.muted,
                       height: 1.4,

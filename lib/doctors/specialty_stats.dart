@@ -30,16 +30,25 @@ class SpecialtyStats {
 
     final demand = <String, int>{};
     final today = <String, int>{};
+    final tiles = SpecialtyCatalog.tilesForDoctors(
+      rows.map((m) => text(m['specialty'])),
+    );
     for (final m in rows) {
       final raw = text(m['specialty']).trim();
       if (raw.isEmpty) continue;
-      final key = keyFor(raw);
-      demand[key] = (demand[key] ?? 0) +
-          TrendingEntity.score(
-            views: asInt(m['profile_views']),
-            calls: asInt(m['call_taps']),
-            whatsapp: asInt(m['whatsapp_taps']),
-          );
+      // نفس قاعدة القائمة: الطبيب ينحسب بكل اختصاص يطلع بيه.
+      final keys = [
+        for (final t in tiles)
+          if (SpecialtyCatalog.doctorMatchesTile(raw, t)) t,
+      ];
+      final score = TrendingEntity.score(
+        views: asInt(m['profile_views']),
+        calls: asInt(m['call_taps']),
+        whatsapp: asInt(m['whatsapp_taps']),
+      );
+      for (final key in keys) {
+        demand[key] = (demand[key] ?? 0) + score;
+      }
       final status = DoctorTodayAvailability.evaluate(
         workingDays: text(m['working_days']),
         workingHours: text(m['working_hours']),
@@ -48,7 +57,11 @@ class SpecialtyStats {
         absenceTo: text(m['absence_to']),
         nowUtc: nowUtc,
       );
-      if (status.isAvailableToday) today[key] = (today[key] ?? 0) + 1;
+      if (status.isAvailableToday) {
+        for (final key in keys) {
+          today[key] = (today[key] ?? 0) + 1;
+        }
+      }
     }
     return SpecialtyStats(demand: demand, availableToday: today);
   }

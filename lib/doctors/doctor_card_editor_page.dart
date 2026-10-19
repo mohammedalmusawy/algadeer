@@ -9,6 +9,8 @@ import '../models/doctor_item.dart';
 import 'doctor_card_access_client.dart';
 import 'owner_password_change_dialog.dart';
 import 'doctor_image_bg_remover.dart';
+import 'doctor_photo_guide.dart';
+import 'doctor_schedule_preview.dart';
 import 'doctor_week_schedule.dart';
 import 'specialty_catalog.dart';
 
@@ -402,6 +404,27 @@ class _DoctorCardEditorPageState extends State<DoctorCardEditorPage> {
                         icon: const Icon(Icons.photo_outlined),
                         label: const Text('تغيير الصورة'),
                       ),
+                      // إرشاد الصورة + معاينة بإطار صفحة الطبيب (Phase 5C).
+                      DoctorPhotoGuide(
+                        pickedBytes: _imageBytes,
+                        preview: _imageBytes != null
+                            ? Image.memory(
+                                _imageBytes!,
+                                fit: BoxFit.cover,
+                                alignment: Alignment.topCenter,
+                              )
+                            : _imageUrl.trim().isNotEmpty
+                            ? GhadeerResolvedImage(
+                                _imageUrl,
+                                fit: BoxFit.cover,
+                                alignment: Alignment.topCenter,
+                              )
+                            : const ColoredBox(
+                                color: Color(0xFFEAF4F3),
+                                child: Icon(Icons.person_rounded, size: 36),
+                              ),
+                      ),
+                      const SizedBox(height: 8),
                       EntityLogoAdminField(
                         logoUrl: _logoUrl,
                         folder: 'doctors',
@@ -469,6 +492,12 @@ class _DoctorCardEditorPageState extends State<DoctorCardEditorPage> {
                     ),
                   );
                 }),
+                if (_admin || widget.session.allows('schedule')) ...[
+                  DoctorSchedulePreview(
+                    workingHours: formatDoctorWeek(_periods).hours,
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 if (_admin || widget.session.allows('contacts')) ...[
                 TextField(
                   controller: _phone,

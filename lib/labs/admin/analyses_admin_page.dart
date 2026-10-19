@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/lab_models.dart';
 import '../labs_service.dart';
 import '../../widgets/clinic_app_bar.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class AnalysesAdminPage extends StatefulWidget {
   const AnalysesAdminPage({super.key});
@@ -217,8 +218,9 @@ class _AnalysesAdminPageState extends State<AnalysesAdminPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('قاموس التحاليل'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         floatingActionButton: _fromPackagesOnly
             ? null

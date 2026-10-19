@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../widgets/ghadeer_state_message.dart';
+import '../theme/ghadeer_tokens.dart';
+import '../widgets/ghadeer_skeleton.dart';
 import '../home/ghadeer_home_colors.dart';
 import '../pharmacies/pharmacy_distance.dart';
 import '../widgets/clinic_app_bar.dart';
@@ -23,11 +26,7 @@ class ServiceCenterSnapshot {
 
 /// قائمة قسم واحد. الترتيب الافتراضي كالصيدليات: ترتيب الإدارة ثم الاسم.
 class ServiceCentersPage extends StatefulWidget {
-  const ServiceCentersPage({
-    super.key,
-    required this.kind,
-    this.loadCenters,
-  });
+  const ServiceCentersPage({super.key, required this.kind, this.loadCenters});
 
   final ServiceCenterKind kind;
   final Future<ServiceCenterSnapshot> Function()? loadCenters;
@@ -145,7 +144,9 @@ class _ServiceCentersPageState extends State<ServiceCentersPage> {
     try {
       final serviceOn = await Geolocator.isLocationServiceEnabled();
       if (!serviceOn) {
-        _fallback('فعّل خدمة الموقع لترتيب أدق — يُعرض الترتيب حسب الشطرة مؤقتاً');
+        _fallback(
+          'فعّل خدمة الموقع لترتيب أدق — يُعرض الترتيب حسب الشطرة مؤقتاً',
+        );
         return;
       }
       var permission = await Geolocator.checkPermission();
@@ -181,7 +182,8 @@ class _ServiceCentersPageState extends State<ServiceCentersPage> {
       _userLat = null;
       _userLng = null;
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   String get _emptyMessage {
@@ -192,7 +194,6 @@ class _ServiceCentersPageState extends State<ServiceCentersPage> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = widget.kind.accent;
     final list = _filtered;
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -200,11 +201,13 @@ class _ServiceCentersPageState extends State<ServiceCentersPage> {
         backgroundColor: GhadeerHomeColors.pageBg,
         appBar: ClinicAppBar(
           title: Text(widget.kind.sectionTitle),
-          backgroundColor: accent,
-          foregroundColor: Colors.white,
+          // رأس هادي موحّد (Phase 5C).
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const GhadeerSkeletonList()
             : Column(
                 children: [
                   Padding(
@@ -234,31 +237,27 @@ class _ServiceCentersPageState extends State<ServiceCentersPage> {
                       children: [
                         _chipButton('all', 'الكل'),
                         const SizedBox(width: 8),
-                        _chipButton('near', _locating ? 'جارٍ تحديد الموقع' : 'الأقرب'),
+                        _chipButton(
+                          'near',
+                          _locating ? 'جارٍ تحديد الموقع' : 'الأقرب',
+                        ),
                       ],
                     ),
                   ),
                   Expanded(
                     child: list.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Text(
-                                _emptyMessage,
-                                key: const Key('service_centers_empty'),
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.4,
-                                  color: GhadeerHomeColors.muted,
-                                ),
-                              ),
-                            ),
+                        ? GhadeerStateMessage(
+                            icon: _query.trim().isNotEmpty
+                                ? Icons.search_off_rounded
+                                : Icons.storefront_outlined,
+                            title: _emptyMessage,
+                            titleKey: const Key('service_centers_empty'),
                           )
                         : ListView.separated(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                             itemCount: list.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 10),
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               final center = list[index];
                               return _CenterTile(

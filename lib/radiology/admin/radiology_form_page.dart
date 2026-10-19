@@ -14,6 +14,7 @@ import '../radiology_default_images.dart';
 import '../radiology_service.dart';
 import '../widgets/radiology_network_or_asset_image.dart';
 import '../../doctors/doctor_card_password_admin_section.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class RadiologyFormPage extends StatefulWidget {
   const RadiologyFormPage({super.key, this.center});
@@ -227,8 +228,9 @@ class _RadiologyFormPageState extends State<RadiologyFormPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: Text(_isEditing ? 'تعديل مركز أشعة' : 'إضافة مركز أشعة'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Form(
           key: _formKey,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../branding/ghadeer_brand_mark.dart';
 import '../models/lab_models.dart';
+import '../theme/ghadeer_tokens.dart';
 import 'smart_search_models.dart';
 
 /// بطاقات نتائج البحث الحقيقية حسب النوع.
@@ -62,7 +63,7 @@ class _DoctorCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE4EEEE)),
+            border: Border.all(color: GhadeerTokens.line),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,16 +77,16 @@ class _DoctorCard extends StatelessWidget {
                     Text(
                       result.title,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w800,
                         fontSize: 15,
-                        color: Color(0xFF123B42),
+                        color: GhadeerTokens.ink,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       result.specialty ?? result.subtitle,
                       style: const TextStyle(
-                        color: Color(0xFF0FAFA3),
+                        color: GhadeerTokens.tealDeep,
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                       ),
@@ -97,7 +98,7 @@ class _DoctorCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFF5B6C70),
+                          color: GhadeerTokens.inkMuted,
                           fontSize: 12.5,
                           height: 1.35,
                         ),
@@ -112,14 +113,14 @@ class _DoctorCard extends StatelessWidget {
                             (result.absenceBadge ?? '').isNotEmpty)
                           _Badge(
                             label: result.absenceBadge!,
-                            color: const Color(0xFFB45309),
-                            bg: const Color(0xFFFFF7ED),
+                            color: GhadeerTokens.warn,
+                            bg: GhadeerTokens.warnWash,
                           )
                         else if ((result.availabilityLabel ?? '').isNotEmpty)
                           _Badge(
                             label: result.availabilityLabel!,
-                            color: const Color(0xFF0F766E),
-                            bg: const Color(0xFFE6F8F6),
+                            color: GhadeerTokens.tealDeep,
+                            bg: GhadeerTokens.tealWash,
                           ),
                       ],
                     ),
@@ -152,7 +153,7 @@ class _LabCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE4EEEE)),
+            border: Border.all(color: GhadeerTokens.line),
           ),
           child: Row(
             children: [
@@ -165,9 +166,9 @@ class _LabCard extends StatelessWidget {
                     Text(
                       result.title,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w800,
                         fontSize: 15,
-                        color: Color(0xFF123B42),
+                        color: GhadeerTokens.ink,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -176,7 +177,7 @@ class _LabCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF5B6C70),
+                        color: GhadeerTokens.inkMuted,
                         fontSize: 12.5,
                       ),
                     ),
@@ -211,7 +212,7 @@ class _PackageOfferCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isOffer ? const Color(0xFFB7E4C7) : const Color(0xFFE4EEEE),
+              color: isOffer ? const Color(0xFFB7E4C7) : GhadeerTokens.line,
             ),
           ),
           child: Row(
@@ -234,16 +235,16 @@ class _PackageOfferCard extends StatelessWidget {
                         padding: EdgeInsets.only(bottom: 6),
                         child: _Badge(
                           label: 'عرض',
-                          color: Color(0xFF1B8A4C),
-                          bg: Color(0xFFE7F8EE),
+                          color: GhadeerTokens.ok,
+                          bg: GhadeerTokens.okWash,
                         ),
                       ),
                     Text(
                       result.title,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w800,
                         fontSize: 15,
-                        color: Color(0xFF123B42),
+                        color: GhadeerTokens.ink,
                       ),
                     ),
                     if ((result.labName ?? '').isNotEmpty) ...[
@@ -251,7 +252,7 @@ class _PackageOfferCard extends StatelessWidget {
                       Text(
                         result.labName!,
                         style: const TextStyle(
-                          color: Color(0xFF0FAFA3),
+                          color: GhadeerTokens.tealDeep,
                           fontWeight: FontWeight.w700,
                           fontSize: 12.5,
                         ),
@@ -262,7 +263,7 @@ class _PackageOfferCard extends StatelessWidget {
                       Text(
                         'تشمل: ${result.relatedAnalysisTitle}',
                         style: const TextStyle(
-                          color: Color(0xFF708084),
+                          color: GhadeerTokens.inkMuted,
                           fontSize: 12,
                         ),
                       ),
@@ -274,7 +275,7 @@ class _PackageOfferCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFF5B6C70),
+                          color: GhadeerTokens.inkMuted,
                           fontSize: 12.5,
                           height: 1.35,
                         ),
@@ -289,16 +290,16 @@ class _PackageOfferCard extends StatelessWidget {
                         if (result.discountPercent != null)
                           _Badge(
                             label: '${result.discountPercent}% خصم',
-                            color: const Color(0xFF1B8A4C),
-                            bg: const Color(0xFFE7F8EE),
+                            color: GhadeerTokens.ok,
+                            bg: GhadeerTokens.okWash,
                           ),
                         if (result.newPrice != null)
                           Text(
                             '${formatLabPrice(result.newPrice)} د.ع',
                             style: const TextStyle(
-                              color: Color(0xFF0FAFA3),
+                              color: GhadeerTokens.tealDeep,
                               fontSize: 16,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         if (result.oldPrice != null &&
@@ -307,7 +308,7 @@ class _PackageOfferCard extends StatelessWidget {
                           Text(
                             '${formatLabPrice(result.oldPrice)} د.ع',
                             style: const TextStyle(
-                              color: Color(0xFF9AA6A8),
+                              color: GhadeerTokens.inkFaint,
                               fontSize: 12.5,
                               decoration: TextDecoration.lineThrough,
                             ),
@@ -334,7 +335,7 @@ class _AnalysisCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFF7FBFC),
+      color: GhadeerTokens.mist,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -343,13 +344,16 @@ class _AnalysisCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE4EEEE)),
+            border: Border.all(color: GhadeerTokens.line),
           ),
           child: Row(
             children: [
               const CircleAvatar(
-                backgroundColor: Color(0xFFE6F8F6),
-                child: Icon(Icons.science_outlined, color: Color(0xFF0FAFA3)),
+                backgroundColor: GhadeerTokens.tealWash,
+                child: Icon(
+                  Icons.science_outlined,
+                  color: GhadeerTokens.tealDeep,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -359,15 +363,15 @@ class _AnalysisCard extends StatelessWidget {
                     Text(
                       result.title,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF123B42),
+                        fontWeight: FontWeight.w800,
+                        color: GhadeerTokens.ink,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       result.subtitle,
                       style: const TextStyle(
-                        color: Color(0xFF5B6C70),
+                        color: GhadeerTokens.inkMuted,
                         fontSize: 12.5,
                       ),
                     ),
@@ -378,7 +382,7 @@ class _AnalysisCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFF708084),
+                          color: GhadeerTokens.inkMuted,
                           fontSize: 12,
                         ),
                       ),
@@ -412,15 +416,15 @@ class _SpecialtyCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE4EEEE)),
+            border: Border.all(color: GhadeerTokens.line),
           ),
           child: Row(
             children: [
               const CircleAvatar(
-                backgroundColor: Color(0xFFE6F8F6),
+                backgroundColor: GhadeerTokens.tealWash,
                 child: Icon(
                   Icons.medical_services_outlined,
-                  color: Color(0xFF0FAFA3),
+                  color: GhadeerTokens.tealDeep,
                 ),
               ),
               const SizedBox(width: 12),
@@ -430,19 +434,22 @@ class _SpecialtyCard extends StatelessWidget {
                   children: [
                     Text(
                       result.title,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const Text(
                       'اضغط لعرض أطباء هذا الاختصاص',
                       style: TextStyle(
-                        color: Color(0xFF708084),
+                        color: GhadeerTokens.inkMuted,
                         fontSize: 12.5,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_left_rounded, color: Color(0xFF0FAFA3)),
+              const Icon(
+                Icons.chevron_left_rounded,
+                color: GhadeerTokens.tealDeep,
+              ),
             ],
           ),
         ),
@@ -452,11 +459,7 @@ class _SpecialtyCard extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({
-    required this.url,
-    required this.fallback,
-    this.size = 56,
-  });
+  const _Avatar({required this.url, required this.fallback, this.size = 56});
 
   final String? url;
   final IconData fallback;
@@ -470,28 +473,22 @@ class _Avatar extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        color: const Color(0xFFE6F8F6),
+        color: GhadeerTokens.tealWash,
         child: hasUrl
             ? GhadeerResolvedImage(
                 url!.trim(),
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Icon(
-                  fallback,
-                  color: const Color(0xFF0FAFA3),
-                ),
+                errorBuilder: (_, _, _) =>
+                    Icon(fallback, color: GhadeerTokens.tealDeep),
               )
-            : Icon(fallback, color: const Color(0xFF0FAFA3)),
+            : Icon(fallback, color: GhadeerTokens.tealDeep),
       ),
     );
   }
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({
-    required this.label,
-    required this.color,
-    required this.bg,
-  });
+  const _Badge({required this.label, required this.color, required this.bg});
 
   final String label;
   final Color color;

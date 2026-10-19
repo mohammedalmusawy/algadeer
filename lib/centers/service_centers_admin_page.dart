@@ -10,6 +10,7 @@ import '../widgets/entity_optional_logo.dart';
 import 'service_center_kind.dart';
 import 'service_center_models.dart';
 import 'service_centers_store.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// إدارة قسم واحد. الحفظ يكتب في الجدول المشترك، ويفشل بوضوح إن تعذر.
 class ServiceCentersAdminPage extends StatefulWidget {
@@ -157,8 +158,9 @@ class _ServiceCentersAdminPageState extends State<ServiceCentersAdminPage> {
         backgroundColor: Colors.white,
         appBar: ClinicAppBar(
           title: Text('إدارة ${widget.kind.sectionTitle}'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _edit(null),
@@ -397,8 +399,9 @@ class _ServiceCenterFormPageState extends State<_ServiceCenterFormPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: Text(widget.initial == null ? 'مركز جديد' : 'تعديل المركز'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),

@@ -143,8 +143,8 @@ class _TrendingChip extends StatelessWidget {
                                 item.kind == 'lab'
                                     ? Icons.science_outlined
                                     : item.kind == 'package'
-                                        ? Icons.card_giftcard_rounded
-                                        : Icons.person_outline_rounded,
+                                    ? Icons.card_giftcard_rounded
+                                    : Icons.person_outline_rounded,
                                 color: const Color(0xFF0FAFA3),
                               ),
                             )

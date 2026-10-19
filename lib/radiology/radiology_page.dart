@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/ghadeer_state_message.dart';
+import '../theme/ghadeer_tokens.dart';
+import '../widgets/ghadeer_skeleton.dart';
 import '../models/radiology_models.dart';
 import '../utils/responsive.dart';
 import '../widgets/clinic_app_bar.dart';
@@ -24,6 +27,7 @@ class _RadiologyPageState extends State<RadiologyPage> {
   final Set<String> _favoriteIds = <String>{};
   bool _loading = true;
   String? _error;
+  Object? _errorCause;
 
   static const _favKey = 'favoriteRadiologyIds';
 
@@ -65,6 +69,7 @@ class _RadiologyPageState extends State<RadiologyPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _errorCause = null;
     });
     try {
       final centers = await _service.fetchPublicCenters();
@@ -73,12 +78,12 @@ class _RadiologyPageState extends State<RadiologyPage> {
         _centers = centers;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error =
-            'تعذر تحميل الأشعة. نفّذ supabase/radiology_centers_schema.sql';
+        _error = 'load';
+        _errorCause = e;
       });
     }
   }
@@ -86,9 +91,7 @@ class _RadiologyPageState extends State<RadiologyPage> {
   void _openCenter(RadiologyCenter center) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => RadiologyProfilePage(center: center),
-      ),
+      MaterialPageRoute(builder: (_) => RadiologyProfilePage(center: center)),
     ).then((_) => _loadFavorites());
   }
 
@@ -100,64 +103,57 @@ class _RadiologyPageState extends State<RadiologyPage> {
         backgroundColor: const Color(0xFFF7FBFC),
         appBar: ClinicAppBar(
           title: const Text('الأشعة'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          // رأس هادي موحّد (Phase 5C).
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const GhadeerSkeletonList()
             : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_error!, textAlign: TextAlign.center),
-                          const SizedBox(height: 12),
-                          FilledButton(
-                            onPressed: _load,
-                            child: const Text('إعادة المحاولة'),
-                          ),
-                        ],
+            ? GhadeerStateMessage.loadError(
+                error: _errorCause,
+                what: 'مراكز الأشعة',
+                onRetry: _load,
+              )
+            : _centers.isEmpty
+            ? GhadeerStateMessage(
+                icon: Icons.radar_outlined,
+                title: 'ماكو مراكز أشعة منشورة هسه',
+                body: 'راح تطلع هنا أول ما تنضاف.',
+                actionLabel: 'تحديث',
+                onAction: _load,
+              )
+            : Column(
+                children: [
+                  // شريط إعلان قسم الأشعة (موضع «الأشعة»).
+                  const HomeAdSlot(placement: 'radiology'),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView.separated(
+                        padding: EdgeInsets.fromLTRB(
+                          AppResponsive.pagePadding(context),
+                          12,
+                          AppResponsive.pagePadding(context),
+                          24,
+                        ),
+                        itemCount: _centers.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final center = _centers[index];
+                          return ClinicRadiologyCard(
+                            center: center,
+                            isFavorite: _favoriteIds.contains(center.id),
+                            onToggleFavorite: () => _toggleFavorite(center.id),
+                            onOpen: () => _openCenter(center),
+                          );
+                        },
                       ),
                     ),
-                  )
-                : _centers.isEmpty
-                    ? const Center(
-                        child: Text('لا توجد مراكز أشعة مفعّلة حالياً'),
-                      )
-                    : Column(
-                        children: [
-                          // شريط إعلان قسم الأشعة (موضع «الأشعة»).
-                          const HomeAdSlot(placement: 'radiology'),
-                          Expanded(
-                            child: RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.separated(
-                          padding: EdgeInsets.fromLTRB(
-                            AppResponsive.pagePadding(context),
-                            12,
-                            AppResponsive.pagePadding(context),
-                            24,
-                          ),
-                          itemCount: _centers.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            final center = _centers[index];
-                            return ClinicRadiologyCard(
-                              center: center,
-                              isFavorite: _favoriteIds.contains(center.id),
-                              onToggleFavorite: () =>
-                                  _toggleFavorite(center.id),
-                              onOpen: () => _openCenter(center),
-                            );
-                          },
-                        ),
-                      ),
-                          ),
-                        ],
-                      ),
+                  ),
+                ],
+              ),
       ),
     );
   }

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../branding/ghadeer_brand_mark.dart';
+import '../../theme/ghadeer_tokens.dart';
 import '../smart_search_models.dart';
 import '../smart_search_result_cards.dart';
 import 'smart_brain_chat_models.dart';
 import 'smart_brain_suggested_actions.dart';
 
-const Color _kTeal = Color(0xFF0FAFA3);
-const Color _kNavy = Color(0xFF123B42);
+// ألوان «الماي الصافي» — نفس هوية باقي الصفحات.
+const Color _kTeal = GhadeerTokens.tealDeep;
+const Color _kNavy = GhadeerTokens.ink;
 
 /// اقتراحات بحث سريعة — نفس مسار الإرسال (اختصاص → الأكثر طلباً داخل المجموعة).
 const List<String> kSmartBrainSuggestionChips = [
@@ -32,14 +34,14 @@ class SmartBrainUserBubble extends StatelessWidget {
           maxWidth: MediaQuery.sizeOf(context).width * 0.82,
         ),
         margin: const EdgeInsets.only(bottom: 10, left: 40),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         decoration: const BoxDecoration(
-          color: Color(0xFF123B42),
+          color: GhadeerTokens.deepWater,
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-            bottomLeft: Radius.circular(16),
-            bottomRight: Radius.circular(4),
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(6),
           ),
         ),
         child: Text(
@@ -48,7 +50,7 @@ class SmartBrainUserBubble extends StatelessWidget {
             color: Colors.white,
             height: 1.45,
             fontSize: 15,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -74,6 +76,7 @@ class SmartBrainAssistantBubble extends StatelessWidget {
   final VoidCallback? onSpeak;
   final VoidCallback? onStopSpeak;
   final bool isSpeaking;
+
   /// إلغاء «الغدير يفكر» — يوقف الطلب الجاري.
   final VoidCallback? onCancelThinking;
 
@@ -103,20 +106,22 @@ class SmartBrainAssistantBubble extends StatelessWidget {
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                     decoration: BoxDecoration(
                       color: urgent
                           ? const Color(0xFFFFF1F2)
-                          : const Color(0xFFE6F8F6),
+                          : GhadeerTokens.surface,
                       borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(4),
-                        topRight: Radius.circular(16),
-                        bottomLeft: Radius.circular(16),
-                        bottomRight: Radius.circular(16),
+                        topLeft: Radius.circular(6),
+                        topRight: Radius.circular(20),
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
                       ),
-                      border: urgent
-                          ? Border.all(color: const Color(0xFFFECACA))
-                          : null,
+                      border: Border.all(
+                        color: urgent
+                            ? const Color(0xFFFECACA)
+                            : GhadeerTokens.line,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,9 +140,7 @@ class SmartBrainAssistantBubble extends StatelessWidget {
                           style: TextStyle(
                             height: 1.5,
                             fontSize: 15,
-                            color: urgent
-                                ? const Color(0xFF9F1239)
-                                : _kNavy,
+                            color: urgent ? const Color(0xFF9F1239) : _kNavy,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -148,7 +151,10 @@ class SmartBrainAssistantBubble extends StatelessWidget {
                             child: isSpeaking
                                 ? TextButton.icon(
                                     onPressed: onStopSpeak,
-                                    icon: const Icon(Icons.stop_rounded, size: 18),
+                                    icon: const Icon(
+                                      Icons.stop_rounded,
+                                      size: 18,
+                                    ),
                                     label: const Text('إيقاف'),
                                     style: TextButton.styleFrom(
                                       foregroundColor: _kNavy,
@@ -205,8 +211,8 @@ class SmartBrainAssistantBubble extends StatelessWidget {
                               ),
                             ),
                             onPressed: () => onSuggestedAction!(action),
-                            backgroundColor: Colors.white,
-                            side: const BorderSide(color: Color(0xFFB6E5E0)),
+                            backgroundColor: GhadeerTokens.surface,
+                            side: const BorderSide(color: GhadeerTokens.line),
                             labelStyle: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: _kNavy,
@@ -228,10 +234,7 @@ class SmartBrainAssistantBubble extends StatelessWidget {
 }
 
 class SmartBrainThinkingIndicator extends StatelessWidget {
-  const SmartBrainThinkingIndicator({
-    super.key,
-    this.onCancel,
-  });
+  const SmartBrainThinkingIndicator({super.key, this.onCancel});
 
   final VoidCallback? onCancel;
 
@@ -244,8 +247,9 @@ class SmartBrainThinkingIndicator extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12, right: 48),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFE6F8F6),
-          borderRadius: BorderRadius.circular(14),
+          color: GhadeerTokens.surface,
+          borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+          border: Border.all(color: GhadeerTokens.line),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -253,10 +257,7 @@ class SmartBrainThinkingIndicator extends StatelessWidget {
             const SizedBox(
               width: 14,
               height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: _kTeal,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2, color: _kTeal),
             ),
             const SizedBox(width: 10),
             const Text(
@@ -264,7 +265,7 @@ class SmartBrainThinkingIndicator extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF5B6C70),
+                color: GhadeerTokens.inkMuted,
               ),
             ),
             if (onCancel != null) ...[
@@ -288,10 +289,7 @@ class SmartBrainThinkingIndicator extends StatelessWidget {
 }
 
 class SmartBrainSuggestionChips extends StatelessWidget {
-  const SmartBrainSuggestionChips({
-    super.key,
-    required this.onSelected,
-  });
+  const SmartBrainSuggestionChips({super.key, required this.onSelected});
 
   final ValueChanged<String> onSelected;
 
@@ -308,12 +306,13 @@ class SmartBrainSuggestionChips extends StatelessWidget {
               key: Key('smart_brain_suggestion_chip_$label'),
               label: Text(label),
               onPressed: () => onSelected(label),
-              backgroundColor: Colors.white,
-              side: const BorderSide(color: Color(0xFFB6E5E0)),
+              backgroundColor: GhadeerTokens.tealWash,
+              side: BorderSide.none,
+              shape: const StadiumBorder(),
               labelStyle: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: _kNavy,
-                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: GhadeerTokens.tealDeep,
+                fontSize: 13.5,
               ),
             ),
         ],
@@ -351,12 +350,13 @@ class SmartBrainComposerBar extends StatelessWidget {
     final micActive = listening || voiceSessionActive;
     return SafeArea(
       top: false,
-      child: Material(
-        color: Colors.white,
-        elevation: 6,
-        shadowColor: Colors.black12,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: GhadeerTokens.surface,
+          border: Border(top: BorderSide(color: GhadeerTokens.line)),
+        ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           child: Row(
             children: [
               IconButton.filled(
@@ -364,13 +364,11 @@ class SmartBrainComposerBar extends StatelessWidget {
                 tooltip: loading && !micActive
                     ? 'إيقاف الطلب'
                     : (micActive ? 'إيقاف الصوت والإرسال' : 'تحدث'),
-                onPressed: voiceBusy
-                    ? null
-                    : onToggleVoice,
+                onPressed: voiceBusy ? null : onToggleVoice,
                 style: IconButton.styleFrom(
                   backgroundColor: (micActive || loading)
                       ? Colors.red
-                      : const Color(0xFF123B42),
+                      : GhadeerTokens.deepWater,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey.shade300,
                 ),
@@ -391,15 +389,24 @@ class SmartBrainComposerBar extends StatelessWidget {
                   minLines: 1,
                   maxLines: 4,
                   decoration: InputDecoration(
-                    hintText: micActive
-                        ? 'تحدث الآن…'
-                        : 'اكتب رسالتك للغدير…',
+                    hintText: micActive ? 'تحدث الآن…' : 'اكتب رسالتك للغدير…',
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(24),
                       borderSide: BorderSide.none,
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(
+                        color: GhadeerTokens.teal,
+                        width: 1.2,
+                      ),
+                    ),
                     filled: true,
-                    fillColor: const Color(0xFFF2F7F8),
+                    fillColor: GhadeerTokens.mist,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 12,
@@ -417,7 +424,7 @@ class SmartBrainComposerBar extends StatelessWidget {
                 tooltip: 'إرسال',
                 onPressed: (loading && !voiceSessionActive) ? null : onSubmit,
                 style: IconButton.styleFrom(
-                  backgroundColor: _kTeal,
+                  backgroundColor: GhadeerTokens.teal,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey.shade300,
                 ),

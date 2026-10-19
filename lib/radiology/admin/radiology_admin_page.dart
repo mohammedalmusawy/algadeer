@@ -6,6 +6,7 @@ import '../radiology_default_images.dart';
 import '../radiology_service.dart';
 import '../widgets/radiology_network_or_asset_image.dart';
 import 'radiology_form_page.dart';
+import '../../theme/ghadeer_tokens.dart';
 
 class RadiologyAdminPage extends StatefulWidget {
   const RadiologyAdminPage({super.key});
@@ -92,8 +93,9 @@ class _RadiologyAdminPageState extends State<RadiologyAdminPage> {
       child: Scaffold(
         appBar: ClinicAppBar(
           title: const Text('إعدادات الأشعة'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
           actions: [
             IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
           ],

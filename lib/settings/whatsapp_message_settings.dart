@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../companion/personal_companion_profile_service.dart';
 import '../utils/clinic_contact_message.dart';
+import 'whatsapp_templates.dart';
 
 /// قالب رسالة واتساب التلقائية — محلي على الجهاز (SharedPreferences).
 ///
@@ -59,15 +60,27 @@ class WhatsAppMessageSettingsService {
     await prefs.remove(storageKey);
   }
 
-  /// نص الرسالة الجاهز للإرسال: القالب المحفوظ + الاسم من الـ onboarding.
+  /// نص الرسالة الجاهز للإرسال: القالب + الاسم من الـ onboarding.
   ///
+  /// [section]: إذا انطى قسم، النص من نماذج الإدارة لهذا القسم (حجز أو
+  /// استفسار)، إلا إذا المستخدم كاتب قالب خاص بيه بالإعدادات فيبقى قالبه.
+  /// بدون قسم = السلوك القديم (القالب المحلي أو الافتراضي).
   /// [providerIsDoctor]: true → «د. الاسم»، false → اسم المختبر/المركز كما هو.
   Future<String> buildPrefill({
     String? providerTitle,
     bool providerIsDoctor = true,
     PersonalCompanionProfileService? profileService,
+    WhatsAppSection? section,
+    WhatsAppTemplateRepository? templates,
   }) async {
-    final template = await loadTemplate();
+    String template;
+    if (section != null && !await hasCustomTemplate()) {
+      final catalog =
+          await (templates ?? WhatsAppTemplateRepository()).load();
+      template = catalog.templateFor(section).body;
+    } else {
+      template = await loadTemplate();
+    }
     String? name;
     try {
       name = await (profileService ?? PersonalCompanionProfileService())

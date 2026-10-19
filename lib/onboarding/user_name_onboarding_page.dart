@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../branding/ghadeer_brand_mark.dart';
 import '../companion/personal_companion_profile.dart';
 import '../companion/personal_profile_foundation.dart';
 import '../services/user_profile_service.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// Phase 3A — شاشة تأسيس الملف الشخصي القصيرة عند أول تشغيل.
 ///
@@ -60,8 +62,7 @@ class _UserNameOnboardingPageState extends State<UserNameOnboardingPage> {
     );
     if (parsed == null) {
       setState(() {
-        _error =
-            'أدخل عمراً (مثل 35) أو سنة ميلاد (مثل 1990) أو تاريخاً (1990-06-15).';
+        _error = 'أدخل عمراً (مثل 35) أو سنة ميلاد (مثل 1990) أو تاريخاً (1990-06-15).';
         _saving = false;
       });
       return;
@@ -89,45 +90,79 @@ class _UserNameOnboardingPageState extends State<UserNameOnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
-    const teal = Color(0xFF0FAFA3);
-    const navy = Color(0xFF123B42);
+    // ألوان الهوية الموحّدة (Phase 5D) — أول شاشة يشوفها المستخدم والمراجع.
+    const teal = GhadeerTokens.tealDeep;
+    const navy = GhadeerTokens.ink;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF7FBFC),
+        backgroundColor: GhadeerTokens.mist,
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 24),
-                const Icon(
-                  Icons.waving_hand_rounded,
-                  size: 56,
-                  color: teal,
+                const SizedBox(height: 12),
+                const Center(
+                  child: GhadeerBrandMark(
+                    key: Key('onboarding_logo'),
+                    size: 84,
+                    backgroundColor: GhadeerTokens.surface,
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 const Text(
-                  'مرحباً بك في تطبيق الغدير',
+                  'أهلًا بك في منصة الغدير',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 22,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: navy,
                     height: 1.3,
                   ),
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'ملف شخصي قصير — تكدر تعدّله لاحقاً من الإعدادات.',
+                  'دليلك الصحي في الشطرة: أطباء ومختبرات وأشعة وصيدليات بمكان واحد.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14,
-                    height: 1.45,
-                    color: Color(0xFF5B6C70),
-                    fontWeight: FontWeight.w600,
+                    fontSize: 14.5,
+                    height: 1.5,
+                    color: GhadeerTokens.inkMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: GhadeerTokens.card(
+                    color: GhadeerTokens.tealWash,
+                    radius: GhadeerTokens.radiusMd,
+                    border: GhadeerTokens.tealWash,
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        size: 20,
+                        color: GhadeerTokens.tealDeep,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'نسألك اسمك حتى نرحّب بيك بالاسم ونجهّز رسالة الحجز. '
+                          'كله اختياري، يبقى على جهازك، وتكدر تعدّله من الإعدادات.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.55,
+                            color: GhadeerTokens.ink,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 28),
@@ -178,9 +213,8 @@ class _UserNameOnboardingPageState extends State<UserNameOnboardingPage> {
                       child: _SexChip(
                         label: 'ذكر',
                         selected: _sex == ProfileSexSelection.male,
-                        onTap: () => setState(
-                          () => _sex = ProfileSexSelection.male,
-                        ),
+                        onTap: () =>
+                            setState(() => _sex = ProfileSexSelection.male),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -188,9 +222,8 @@ class _UserNameOnboardingPageState extends State<UserNameOnboardingPage> {
                       child: _SexChip(
                         label: 'أنثى',
                         selected: _sex == ProfileSexSelection.female,
-                        onTap: () => setState(
-                          () => _sex = ProfileSexSelection.female,
-                        ),
+                        onTap: () =>
+                            setState(() => _sex = ProfileSexSelection.female),
                       ),
                     ),
                   ],
@@ -254,7 +287,7 @@ class _SexChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const teal = Color(0xFF0FAFA3);
+    const teal = GhadeerTokens.tealDeep;
     return Material(
       color: selected ? teal : Colors.white,
       borderRadius: BorderRadius.circular(14),
@@ -266,15 +299,13 @@ class _SexChip extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected ? teal : const Color(0xFFD0DADF),
-            ),
+            border: Border.all(color: selected ? teal : GhadeerTokens.line),
           ),
           child: Text(
             label,
             style: TextStyle(
               fontWeight: FontWeight.w800,
-              color: selected ? Colors.white : const Color(0xFF123B42),
+              color: selected ? Colors.white : GhadeerTokens.ink,
             ),
           ),
         ),

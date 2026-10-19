@@ -12,6 +12,7 @@ import 'pharmacies_store.dart';
 import 'pharmacy_bundles_manage_page.dart';
 import 'pharmacy_fit_image.dart';
 import 'pharmacy_models.dart';
+import '../theme/ghadeer_tokens.dart';
 
 /// إدارة الصيدليات — محلي حالياً (SharedPreferences) بدون كسر باقي النظام.
 class PharmaciesAdminPage extends StatefulWidget {
@@ -102,8 +103,9 @@ class _PharmaciesAdminPageState extends State<PharmaciesAdminPage> {
         backgroundColor: Colors.white,
         appBar: ClinicAppBar(
           title: const Text('إدارة الصيدليات'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _edit(null),
@@ -411,8 +413,9 @@ class _PharmacyEditPageState extends State<_PharmacyEditPage> {
         backgroundColor: Colors.white,
         appBar: ClinicAppBar(
           title: Text(widget.initial == null ? 'إضافة صيدلية' : 'تعديل صيدلية'),
-          backgroundColor: const Color(0xFF0FAFA3),
-          foregroundColor: Colors.white,
+          backgroundColor: GhadeerTokens.mist,
+          foregroundColor: GhadeerTokens.ink,
+          surfaceTintColor: Colors.transparent,
         ),
         body: Stack(
           children: [

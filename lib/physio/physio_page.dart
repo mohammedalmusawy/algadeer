@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../widgets/ghadeer_state_message.dart';
+import '../widgets/ghadeer_skeleton.dart';
 import '../branding/ghadeer_brand_mark.dart';
 import '../home/ghadeer_home_colors.dart';
 import '../widgets/entity_contact_actions.dart';
@@ -10,6 +12,8 @@ import 'physio_models.dart';
 import 'physio_profile_page.dart';
 import '../utils/contact_launch.dart';
 import '../widgets/ghadeer_net_image.dart';
+import '../settings/whatsapp_templates.dart';
+import '../settings/whatsapp_contact_flow.dart';
 
 /// قائمة مراكز العلاج الطبيعي والتأهيل.
 class PhysioPage extends StatefulWidget {
@@ -151,12 +155,13 @@ class _PhysioPageState extends State<PhysioPage> {
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
-  Future<void> _whatsapp(String wa) async {
-    final digits = wa.replaceAll(RegExp(r'[^0-9]'), '');
-    final uri = Uri.parse('https://wa.me/$digits');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  Future<void> _whatsapp(String wa, String name) async {
+    await WhatsAppContactFlow.open(
+      context,
+      whatsapp: wa,
+      section: WhatsAppSection.physio,
+      providerTitle: name,
+    );
   }
 
   void _openProfile(PhysioCenter p) {
@@ -188,8 +193,8 @@ class _PhysioPageState extends State<PhysioPage> {
                       _locating
                           ? 'جاري تحديد موقعك…'
                           : _usedFallbackOrigin
-                              ? 'مرتب حسب القرب (مركز الشطرة)'
-                              : 'مرتب حسب قربك',
+                          ? 'مرتب حسب القرب (مركز الشطرة)'
+                          : 'مرتب حسب قربك',
                       style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
@@ -200,32 +205,33 @@ class _PhysioPageState extends State<PhysioPage> {
                 ),
               Expanded(
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const GhadeerSkeletonList()
                     : items.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'لا توجد نتائج مطابقة',
-                              style: TextStyle(
-                                color: GhadeerHomeColors.muted,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                            itemCount: items.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, i) {
-                              final p = items[i];
-                              return _PhysioCard(
-                                center: p,
-                                onDetails: () => _openProfile(p),
-                                onCall: () => _call(p.phone),
-                                onWhatsapp: () => _whatsapp(p.whatsapp),
-                              );
-                            },
-                          ),
+                    ? GhadeerStateMessage(
+                        icon: _query.trim().isEmpty
+                            ? Icons.storefront_outlined
+                            : Icons.search_off_rounded,
+                        title: _query.trim().isEmpty
+                            ? 'ماكو أماكن منشورة هسه'
+                            : 'ماكو نتائج مطابقة',
+                        body: _query.trim().isEmpty
+                            ? 'راح تطلع الأماكن هنا أول ما تنضاف.'
+                            : 'جرّب تكتب الاسم بطريقة ثانية، أو امسح البحث.',
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        itemCount: items.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (context, i) {
+                          final p = items[i];
+                          return _PhysioCard(
+                            center: p,
+                            onDetails: () => _openProfile(p),
+                            onCall: () => _call(p.phone),
+                            onWhatsapp: () => _whatsapp(p.whatsapp, p.name),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -238,14 +244,12 @@ class _PhysioPageState extends State<PhysioPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Directionality(
-        textDirection: TextDirection.ltr,
+        // الرجوع أعلى اليمين — موحّد بكل التطبيق.
+        textDirection: TextDirection.rtl,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GhadeerBackButton(
-              onPressed: () => Navigator.pop(context),
-              color: GhadeerHomeColors.physioAccent,
-            ),
+            GhadeerBackButton(onPressed: () => Navigator.pop(context)),
             const Expanded(
               child: Column(
                 children: [

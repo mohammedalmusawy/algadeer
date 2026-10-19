@@ -99,7 +99,7 @@ class LabCardLinks {
                           ),
                           SizedBox(width: 6),
                           Text(
-                            'عيادة الغدير',
+                            'منصة الغدير',
                             style: TextStyle(
                               fontWeight: FontWeight.w900,
                               fontSize: 15,

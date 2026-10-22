@@ -84,7 +84,12 @@ import 'onboarding/app_entry_gate.dart';
 import 'theme/ghadeer_tokens.dart';
 import 'settings/whatsapp_templates_admin_page.dart';
 
+/// رابط فتح الموقع كما وصل (الويب فقط) — Flutter يرجّع العنوان لـ `/`
+/// قبل ما تنبني الرئيسية، فنحفظه هنا حتى يفتح `/#/c/doctor/<id>` البطاقة.
+Uri? _webLaunchUri;
+
 Future<void> main() async {
+  if (kIsWeb) _webLaunchUri = Uri.base;
   // إن ظهر [APP] PID مختلف بعد ضغط المايك = عملية جديدة (خلل CRITICAL FIX 3).
   debugPrint('[APP] PID=$appPidLabel main() enter');
   WidgetsFlutterBinding.ensureInitialized();
@@ -356,7 +361,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _initDeepLinks() async {
     try {
       if (kIsWeb) {
-        final uri = Uri.base;
+        final uri = _webLaunchUri ?? Uri.base;
+        _webLaunchUri = null;
         if (isPatientHealthReturnUri(uri)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
@@ -2140,7 +2146,8 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
   void initState() {
     super.initState();
     // تهيئة نموذج إزالة الخلفية مبكرًا حتى تكون جاهزة عند اختيار الصورة.
-    DoctorImageBgRemover.ensureInitialized();
+    // على الويب ماكو ONNX → تُرفع الصورة كما هي.
+    if (!kIsWeb) DoctorImageBgRemover.ensureInitialized();
 
     final doctor = widget.doctor;
 
@@ -2366,7 +2373,7 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
     _qualificationsController.dispose();
     _ageGroupController.dispose();
     _quoteController.dispose();
-    DoctorImageBgRemover.dispose();
+    if (!kIsWeb) DoctorImageBgRemover.dispose();
 
     super.dispose();
   }
@@ -2397,6 +2404,16 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
 
   /// يطبّق إزالة الخلفية أو يبقي الأصل حسب [_removeImageBackground].
   Future<void> _applyPickedImageProcessing(Uint8List originalBytes) async {
+    // الويب: بدون إزالة خلفية وبدون رسالة — الصورة الأصلية مباشرة.
+    if (kIsWeb) {
+      if (!mounted) return;
+      setState(() {
+        _pickedImageBytes = originalBytes;
+        _pickedImageBgRemoved = false;
+        _removingImageBg = false;
+      });
+      return;
+    }
     if (!_removeImageBackground) {
       if (!mounted) return;
       setState(() {
@@ -2476,7 +2493,8 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
 
       if (_pickedImageBytes != null) {
         // إن كان الخيار مفعّلاً ولم تُعالَج بعد، حاول قبل الرفع مرة واحدة.
-        if (_removeImageBackground &&
+        if (!kIsWeb &&
+            _removeImageBackground &&
             !_pickedImageBgRemoved &&
             _pickedImageOriginalBytes != null) {
           final again = await DoctorImageBgRemover.removeBackground(
@@ -3225,17 +3243,18 @@ class _DoctorAdminFormPageState extends State<DoctorAdminFormPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('إزالة خلفية الصورة'),
-                subtitle: const Text(
-                  'عند التفعيل: خلفية هوية الغدير. عند الإيقاف: الصورة كما هي.',
+              if (!kIsWeb)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('إزالة خلفية الصورة'),
+                  subtitle: const Text(
+                    'عند التفعيل: خلفية هوية الغدير. عند الإيقاف: الصورة كما هي.',
+                  ),
+                  value: _removeImageBackground,
+                  onChanged: (_removingImageBg || _saving)
+                      ? null
+                      : _onRemoveBackgroundChanged,
                 ),
-                value: _removeImageBackground,
-                onChanged: (_removingImageBg || _saving)
-                    ? null
-                    : _onRemoveBackgroundChanged,
-              ),
 
               const SizedBox(height: 12),
               EntityLogoAdminField(

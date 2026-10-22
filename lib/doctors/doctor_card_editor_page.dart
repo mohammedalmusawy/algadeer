@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -116,10 +117,13 @@ class _DoctorCardEditorPageState extends State<DoctorCardEditorPage> {
     );
     if (picked == null) return;
     var bytes = await picked.readAsBytes();
-    try {
-      final removed = await DoctorImageBgRemover.removeBackground(bytes);
-      if (removed != null) bytes = removed;
-    } catch (_) {}
+    // على الويب تُرفع الصورة كما هي (إزالة الخلفية تحتاج ONNX).
+    if (!kIsWeb) {
+      try {
+        final removed = await DoctorImageBgRemover.removeBackground(bytes);
+        if (removed != null) bytes = removed;
+      } catch (_) {}
+    }
     if (!mounted) return;
     setState(() => _imageBytes = bytes);
   }

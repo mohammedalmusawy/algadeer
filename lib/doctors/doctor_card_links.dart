@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -290,7 +291,12 @@ class DoctorCardLinks {
     );
   }
 
+  /// نافذة «نزّل التطبيق» على الويب — مطفية لحد ما ينقبل التطبيق بـ Google Play
+  /// (نفس SHOW_INSTALL بـ web/open.html). رجّعها true وقتها.
+  static const bool showInstallOnWeb = false;
+
   static Future<void> openInstallSuggestion(BuildContext context) async {
+    if (kIsWeb && !showInstallOnWeb) return;
     // روابط المتاجر — حدّثها عند النشر
     const playStore = GhadeerCardLink.playStoreUrl;
     const appStore = GhadeerCardLink.appStoreUrl;

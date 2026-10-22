@@ -19,6 +19,7 @@
       :root { --bg: #0C1A20; --card: #13252C; --ink: #EAF4F6; --muted: #9DB2B8; --line: #22383F; }
     }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     body {
       margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
       background: var(--bg); color: var(--ink);
@@ -58,7 +59,7 @@
     </div>
     <div class="body">
       <p class="kind" id="kind">بطاقة من منصة الغدير</p>
-      <p class="hint">حتى تشوف البطاقة كاملة وتتصل أو تراسل بضغطة، افتحها بتطبيق الغدير.</p>
+      <p class="hint" id="hint">حتى تشوف البطاقة كاملة وتتصل أو تراسل بضغطة، افتحها بتطبيق الغدير.</p>
       <a class="btn primary" id="open" href="#">افتح بالتطبيق</a>
       <a class="btn secondary" id="install" href="#">نزّل التطبيق</a>
       <span class="soon" id="soon" hidden>تطبيق الآيفون قريباً على App Store</span>
@@ -67,6 +68,9 @@
   </main>
   <script>
     (function () {
+      // false = التطبيق بعده بالمراجعة: الزر الرئيسي «افتح بالموقع» وزر التنزيل مخفي.
+      // رجّعه true بعد ما ينقبل التطبيق بـ Google Play.
+      var SHOW_INSTALL = false;
       var PKG = 'com.mohammed.ghadeer';
       var SCHEME = 'ghadeerclinic';
       var PLAY = 'https://play.google.com/store/apps/details?id=' + PKG;
@@ -105,7 +109,22 @@
         install.href = ios ? APP_STORE : PLAY;
       }
 
-      document.getElementById('web').href = kind ? '/#/c/' + kind + '/' + safeId : '/';
+      var webHref = kind ? '/#/c/' + kind + '/' + safeId : '/';
+      var web = document.getElementById('web');
+      web.href = webHref;
+
+      if (!SHOW_INSTALL) {
+        // الزر الرئيسي يودي للبطاقة بالموقع؛ فتح التطبيق يبقى رابط صغير لمن عنده.
+        var appHref = open.href;
+        open.textContent = 'افتح بالموقع';
+        open.href = webHref;
+        install.hidden = true;
+        document.getElementById('soon').hidden = true;
+        document.getElementById('hint').textContent =
+          'شوف البطاقة كاملة وتواصل بالواتساب أو الاتصال بضغطة.';
+        web.textContent = 'عندك تطبيق الغدير؟ افتحها بالتطبيق';
+        web.href = appHref;
+      }
     })();
   </script>
 </body>

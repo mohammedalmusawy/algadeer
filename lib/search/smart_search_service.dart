@@ -7,6 +7,7 @@ import '../home/trending_entity.dart';
 import '../models/doctor_item.dart';
 import '../models/lab_models.dart';
 import '../services/offline_rows_cache.dart';
+import '../utils/web_timeout.dart';
 import 'arabic_text_utils.dart';
 import 'doctor_name_matcher.dart';
 import 'smart_search_models.dart';
@@ -146,14 +147,18 @@ class SmartSearchService {
     try {
       List data;
       try {
-        data = await _client
-            .from('doctors')
-            .select()
-            .or('is_active.eq.true,is_active.is.null')
-            .limit(500) as List;
+        data = await webTimed(
+          _client
+              .from('doctors')
+              .select()
+              .or('is_active.eq.true,is_active.is.null')
+              .limit(500),
+        ) as List;
       } catch (e) {
         debugPrint('SmartSearchService doctors filter query failed, plain: $e');
-        data = await _client.from('doctors').select().limit(500) as List;
+        data = await webTimed(
+          _client.from('doctors').select().limit(500),
+        ) as List;
       }
       final rows = data
           .map((e) => Map<String, dynamic>.from(e as Map))

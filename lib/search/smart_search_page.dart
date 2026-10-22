@@ -97,6 +97,10 @@ class _SmartSearchPageState extends State<SmartSearchPage>
 
   Timer? _debounce;
   Timer? _voiceLiveDebounce;
+
+  /// الويب: إذا الشبكة علّقت، «الغدير يفكر» ما يبقى للأبد.
+  Timer? _webReplyWatchdog;
+  static const _webReplyTimeout = Duration(seconds: 12);
   VoiceContactKind? _pendingContactKind;
   String _pendingWhatsAppMessage = '';
 
@@ -429,6 +433,29 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     _scrollChatToEnd();
   }
 
+  /// الويب: بعد [_webReplyTimeout] بدون جواب نشيل «يفكر» ونطلع رسالة؛
+  /// إذا وصل الجواب بعدين ينضاف تحتها عادي.
+  void _armWebReplyWatchdog(int epoch, String query) {
+    _webReplyWatchdog?.cancel();
+    _webReplyWatchdog = Timer(_webReplyTimeout, () {
+      if (!mounted || epoch != _searchEpoch || !_loading) return;
+      debugPrint('[SMART_SEARCH] web reply timeout query="$query"');
+      setState(() {
+        _assistantReply = AssistantReply(
+          query: query,
+          text:
+              'الشبكة بطيئة شوية… إذا ما طلع الجواب، تأكد من الإنترنت '
+              'وأرسل سؤالك مرة ثانية.',
+          spoken: false,
+          source: AssistantReplySource.localSearch,
+          searchResults: const [],
+        );
+        _searchError = null;
+      });
+      _commitAssistantTurn();
+    });
+  }
+
   void _cancelThinkingIfStale() {
     if (!mounted) return;
     setState(() {
@@ -534,6 +561,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     final epoch = ++_searchEpoch;
 
     _beginUserTurn(trimmed);
+    if (kIsWeb) _armWebReplyWatchdog(epoch, trimmed);
     // امسح الحقل بعد تثبيت رسالة المستخدم في السجل.
     _setFieldText('');
     _lastUserQuery = trimmed;
@@ -2766,6 +2794,7 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     _authSub = null;
     _debounce?.cancel();
     _voiceLiveDebounce?.cancel();
+    _webReplyWatchdog?.cancel();
     _controller.removeListener(_onQueryChanged);
     _controller.dispose();
     _fieldFocus.dispose();

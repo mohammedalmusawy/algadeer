@@ -43,7 +43,8 @@
   -->
   <script src="flutter_bootstrap.js" async></script>
 
-  <!-- تنبيه «أضف الغدير للشاشة الرئيسية»: الويب فقط، مرة وحدة، وما يطلع بوضع standalone. -->
+  <!-- تنبيه «أضف الغدير للشاشة الرئيسية»: الويب فقط، مرة وحدة، وما يطلع بوضع standalone.
+       أندرويد وكروم/إيدج الكمبيوتر: زر «ثبّت الغدير» يثبّت بضغطة. الآيفون: خطوتين (أبل ما تسمح بالتثبيت بضغطة). -->
   <style>
     #gh-a2hs {
       position: fixed; z-index: 2147483000; left: 12px; right: 12px;
@@ -57,10 +58,16 @@
     #gh-a2hs .bar { height: 4px; background: linear-gradient(90deg, #0FAFA3, #003D82); }
     #gh-a2hs .row { display: flex; align-items: center; gap: 10px; padding: 12px 14px 4px; }
     #gh-a2hs img { width: 40px; height: 40px; border-radius: 11px; }
-    #gh-a2hs b { flex: 1; font-size: 15px; }
-    #gh-a2hs button {
+    #gh-a2hs .row b { flex: 1; font-size: 15px; }
+    #gh-a2hs .x {
       border: 0; background: #EAF4F6; color: #003D82; width: 30px; height: 30px;
-      border-radius: 50%; font-size: 18px; line-height: 30px; cursor: pointer;
+      border-radius: 50%; font-size: 18px; line-height: 30px; cursor: pointer; padding: 0;
+    }
+    #gh-a2hs .sub { margin: 0; padding: 2px 14px 0 14px; font-size: 14px; line-height: 1.7; color: #5B6C70; }
+    #gh-a2hs .install {
+      display: block; width: calc(100% - 28px); margin: 10px 14px 14px; padding: 12px;
+      border: 0; border-radius: 14px; background: #0FAFA3; color: #FFFFFF;
+      font: inherit; font-size: 16px; font-weight: 800; cursor: pointer;
     }
     #gh-a2hs ol { margin: 0; padding: 4px 34px 14px 14px; font-size: 14px; line-height: 1.8; color: #5B6C70; }
     #gh-a2hs ol b { color: #0FAFA3; font-size: 14px; }
@@ -77,23 +84,65 @@
       var ios = /iPhone|iPad|iPod/i.test(ua) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       var android = /Android/i.test(ua);
-      if (!ios && !android) return;
 
-      var steps = ios
-        ? ['اضغط زر <b>المشاركة</b> بالمتصفح', 'اختار <b>إضافة إلى الشاشة الرئيسية</b>']
-        : ['افتح <b>قائمة المتصفح</b> (⋮)', 'اختار <b>إضافة للشاشة الرئيسية</b>'];
+      // كروم/إيدج يرسلون هذا الحدث إذا الموقع قابل للتثبيت — نحتفظ بيه للزر.
+      var deferred = null;
+      var box = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferred = e;
+        if (box) showInstallButton();
+      });
+      window.addEventListener('appinstalled', function () {
+        deferred = null;
+        if (box) box.remove();
+      });
+
+      function showInstallButton() {
+        if (!box || !deferred || box.querySelector('.install')) return;
+        var ol = box.querySelector('ol');
+        if (ol) ol.remove();
+        var sub = document.createElement('p');
+        sub.className = 'sub';
+        sub.textContent = 'يصير الغدير أيقونة على جهازك ويفتح مثل التطبيق.';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'install';
+        btn.textContent = 'ثبّت الغدير';
+        btn.onclick = function () {
+          var p = deferred;
+          deferred = null;
+          if (!p) return;
+          p.prompt();
+          p.userChoice.then(function () { box.remove(); }, function () { box.remove(); });
+        };
+        box.appendChild(sub);
+        box.appendChild(btn);
+      }
 
       setTimeout(function () {
+        // الكمبيوتر: يطلع بس إذا المتصفح يدعم التثبيت بضغطة.
+        if (!ios && !android && !deferred) return;
         try { localStorage.setItem(KEY, '1'); } catch (e) {}
-        var box = document.createElement('div');
+        var title = ios || android ? 'أضف الغدير للشاشة الرئيسية' : 'ثبّت الغدير على جهازك';
+        box = document.createElement('div');
         box.id = 'gh-a2hs';
         box.setAttribute('role', 'dialog');
         box.innerHTML = '<div class="bar"></div><div class="row">' +
           '<img src="icons/Icon-192.png" alt="">' +
-          '<b>أضف الغدير للشاشة الرئيسية</b>' +
-          '<button type="button" aria-label="إغلاق">×</button></div>' +
-          '<ol><li>' + steps[0] + '</li><li>' + steps[1] + '</li></ol>';
-        box.querySelector('button').onclick = function () { box.remove(); };
+          '<b>' + title + '</b>' +
+          '<button type="button" class="x" aria-label="إغلاق">×</button></div>';
+        box.querySelector('.x').onclick = function () { box.remove(); };
+        if (deferred) {
+          showInstallButton();
+        } else {
+          var steps = ios
+            ? ['اضغط زر <b>المشاركة</b> بالمتصفح', 'اختار <b>إضافة إلى الشاشة الرئيسية</b>']
+            : ['افتح <b>قائمة المتصفح</b> (⋮)', 'اختار <b>إضافة للشاشة الرئيسية</b>'];
+          var ol = document.createElement('ol');
+          ol.innerHTML = '<li>' + steps[0] + '</li><li>' + steps[1] + '</li>';
+          box.appendChild(ol);
+        }
         document.body.appendChild(box);
       }, 4000);
     })();

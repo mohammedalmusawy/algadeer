@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:share_plus/share_plus.dart';
 
 /// نوع البطاقة داخل رابط المشاركة.
@@ -62,8 +63,12 @@ abstract final class GhadeerCardLink {
   /// حدّثه برقم التطبيق بعد نشره على App Store.
   static const appStoreUrl = 'https://apps.apple.com/app/id000000000';
 
-  static String url(GhadeerCardKind kind, String id) =>
-      '$webBase/c/${kind.path}/${Uri.encodeComponent(id.trim())}';
+  /// الويب: الرابط بنفس عنوان الموقع المفتوح، حتى المستلم يكمل بنفس الموقع
+  /// (بياناته واسمه محفوظة) — مو موقع ثاني يسأله من جديد.
+  static String url(GhadeerCardKind kind, String id, {String? origin}) {
+    final base = origin ?? (kIsWeb ? Uri.base.origin : webBase);
+    return '$base/c/${kind.path}/${Uri.encodeComponent(id.trim())}';
+  }
 
   static String appUrl(GhadeerCardKind kind, String id) =>
       '$appScheme://${kind.path}/${Uri.encodeComponent(id.trim())}';

@@ -184,6 +184,10 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
   bool get _canContact => _actionsEnabled;
 
+  /// الويب: طبيب «حضوري فقط» ما يطلعله اتصال ولا واتساب (المراجعة بالحضور).
+  bool get _walkInOnlyNoContact =>
+      DoctorItem.walkInBlocksContact(doctor.bookingStatus);
+
   Future<void> _loadRatings() async {
     final summaryFuture = _engagement.fetchRatingSummary(widget.doctor.id);
     final mineFuture = _engagement.fetchMyRating(widget.doctor.id);
@@ -905,7 +909,34 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
   Widget _buildBottomBar() {
     final actions = <Widget>[];
-    if (doctor.showCallButton) {
+    if (_walkInOnlyNoContact) {
+      actions.add(
+        Expanded(
+          child: Container(
+            key: const Key('doctor-walk-in-only-note'),
+            height: 52,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: GhadeerTokens.mist,
+              borderRadius: BorderRadius.circular(GhadeerTokens.radiusMd),
+              border: Border.all(color: GhadeerTokens.line),
+            ),
+            child: Text(
+              '${DoctorGender.walkInOnly(doctor.gender)} — بدون حجز بالهاتف',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: GhadeerTokens.ink,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    if (doctor.showCallButton && !_walkInOnlyNoContact) {
       actions.add(
         Expanded(
           flex: 2,
@@ -924,7 +955,7 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
         ),
       );
     }
-    if (doctor.showWhatsAppButton) {
+    if (doctor.showWhatsAppButton && !_walkInOnlyNoContact) {
       if (actions.isNotEmpty) actions.add(const SizedBox(width: 8));
       actions.add(
         Expanded(

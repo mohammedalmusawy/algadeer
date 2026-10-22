@@ -1924,6 +1924,20 @@ class _SmartSearchPageState extends State<SmartSearchPage>
     String whatsappMessage = '',
     bool announce = false,
   }) async {
+    // الويب: طبيب «حضوري فقط» ما ينحجز بالاتصال ولا بالواتساب.
+    if (result.type == SmartSearchResultType.doctor &&
+        DoctorItem.walkInBlocksContact(result.bookingStatus)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${result.title}: المراجعة بالحضور مباشرة — بدون حجز بالهاتف '
+            'أو الواتساب.',
+          ),
+        ),
+      );
+      return;
+    }
     if (kind == VoiceContactKind.call) {
       if (!result.canCall) {
         if (!mounted) return;

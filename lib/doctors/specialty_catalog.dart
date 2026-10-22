@@ -355,6 +355,46 @@ class SpecialtyCatalog {
     return false;
   }
 
+  /// تقسيم تلقائي لطبيب اختصاصه فارغ: من اسمه ونبذته (كلمات كاملة).
+  /// الاختصاص اللي ينذكر أكثر يغلب — حتى «عيادة … لطب وتجميل الأسنان»
+  /// تطلع أسنان مو تجميلية. إذا اختصاصين بنفس العدد ما نخمّن (أحسن من قسم غلط).
+  static SpecialtyDefinition? inferFromText(String text) {
+    final words = _termWords(text);
+    if (words.isEmpty) return null;
+    SpecialtyDefinition? best;
+    var bestHits = 0;
+    var secondHits = 0;
+    for (final s in all) {
+      // كل موضع بالنص ينحسب مرة وحدة حتى لو طابق الاسم والكلمة المفتاحية.
+      final positions = <int>{};
+      for (final term in {s.nameAr, ...s.keywords}) {
+        final needle = _termWords(term);
+        if (needle.isEmpty || needle.length > words.length) continue;
+        for (var i = 0; i + needle.length <= words.length; i++) {
+          var hit = true;
+          for (var j = 0; j < needle.length; j++) {
+            if (words[i + j] != needle[j]) {
+              hit = false;
+              break;
+            }
+          }
+          if (hit) {
+            positions.addAll([for (var j = 0; j < needle.length; j++) i + j]);
+          }
+        }
+      }
+      final hits = positions.length;
+      if (hits > bestHits) {
+        secondHits = bestHits;
+        best = s;
+        bestHits = hits;
+      } else if (hits > secondHits) {
+        secondHits = hits;
+      }
+    }
+    return bestHits > secondHits ? best : null;
+  }
+
   static IconData iconFor(String specialty) {
     return match(specialty)?.icon ?? Icons.medical_information_outlined;
   }

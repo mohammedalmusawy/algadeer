@@ -184,6 +184,17 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
   bool get _canContact => _actionsEnabled;
 
+  /// طبيب «حضوري فقط»: الاتصال والواتساب يطلّعون رسالة «الحجز حضوري».
+  bool get _walkInOnly => DoctorItem.walkInBlocksContact(doctor.bookingStatus);
+
+  void _showWalkInOnlyMessage() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text(DoctorItem.walkInContactMessage)),
+      );
+  }
+
   Future<void> _loadRatings() async {
     final summaryFuture = _engagement.fetchRatingSummary(widget.doctor.id);
     final mineFuture = _engagement.fetchMyRating(widget.doctor.id);
@@ -914,7 +925,9 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
             icon: Icons.phone_in_talk_rounded,
             label: 'اتصال',
             color: GhadeerTokens.teal,
-            onTap: (!_canContact || doctor.phone.trim().isEmpty)
+            onTap: _walkInOnly
+                ? _showWalkInOnlyMessage
+                : (!_canContact || doctor.phone.trim().isEmpty)
                 ? null
                 : () {
                     _stats.recordCallTap(doctor.id);
@@ -934,7 +947,9 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
             icon: Icons.chat_rounded,
             label: 'واتساب',
             color: GhadeerTokens.whatsapp,
-            onTap: (!_canContact || doctor.whatsapp.trim().isEmpty)
+            onTap: _walkInOnly
+                ? _showWalkInOnlyMessage
+                : (!_canContact || doctor.whatsapp.trim().isEmpty)
                 ? null
                 : () async {
                     _stats.recordWhatsAppTap(doctor.id);

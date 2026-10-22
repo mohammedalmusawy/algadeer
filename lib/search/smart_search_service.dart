@@ -163,6 +163,10 @@ class SmartSearchService {
       final rows = data
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
+      // الويب: طبيب بدون اختصاص يتقسّم تلقائياً حتى يطلع ببحث الاختصاص.
+      for (final row in rows) {
+        row['specialty'] = DoctorItem.specialtyOrInferred(row);
+      }
       _doctorsCache = rows;
       _doctorsCacheAt = DateTime.now();
       return rows;

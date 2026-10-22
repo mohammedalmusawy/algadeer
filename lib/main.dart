@@ -80,16 +80,13 @@ import 'patient_health/patient_auth_page.dart';
 import 'patient_health/patient_health_gate.dart';
 import 'settings/settings_page.dart';
 import 'utils/app_pid.dart';
+import 'utils/web_launch.dart';
 import 'onboarding/app_entry_gate.dart';
 import 'theme/ghadeer_tokens.dart';
 import 'settings/whatsapp_templates_admin_page.dart';
 
-/// رابط فتح الموقع كما وصل (الويب فقط) — Flutter يرجّع العنوان لـ `/`
-/// قبل ما تنبني الرئيسية، فنحفظه هنا حتى يفتح `/#/c/doctor/<id>` البطاقة.
-Uri? _webLaunchUri;
-
 Future<void> main() async {
-  if (kIsWeb) _webLaunchUri = Uri.base;
+  if (kIsWeb) webLaunchUri = Uri.base;
   // إن ظهر [APP] PID مختلف بعد ضغط المايك = عملية جديدة (خلل CRITICAL FIX 3).
   debugPrint('[APP] PID=$appPidLabel main() enter');
   WidgetsFlutterBinding.ensureInitialized();
@@ -362,8 +359,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _initDeepLinks() async {
     try {
       if (kIsWeb) {
-        final uri = _webLaunchUri ?? Uri.base;
-        _webLaunchUri = null;
+        final uri = webLaunchUri ?? Uri.base;
+        webLaunchUri = null;
         if (isPatientHealthReturnUri(uri)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
@@ -516,7 +513,14 @@ class _HomePageState extends State<HomePage> {
   static List<Map<String, dynamic>> _sortedDoctorRows(
     List<Map<String, dynamic>> data,
   ) {
-    return List<Map<String, dynamic>>.from(data)
+    // الويب: طبيب بدون اختصاص يتقسّم تلقائياً من اسمه ونبذته.
+    final rows = kIsWeb
+        ? [
+            for (final row in data)
+              {...row, 'specialty': DoctorItem.specialtyOrInferred(row)},
+          ]
+        : List<Map<String, dynamic>>.from(data);
+    return rows
       ..sort((a, b) {
         final av = int.tryParse('${a['profile_views'] ?? 0}') ?? 0;
         final bv = int.tryParse('${b['profile_views'] ?? 0}') ?? 0;
@@ -1623,8 +1627,9 @@ class _DoctorsAdminPageState extends State<DoctorsAdminPage> {
     ];
   }
 
-  Future<void> _loadDoctors() async {
-    setState(() => _loading = true);
+  /// [silent]: تحديث بالخلفية بدون دائرة التحميل — القائمة تبقى بمكانها.
+  Future<void> _loadDoctors({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
 
     try {
       final data = await _supabase
@@ -1716,7 +1721,14 @@ class _DoctorsAdminPageState extends State<DoctorsAdminPage> {
         throw const ContentConflictException();
       }
 
-      await _loadDoctors();
+      // الويب: نحدّث الطبيب بمكانه وبعدين تحديث هادئ، حتى القائمة ما ترجع لفوق.
+      if (kIsWeb && mounted) {
+        setState(() {
+          doctor[field] = value;
+          doctor['content_revision'] = base + 1;
+        });
+      }
+      await _loadDoctors(silent: kIsWeb);
     } catch (e) {
       if (!mounted) return;
 

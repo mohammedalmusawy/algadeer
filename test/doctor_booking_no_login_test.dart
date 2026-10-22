@@ -74,7 +74,7 @@ void main() {
     expect(find.byType(TextField), findsNothing);
   });
 
-  testWidgets('حضور مباشر يبقي الاتصال وواتساب بدون حساب', (tester) async {
+  testWidgets('حضور مباشر: الاتصال وواتساب يطلّعون رسالة الحجز الحضوري بلا حساب', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -134,6 +134,14 @@ void main() {
       ),
     );
     expect(wa.onTap, isNotNull);
+
+    // حضوري فقط (22 أكتوبر): الضغط يطلّع رسالة «الحجز حضوري» بدل الاتصال.
+    await tester.tap(find.byKey(const Key('doctor-whatsapp-button')));
+    await tester.pump();
+    expect(find.text(DoctorItem.walkInContactMessage), findsOneWidget);
+    await tester.tap(find.byKey(const Key('doctor-call-button')));
+    await tester.pump();
+    expect(find.text(DoctorItem.walkInContactMessage), findsOneWidget);
     expect(find.text('سجّل الدخول'), findsNothing);
 
     await tester.ensureVisible(find.byKey(const Key('doctor-booking-button')));

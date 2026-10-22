@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../branding/ghadeer_brand_mark.dart';
 import '../doctors/doctor_gender.dart';
+import '../doctors/specialty_catalog.dart';
 import '../utils/flags.dart';
 import 'entity_social_links.dart';
 
@@ -132,10 +135,30 @@ class DoctorItem {
     );
   }
 
+  /// طبيب «حضوري فقط»: ضغط الاتصال أو الواتساب يطلّع [walkInContactMessage]
+  /// بدل ما يتصل (الموقع والتطبيق).
+  static bool walkInBlocksContact(String? bookingStatus) =>
+      (bookingStatus ?? '').trim().toLowerCase() == 'walk_in_only';
+
+  static const String walkInContactMessage =
+      'الحجز غير متاح، الحجز حضوري. راجع العيادة مباشرة.';
+
+  /// الاختصاص المحفوظ، وإذا فارغ (بالويب) نقسّمه تلقائياً من الاسم والنبذة
+  /// حتى ما يضيع الطبيب من الأقسام.
+  static String specialtyOrInferred(
+    Map<String, dynamic> data, {
+    bool infer = kIsWeb,
+  }) {
+    final saved = data['specialty']?.toString() ?? '';
+    if (saved.trim().isNotEmpty || !infer) return saved;
+    final text = '${data['doctor_name'] ?? ''} ${data['bio'] ?? ''}';
+    return SpecialtyCatalog.inferFromText(text)?.nameAr ?? saved;
+  }
+
   factory DoctorItem.fromMap(Map<String, dynamic> data) {
     return DoctorItem(
       name: data['doctor_name']?.toString() ?? '',
-      specialty: data['specialty']?.toString() ?? '',
+      specialty: specialtyOrInferred(data),
       location: data['clinic_location']?.toString() ?? '',
       available: data['booking_status']?.toString() == 'available',
       phone: data['phone']?.toString() ?? '',

@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../search/smart_search_models.dart';
 import '../search/smart_search_service.dart';
 import '../utils/contact_launch.dart';
+import '../utils/web_app_only.dart';
 import '../widgets/clinic_app_bar.dart';
 import 'attachment_view.dart';
 import 'card_export.dart';
@@ -145,7 +147,11 @@ class _FollowUpCardPageState extends State<FollowUpCardPage> {
     if (!_scheduler.isSupported) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('التذكير يشتغل من تطبيق الموبايل (أندرويد أو آيفون).'),
+          content: Text(
+            kIsWeb
+                ? kWebAppOnlyMessage
+                : 'التذكير يشتغل من تطبيق الموبايل (أندرويد أو آيفون).',
+          ),
         ),
       );
       return;

@@ -330,7 +330,8 @@ class _HomePageState extends State<HomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SmartSearchPage(autoStartVoice: voice),
+        // الويب ماكو مايك → «اسأل الغدير» وزر المايك يفتحون الكتابة.
+        builder: (_) => SmartSearchPage(autoStartVoice: voice && !kIsWeb),
       ),
     ).then((_) {
       if (!mounted) return;

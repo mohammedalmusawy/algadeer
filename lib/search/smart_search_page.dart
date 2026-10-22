@@ -24,6 +24,7 @@ import '../radiology/radiology_service.dart';
 import '../medical/medical_navigation_service.dart';
 import '../models/doctor_item.dart';
 import '../utils/contact_launch.dart';
+import '../utils/web_app_only.dart';
 import '../patient_health/patient_health_gate.dart';
 import '../settings/whatsapp_message_settings.dart';
 import '../voice/arabic_speech_numbers.dart';
@@ -2107,7 +2108,11 @@ class _SmartSearchPageState extends State<SmartSearchPage>
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('التعرف على الصوت غير متاح على هذا الجهاز'),
+            content: Text(
+              kIsWeb
+                  ? kWebAppOnlyMessage
+                  : 'التعرف على الصوت غير متاح على هذا الجهاز',
+            ),
           ),
         );
         return;

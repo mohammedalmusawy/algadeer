@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../utils/app_pid.dart';
+import '../utils/web_app_only.dart';
 
 /// طبقة STT مستقلة — لا تمر عبر AI Logic.
 abstract class SpeechRecognitionService {
@@ -384,7 +385,9 @@ class DeviceSpeechRecognitionService implements SpeechRecognitionService {
     debugPrint('[STT] PID=$pid startListening enter');
 
     if (!isSupportedOnThisPlatform) {
-      onError?.call('التعرف على الصوت غير متاح على هذا الجهاز');
+      onError?.call(
+        kIsWeb ? kWebAppOnlyMessage : 'التعرف على الصوت غير متاح على هذا الجهاز',
+      );
       return;
     }
 
